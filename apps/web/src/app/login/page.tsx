@@ -17,9 +17,18 @@ export default function LoginPage() {
     <main className={styles.loginPage}>
       <section className={styles.brandPanel} aria-label="Humanum Hukuk">
         <div className={styles.brandContent}>
-          <Image src="/images/humanum-logo.png" alt="Humanum Hukuk logosu" width={96} height={96} priority className={styles.brandLogo} />
-          <p className={styles.brandName}>HUMANUM <span>HUKUK</span></p>
-          <p className={styles.brandSlogan}>HUKUKTA ÇÖZÜM, GÜVENDE İSTİKRAR</p>
+          <Image
+            src="/images/humanum-mark.png"
+            alt="Humanum Hukuk amblemi"
+            width={72}
+            height={72}
+            priority
+            className={styles.brandMark}
+          />
+          <div className={styles.brandTypography}>
+            <p className={styles.brandName}>HUMANUM</p>
+            <p className={styles.brandDescriptor}>HUKUK &amp; DANIŞMANLIK</p>
+          </div>
         </div>
       </section>
 
