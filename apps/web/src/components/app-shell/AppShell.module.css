@@ -78,12 +78,21 @@
 .teamPanel { margin: 0 0 14px; overflow: hidden; border: 1px solid rgb(255 255 255 / 10%); border-radius: 9px; background: #0b1e32; box-shadow: 0 -14px 35px rgb(0 0 0 / 20%); }
 .teamPanelHeader { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid rgb(255 255 255 / 8%); }
 .teamPanelHeader strong { font-size: 12px; }.teamPanelHeader span { color: #98a6b5; font-size: 10px; }
+.teamList { max-height: 190px; overflow-y: auto; }
 .teamMember { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
 .memberAvatar { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #1c334b; color: #d7ac5c; font-size: 9px; font-weight: 700; }
 .teamMember > span:last-child { display: flex; flex-direction: column; gap: 2px; }.teamMember strong { font-size: 10px; }.teamMember small { color: #8d9baa; font-size: 9px; }
 .addMemberButton { display: flex; width: 100%; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-top: 1px solid rgb(255 255 255 / 8%); background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; font-weight: 600; }
 .addMemberButton:hover { background: rgb(255 255 255 / 5%); }.addMemberButton .icon { width: 16px; }
 .managementNotice { margin: 0; padding: 0 13px 12px; color: #9ba9b8; font-size: 9px; line-height: 1.5; }
+.retryButton { margin: 10px 13px; border: 0; background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; }
+.createUserForm { display: grid; gap: 9px; padding: 12px 13px; border-top: 1px solid rgb(255 255 255 / 8%); }
+.createUserForm label { display: grid; gap: 4px; color: #aab5c1; font-size: 9px; }
+.createUserForm input { width: 100%; height: 34px; border: 1px solid rgb(255 255 255 / 14%); border-radius: 5px; outline: none; padding: 0 9px; background: #07182a; color: #fff; font-size: 10px; }
+.createUserForm input:focus { border-color: #d7ac5c; }
+.createUserForm > div { display: flex; gap: 7px; justify-content: flex-end; }
+.createUserForm button { border: 0; border-radius: 4px; padding: 7px 9px; background: rgb(255 255 255 / 8%); color: #d3dbe4; cursor: pointer; font-size: 9px; }
+.createUserForm button[type="submit"] { background: #d3a956; color: #07182a; font-weight: 700; }
 .logoutLink { border-top: 1px solid rgb(255 255 255 / 7%); border-radius: 0; padding-top: 12px; }
 
 .workspace { min-height: 100vh; padding-left: var(--sidebar-width); transition: padding-left 180ms ease; }

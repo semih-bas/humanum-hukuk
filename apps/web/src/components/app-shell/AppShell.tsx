@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import styles from "./AppShell.module.css";
@@ -24,6 +24,13 @@ type AppShellProps = {
   children: ReactNode;
   headerContent?: ReactNode;
   hideTopbar?: boolean;
+};
+
+type TeamMember = {
+  id: string;
+  email: string;
+  name: string;
+  role?: string | null;
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -70,7 +77,11 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
-  const [managementNotice, setManagementNotice] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamState, setTeamState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [managementNotice, setManagementNotice] = useState("");
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const menuAreaRef = useRef<HTMLDivElement>(null);
@@ -83,6 +94,57 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     document.addEventListener("mousedown", closeMenus);
     return () => document.removeEventListener("mousedown", closeMenus);
   }, []);
+
+  async function loadTeamMembers() {
+    setTeamState("loading");
+    const { data, error } = await authClient.admin.listUsers({
+      query: { limit: 50, sortBy: "name", sortDirection: "asc" },
+    });
+
+    if (error || !data) {
+      setTeamState("error");
+      setManagementNotice("Kullanıcı listesi yüklenemedi. Lütfen tekrar deneyin.");
+      return;
+    }
+
+    setTeamMembers(data.users);
+    setTeamState("ready");
+  }
+
+  async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const formData = new FormData(form);
+    setIsCreatingUser(true);
+    setManagementNotice("");
+
+    const { error } = await authClient.admin.createUser({
+      name: String(formData.get("name") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim().toLowerCase(),
+      password: String(formData.get("password") ?? ""),
+      role: "user",
+    });
+
+    if (error) {
+      setManagementNotice(error.status === 422 || error.status === 400
+        ? "Bilgiler geçersiz veya bu e-posta adresi zaten kullanılıyor."
+        : "Kullanıcı oluşturulamadı. Lütfen tekrar deneyin.");
+      setIsCreatingUser(false);
+      return;
+    }
+
+    form.reset();
+    setCreateUserOpen(false);
+    setManagementNotice("Kullanıcı güvenli şekilde oluşturuldu.");
+    setIsCreatingUser(false);
+    await loadTeamMembers();
+  }
 
   async function handleSignOut() {
     if (isSigningOut) return;
@@ -114,15 +176,33 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
         <div className={styles.sidebarFooter}>
           {currentUser.isManager && teamOpen && (
             <div className={styles.teamPanel}>
-              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>Yönetim</span></div>
-              <p className={styles.managementNotice}>Ekip listesi güvenli kullanıcı yönetimi ekranında gösterilecek.</p>
-              <button className={styles.addMemberButton} type="button" onClick={() => setManagementNotice(true)}><Icon name="plus" />Yeni kullanıcı ekle</button>
-              {managementNotice && <p className={styles.managementNotice} role="status">Kullanıcı ekleme formu, güvenli kullanıcı yönetimi aşamasında bağlanacak.</p>}
+              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>{teamState === "ready" ? `${teamMembers.length} kişi` : "Yönetim"}</span></div>
+              <div className={styles.teamList}>
+                {teamState === "loading" && <p className={styles.managementNotice}>Kullanıcılar yükleniyor...</p>}
+                {teamState === "error" && <button className={styles.retryButton} type="button" onClick={loadTeamMembers}>Tekrar dene</button>}
+                {teamMembers.map((member) => (
+                  <div className={styles.teamMember} key={member.id}>
+                    <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
+                    <span><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
+                  </div>
+                ))}
+              </div>
+              {createUserOpen && <form className={styles.createUserForm} onSubmit={handleCreateUser}>
+                <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" disabled={isCreatingUser} /></label>
+                <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" disabled={isCreatingUser} /></label>
+                <label><span>Geçici Şifre</span><input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" disabled={isCreatingUser} /></label>
+                <div><button type="button" onClick={() => setCreateUserOpen(false)} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
+              </form>}
+              {!createUserOpen && <button className={styles.addMemberButton} type="button" onClick={() => { setCreateUserOpen(true); setManagementNotice(""); }}><Icon name="plus" />Yeni kullanıcı ekle</button>}
+              {managementNotice && <p className={styles.managementNotice} role="status">{managementNotice}</p>}
             </div>
           )}
           <button className={styles.sidebarUser} type="button" aria-expanded={teamOpen} onClick={() => {
             if (sidebarCollapsed) setSidebarCollapsed(false);
-            if (currentUser.isManager) setTeamOpen((value) => !value);
+            if (currentUser.isManager) {
+              setTeamOpen((value) => !value);
+              if (!teamOpen && teamState === "idle") void loadTeamMembers();
+            }
           }}>
             <span className={styles.avatar}>{currentUser.initials}</span>
             <span className={styles.sidebarUserText}><strong>{currentUser.name}</strong><small>{currentUser.role}</small></span>
@@ -171,6 +251,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                     setSidebarCollapsed(false);
                     setSidebarOpen(true);
                     setTeamOpen(true);
+                    if (teamState === "idle") void loadTeamMembers();
                   }}><Icon name="users" /> Kullanıcı Yönetimi</button>}
                   <button type="button" onClick={handleSignOut} disabled={isSigningOut}><Icon name="logout" /> {isSigningOut ? "Çıkış yapılıyor..." : "Çıkış Yap"}</button>
                 </div>
