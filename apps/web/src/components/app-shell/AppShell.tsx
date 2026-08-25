@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
+
+import { authClient } from "@/lib/auth-client";
 import styles from "./AppShell.module.css";
 
 type IconName =
@@ -41,19 +43,35 @@ function Icon({ name }: { name: IconName }) {
   return <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join("")
+    .toLocaleUpperCase("tr-TR") || "HU";
+}
+
 export default function AppShell({ children, headerContent, hideTopbar = false }: AppShellProps) {
   const pathname = usePathname();
-  // Gerçek kullanıcı ve ekip bilgileri güvenli oturumdan gelecek.
-  const currentUser = { initials: "MY", name: "Mehmet Y.", fullName: "Mehmet Yılmaz", role: "Yönetici", isManager: true };
-  const teamMembers = [
-    { initials: "AY", name: "Ayşe Y.", role: "Kullanıcı" },
-    { initials: "BK", name: "Burak K.", role: "Kullanıcı" },
-    { initials: "SD", name: "Selin D.", role: "Kullanıcı" },
-  ];
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const displayName = session?.user.name || "Kullanıcı";
+  const isManager = session?.user.role === "admin";
+  const currentUser = {
+    initials: getInitials(displayName),
+    name: displayName,
+    fullName: displayName,
+    email: session?.user.email ?? "",
+    role: isManager ? "Yönetici" : "Kullanıcı",
+    isManager,
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const [managementNotice, setManagementNotice] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const menuAreaRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +83,15 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     document.addEventListener("mousedown", closeMenus);
     return () => document.removeEventListener("mousedown", closeMenus);
   }, []);
+
+  async function handleSignOut() {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    await authClient.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <div className={`${styles.shell} ${sidebarCollapsed ? styles.shellCollapsed : ""}`}>
@@ -87,13 +114,8 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
         <div className={styles.sidebarFooter}>
           {currentUser.isManager && teamOpen && (
             <div className={styles.teamPanel}>
-              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>{teamMembers.length} kişi</span></div>
-              {teamMembers.map((member) => (
-                <div className={styles.teamMember} key={member.name}>
-                  <span className={styles.memberAvatar}>{member.initials}</span>
-                  <span><strong>{member.name}</strong><small>{member.role}</small></span>
-                </div>
-              ))}
+              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>Yönetim</span></div>
+              <p className={styles.managementNotice}>Ekip listesi güvenli kullanıcı yönetimi ekranında gösterilecek.</p>
               <button className={styles.addMemberButton} type="button" onClick={() => setManagementNotice(true)}><Icon name="plus" />Yeni kullanıcı ekle</button>
               {managementNotice && <p className={styles.managementNotice} role="status">Kullanıcı ekleme formu, güvenli kullanıcı yönetimi aşamasında bağlanacak.</p>}
             </div>
@@ -106,7 +128,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
             <span className={styles.sidebarUserText}><strong>{currentUser.name}</strong><small>{currentUser.role}</small></span>
             {currentUser.isManager && <span className={`${styles.teamChevron} ${teamOpen ? styles.teamChevronOpen : ""}`}><Icon name="chevron" /></span>}
           </button>
-          <Link className={styles.logoutLink} href="/login"><Icon name="logout" /><span>Çıkış Yap</span></Link>
+          <button className={styles.logoutLink} type="button" onClick={handleSignOut} disabled={isSigningOut}><Icon name="logout" /><span>{isSigningOut ? "Çıkış yapılıyor..." : "Çıkış Yap"}</span></button>
         </div>
       </aside>
 
@@ -143,14 +165,14 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
               </button>
               {openMenu === "profile" && (
                 <div className={`${styles.popover} ${styles.profilePopover}`}>
-                  <p><b>{currentUser.fullName}</b><small>mehmet@humanumhukuk.com</small></p>
+                  <p><b>{currentUser.fullName}</b><small>{currentUser.email}</small></p>
                   {currentUser.isManager && <button className={styles.profileAction} type="button" onClick={() => {
                     setOpenMenu(null);
                     setSidebarCollapsed(false);
                     setSidebarOpen(true);
                     setTeamOpen(true);
                   }}><Icon name="users" /> Kullanıcı Yönetimi</button>}
-                  <Link href="/login"><Icon name="logout" /> Çıkış Yap</Link>
+                  <button type="button" onClick={handleSignOut} disabled={isSigningOut}><Icon name="logout" /> {isSigningOut ? "Çıkış yapılıyor..." : "Çıkış Yap"}</button>
                 </div>
               )}
             </div>

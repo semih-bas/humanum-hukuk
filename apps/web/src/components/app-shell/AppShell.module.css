@@ -51,7 +51,11 @@
   gap: 14px;
   padding: 0 17px;
   border-radius: 7px;
+  border: 0;
+  background: transparent;
   color: #cbd4df;
+  cursor: pointer;
+  font: inherit;
   text-decoration: none;
   transition: background 150ms ease, color 150ms ease;
   white-space: nowrap;
@@ -104,7 +108,7 @@
 .popover b { font-size: 13px; }
 .popover small { color: #6e7987; font-size: 11px; }
 .profilePopover { width: 250px; }
-.profilePopover a, .profileAction { display: flex; width: 100%; align-items: center; gap: 9px; padding: 11px 10px; border: 0; background: transparent; color: #bf3d42; cursor: pointer; text-decoration: none; font-size: 13px; }
+.profilePopover a, .profilePopover button, .profileAction { display: flex; width: 100%; align-items: center; gap: 9px; padding: 11px 10px; border: 0; background: transparent; color: #bf3d42; cursor: pointer; text-decoration: none; font-size: 13px; }
 .profileAction { color: #244a6e; }.profileAction:hover { background: #f5f8fa; }
 .profilePopover .icon { width: 18px; }
 .content { min-height: calc(100vh - 78px); }
