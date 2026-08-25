@@ -1,0 +1,27 @@
+name: humanum-hukuk
+
+services:
+  database:
+    image: postgres:17.11-alpine3.24
+    env_file:
+      - path: ./apps/web/.env.docker
+        required: true
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - humanum_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+volumes:
+  humanum_postgres_data:
