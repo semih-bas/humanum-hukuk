@@ -108,6 +108,7 @@
 .profileAction { color: #244a6e; }.profileAction:hover { background: #f5f8fa; }
 .profilePopover .icon { width: 18px; }
 .content { min-height: calc(100vh - 78px); }
+.workspaceWithoutTopbar .content { min-height: 100vh; }
 .backdrop, .mobileClose { display: none; }
 
 .shellCollapsed { --sidebar-width: 82px; }
@@ -128,6 +129,7 @@
   .backdrop { position: fixed; inset: 0; z-index: 25; display: block; width: 100%; border: 0; background: rgb(3 12 23 / 55%); }
   .topbar { height: 68px; padding: 0 18px; }
   .content { min-height: calc(100vh - 68px); }
+  .workspaceWithoutTopbar .content { min-height: 100vh; }
   .headerContent { width: min(360px, 48vw); margin-right: 10px; }
 }
 

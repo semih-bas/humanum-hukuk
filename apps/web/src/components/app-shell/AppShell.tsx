@@ -21,6 +21,7 @@ type IconName =
 type AppShellProps = {
   children: ReactNode;
   headerContent?: ReactNode;
+  hideTopbar?: boolean;
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -40,7 +41,7 @@ function Icon({ name }: { name: IconName }) {
   return <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export default function AppShell({ children, headerContent }: AppShellProps) {
+export default function AppShell({ children, headerContent, hideTopbar = false }: AppShellProps) {
   const pathname = usePathname();
   // Gerçek kullanıcı ve ekip bilgileri güvenli oturumdan gelecek.
   const currentUser = { initials: "MY", name: "Mehmet Y.", fullName: "Mehmet Yılmaz", role: "Yönetici", isManager: true };
@@ -111,8 +112,8 @@ export default function AppShell({ children, headerContent }: AppShellProps) {
 
       {sidebarOpen && <button className={styles.backdrop} type="button" aria-label="Menüyü kapat" onClick={() => setSidebarOpen(false)} />}
 
-      <div className={styles.workspace}>
-        <header className={styles.topbar}>
+      <div className={`${styles.workspace} ${hideTopbar ? styles.workspaceWithoutTopbar : ""}`}>
+        {!hideTopbar && <header className={styles.topbar}>
           <button className={styles.menuButton} type="button" aria-label="Menüyü aç veya daralt" onClick={() => window.innerWidth < 900 ? setSidebarOpen(true) : setSidebarCollapsed((value) => !value)}>
             <Icon name="menu" />
           </button>
@@ -154,7 +155,7 @@ export default function AppShell({ children, headerContent }: AppShellProps) {
               )}
             </div>
           </div>
-        </header>
+        </header>}
 
         <main className={styles.content}>{children}</main>
       </div>

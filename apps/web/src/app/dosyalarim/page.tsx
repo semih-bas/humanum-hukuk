@@ -112,7 +112,7 @@ export default function FilesPage() {
             <div><h2>Dosya Listesi</h2>{selectedIds.length > 0 && <span>{selectedIds.length} dosya seçildi</span>}</div>
             <div className={styles.toolbarActions}>
               <button className={styles.exportButton} type="button" onClick={exportRecords}><Icon name="download" />Excel&apos;e Aktar</button>
-              <button className={styles.newFileButton} type="button" onClick={() => setNotice("Yeni Dosya ekranı sıradaki görsel aşamada hazırlanacak.")}><Icon name="plus" />Yeni Dosya<span>⌄</span></button>
+              <Link className={styles.newFileButton} href="/dosyalarim/yeni"><Icon name="plus" />Yeni Dosya<span>⌄</span></Link>
             </div>
           </header>
 
