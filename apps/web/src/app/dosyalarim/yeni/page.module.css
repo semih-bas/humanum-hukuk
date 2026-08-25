@@ -13,4 +13,6 @@
 .sectionCard { margin-top: 8px; padding: 16px; }
 .sectionCard h2 { margin-bottom: 14px; }
 .splitGrid { gap: 8px; }
-.splitGrid:last-of-type { flex: 1; }
+.newCasePage > .sectionCard,
+.newCasePage > .splitGrid { flex: 1 0 auto; }
+.splitGrid > .sectionCard { height: 100%; }
