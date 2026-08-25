@@ -1,0 +1,140 @@
+.shell {
+  --sidebar-width: 248px;
+  min-height: 100vh;
+  background: #f4f6f9;
+  color: #152133;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  display: flex;
+  width: var(--sidebar-width);
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, #07182b 0%, #041222 100%);
+  color: #f6f8fb;
+  transition: width 180ms ease, transform 180ms ease;
+}
+
+.sidebarBrand {
+  display: flex;
+  min-height: 96px;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.sidebarBrand img { object-fit: contain; }
+.brandText { display: flex; flex-direction: column; letter-spacing: .2em; white-space: nowrap; }
+.brandText span { font-family: Georgia, serif; font-size: 18px; }
+.brandText small { margin-top: 4px; color: #d3a956; font-family: Georgia, serif; font-size: 13px; letter-spacing: .3em; }
+
+.icon {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.navigation { display: grid; gap: 8px; padding: 28px 14px; }
+.navItem, .logoutLink {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 14px;
+  padding: 0 17px;
+  border-radius: 7px;
+  color: #cbd4df;
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+.navItem:hover, .logoutLink:hover { background: rgb(255 255 255 / 6%); color: #fff; }
+.navItemActive { position: relative; background: #15283d; color: #fff; }
+.navItemActive::before { position: absolute; inset: 0 auto 0 -14px; width: 3px; background: #d6aa58; content: ""; }
+.navItemActive .icon { color: #d6aa58; }
+
+.sidebarFooter { position: relative; margin-top: auto; border-top: 1px solid rgb(255 255 255 / 8%); padding: 18px 14px; }
+.sidebarUser { display: flex; width: 100%; align-items: center; gap: 12px; padding: 0 14px 18px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.sidebarUser:hover .sidebarUserText strong { color: #d9ae61; }
+.avatar { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #dfe5eb; color: #203047; font-size: 13px; font-weight: 700; }
+.sidebarUserText, .profileText { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
+.sidebarUserText strong, .profileText strong { font-size: 13px; }
+.sidebarUserText small, .profileText small { color: #9da9b7; font-size: 11px; }
+.teamChevron { display: grid; margin-left: auto; transition: transform 160ms ease; }
+.teamChevron .icon { width: 15px; transform: rotate(90deg); }
+.teamChevronOpen { transform: rotate(180deg); }
+.teamPanel { margin: 0 0 14px; overflow: hidden; border: 1px solid rgb(255 255 255 / 10%); border-radius: 9px; background: #0b1e32; box-shadow: 0 -14px 35px rgb(0 0 0 / 20%); }
+.teamPanelHeader { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid rgb(255 255 255 / 8%); }
+.teamPanelHeader strong { font-size: 12px; }.teamPanelHeader span { color: #98a6b5; font-size: 10px; }
+.teamMember { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
+.memberAvatar { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #1c334b; color: #d7ac5c; font-size: 9px; font-weight: 700; }
+.teamMember > span:last-child { display: flex; flex-direction: column; gap: 2px; }.teamMember strong { font-size: 10px; }.teamMember small { color: #8d9baa; font-size: 9px; }
+.addMemberButton { display: flex; width: 100%; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-top: 1px solid rgb(255 255 255 / 8%); background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; font-weight: 600; }
+.addMemberButton:hover { background: rgb(255 255 255 / 5%); }.addMemberButton .icon { width: 16px; }
+.managementNotice { margin: 0; padding: 0 13px 12px; color: #9ba9b8; font-size: 9px; line-height: 1.5; }
+.logoutLink { border-top: 1px solid rgb(255 255 255 / 7%); border-radius: 0; padding-top: 12px; }
+
+.workspace { min-height: 100vh; padding-left: var(--sidebar-width); transition: padding-left 180ms ease; }
+.topbar { position: sticky; top: 0; z-index: 20; display: flex; height: 78px; align-items: center; justify-content: space-between; padding: 0 30px; border-bottom: 1px solid #e6e9ed; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(20 36 56 / 4%); }
+.menuButton, .notificationButton, .profileButton, .mobileClose { border: 0; background: transparent; color: inherit; cursor: pointer; }
+.menuButton { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 7px; }
+.menuButton:hover, .notificationButton:hover { background: #f1f4f7; }
+.headerContent { width: min(430px, 40vw); margin-left: auto; margin-right: 22px; }
+.topbarMenus { display: flex; align-items: center; gap: 15px; }
+.menuWrapper { position: relative; }
+.notificationButton { position: relative; display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; }
+.notificationCount { position: absolute; top: 2px; right: 2px; display: grid; width: 17px; height: 17px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #d93d42; color: #fff; font-size: 9px; font-weight: 700; }
+.profileButton { display: flex; align-items: center; gap: 10px; padding: 5px 4px; text-align: left; }
+.profileButton > .icon { width: 15px; transform: rotate(90deg); color: #718096; }
+
+.popover { position: absolute; top: calc(100% + 13px); right: 0; width: 330px; padding: 10px; border: 1px solid #e3e7ec; border-radius: 10px; background: #fff; box-shadow: 0 18px 50px rgb(16 35 58 / 16%); }
+.popover::before { position: absolute; top: -6px; right: 16px; width: 10px; height: 10px; border-top: 1px solid #e3e7ec; border-left: 1px solid #e3e7ec; background: #fff; content: ""; transform: rotate(45deg); }
+.popoverHeader { display: flex; justify-content: space-between; padding: 9px 10px 13px; border-bottom: 1px solid #edf0f3; }
+.popoverHeader span { color: #c28e34; font-size: 11px; }
+.popover p { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 12px 10px; border-bottom: 1px solid #f0f2f5; }
+.popover p:last-child { border: 0; }
+.popover b { font-size: 13px; }
+.popover small { color: #6e7987; font-size: 11px; }
+.profilePopover { width: 250px; }
+.profilePopover a, .profileAction { display: flex; width: 100%; align-items: center; gap: 9px; padding: 11px 10px; border: 0; background: transparent; color: #bf3d42; cursor: pointer; text-decoration: none; font-size: 13px; }
+.profileAction { color: #244a6e; }.profileAction:hover { background: #f5f8fa; }
+.profilePopover .icon { width: 18px; }
+.content { min-height: calc(100vh - 78px); }
+.backdrop, .mobileClose { display: none; }
+
+.shellCollapsed { --sidebar-width: 82px; }
+.shellCollapsed .brandText, .shellCollapsed .navItem span, .shellCollapsed .sidebarUserText, .shellCollapsed .teamChevron, .shellCollapsed .logoutLink span { opacity: 0; pointer-events: none; }
+.shellCollapsed .teamPanel { display: none; }
+.shellCollapsed .sidebarBrand { justify-content: center; padding-inline: 10px; }
+.shellCollapsed .navigation { padding-inline: 12px; }
+.shellCollapsed .navItem, .shellCollapsed .logoutLink { justify-content: center; padding-inline: 0; }
+.shellCollapsed .sidebarUser { justify-content: center; padding-inline: 0; }
+.shellCollapsed .navItemActive::before { left: -12px; }
+
+@media (max-width: 899px) {
+  .shell { --sidebar-width: 0px; }
+  .sidebar { width: 270px; transform: translateX(-100%); }
+  .sidebarOpen { transform: translateX(0); }
+  .workspace { padding-left: 0; }
+  .mobileClose { display: grid; width: 38px; height: 38px; margin-left: auto; place-items: center; }
+  .backdrop { position: fixed; inset: 0; z-index: 25; display: block; width: 100%; border: 0; background: rgb(3 12 23 / 55%); }
+  .topbar { height: 68px; padding: 0 18px; }
+  .content { min-height: calc(100vh - 68px); }
+  .headerContent { width: min(360px, 48vw); margin-right: 10px; }
+}
+
+@media (max-width: 560px) {
+  .headerContent { display: none; }
+  .profileText { display: none; }
+  .topbarMenus { gap: 3px; }
+  .popover { position: fixed; top: 76px; right: 12px; left: 12px; width: auto; }
+  .popover::before { display: none; }
+}
