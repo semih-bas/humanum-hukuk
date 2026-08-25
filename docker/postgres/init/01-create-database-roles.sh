@@ -7,6 +7,7 @@ psql \
   --dbname "$POSTGRES_DB" \
   --set=migration_user="$HUMANUM_MIGRATION_DB_USER" \
   --set=migration_password="$HUMANUM_MIGRATION_DB_PASSWORD" \
+  --set=shadow_db="$HUMANUM_SHADOW_DB" \
   --set=app_user="$HUMANUM_APP_DB_USER" \
   --set=app_password="$HUMANUM_APP_DB_PASSWORD" <<'EOSQL'
 SELECT format(
@@ -27,7 +28,16 @@ SELECT format(
   :'migration_user'
 ) \gexec
 
+SELECT format(
+  'CREATE DATABASE %I OWNER %I',
+  :'shadow_db',
+  :'migration_user'
+) \gexec
+
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', current_database()) \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'shadow_db') \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', :'shadow_db', :'migration_user') \gexec
 GRANT USAGE ON SCHEMA public TO :"app_user";
 
 SELECT format('SET ROLE %I', :'migration_user') \gexec

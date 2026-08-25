@@ -3,7 +3,7 @@ import { defineConfig } from "prisma/config";
 
 import { buildDatabaseUrl } from "./src/lib/database-url";
 
-config({ path: ".env.docker", quiet: true });
+config({ path: [".env.local", ".env.docker"], quiet: true });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -12,5 +12,6 @@ export default defineConfig({
   },
   datasource: {
     url: buildDatabaseUrl("migration"),
+    shadowDatabaseUrl: buildDatabaseUrl("shadow"),
   },
 });

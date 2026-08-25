@@ -4,7 +4,7 @@ import { config } from "dotenv";
 
 import { buildDatabaseUrl } from "../src/lib/database-url";
 
-config({ path: ".env.docker", quiet: true });
+config({ path: [".env.local", ".env.docker"], quiet: true });
 
 const adapter = new PrismaPg({
   connectionString: buildDatabaseUrl("app"),
