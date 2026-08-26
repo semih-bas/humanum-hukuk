@@ -6,6 +6,8 @@ export type CaseListQuery = {
   query: string;
   page: number;
   pageSize: number;
+  sortBy: "createdAt" | "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorName" | "enforcementOffice" | "status";
+  sortDirection: "asc" | "desc";
 };
 
 export type CaseListItem = {
@@ -55,7 +57,7 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
     const page = Math.min(input.page, pageCount);
     const records = await transaction.caseFile.findMany({
       where,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ [input.sortBy]: input.sortDirection }, { id: input.sortDirection }],
       skip: (page - 1) * input.pageSize,
       take: input.pageSize,
       select: {

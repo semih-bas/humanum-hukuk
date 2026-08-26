@@ -33,6 +33,8 @@ type Pagination = {
   totalCount: number;
 };
 
+type SortField = "createdAt" | "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorName" | "enforcementOffice" | "status";
+
 const statusLabels: Record<CaseStatus, string> = {
   OPEN: "Devam Ediyor",
   ENFORCEMENT: "İcra Takibinde",
@@ -67,6 +69,8 @@ export default function FilesClient() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sortBy, setSortBy] = useState<SortField>("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
@@ -94,6 +98,8 @@ export default function FilesClient() {
           query: debouncedQuery,
           page: String(currentPage),
           pageSize: String(rowsPerPage),
+          sortBy,
+          sortDirection,
         });
         const response = await fetch(`/api/cases?${parameters}`, {
           credentials: "same-origin",
@@ -139,7 +145,7 @@ export default function FilesClient() {
 
     void loadCases();
     return () => controller.abort();
-  }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router]);
+  }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router, sortBy, sortDirection]);
 
   const allVisibleSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
   const visiblePages = useMemo(() => getVisiblePages(pagination.page, pagination.pageCount), [pagination]);
@@ -150,6 +156,12 @@ export default function FilesClient() {
 
   function toggleVisibleRecords() {
     setSelectedIds(allVisibleSelected ? [] : records.map((record) => record.id));
+  }
+
+  function changeSort(field: SortField) {
+    if (sortBy === field) setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+    else { setSortBy(field); setSortDirection("asc"); }
+    setCurrentPage(1);
   }
 
   function exportRecords() {
@@ -212,7 +224,13 @@ export default function FilesClient() {
           <table>
             <thead><tr>
               <th><input type="checkbox" aria-label="Görünen dosyaların tümünü seç" checked={allVisibleSelected} disabled={records.length === 0} onChange={toggleVisibleRecords} /></th>
-              <th>Ruhsat Sahibi <Icon name="sort" /></th><th>Araç Plakası <Icon name="sort" /></th><th>Kaza Tarihi <Icon name="sort" /></th><th>Borçlu Taraf <Icon name="sort" /></th><th>İcra Dairesi / No <Icon name="sort" /></th><th>Dosya Durumu <Icon name="sort" /></th><th>İşlemler</th>
+              <SortableHeader label="Ruhsat Sahibi" field="licenseHolder" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <SortableHeader label="Araç Plakası" field="vehiclePlate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <SortableHeader label="Kaza Tarihi" field="accidentDate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <SortableHeader label="Borçlu Taraf" field="debtorName" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <SortableHeader label="İcra Dairesi / No" field="enforcementOffice" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <SortableHeader label="Dosya Durumu" field="status" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <th>İşlemler</th>
             </tr></thead>
             <tbody>
               {!isLoading && records.map((record) => {
@@ -270,4 +288,9 @@ function formatDate(value: string): string {
 function getVisiblePages(currentPage: number, pageCount: number): number[] {
   const pages = new Set([1, pageCount, currentPage - 1, currentPage, currentPage + 1]);
   return [...pages].filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right);
+}
+
+function SortableHeader({ label, field, activeField, direction, onSort }: { label: string; field: SortField; activeField: SortField; direction: "asc" | "desc"; onSort: (field: SortField) => void }) {
+  const active = field === activeField;
+  return <th aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}><button className={`${styles.sortButton} ${active ? styles.sortActive : ""}`} type="button" onClick={() => onSort(field)} aria-label={`${label} sütununu sırala`}>{label}<Icon name="sort" /></button></th>;
 }

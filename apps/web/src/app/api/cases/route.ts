@@ -11,6 +11,8 @@ const listQuerySchema = z.object({
   query: z.string().trim().max(200).refine((value) => !CONTROL_CHARACTER_PATTERN.test(value)).default(""),
   page: z.coerce.number().int().min(1).max(1_000_000).default(1),
   pageSize: z.coerce.number().int().refine((value) => [5, 10, 20].includes(value)).default(10),
+  sortBy: z.enum(["createdAt", "licenseHolder", "vehiclePlate", "accidentDate", "debtorName", "enforcementOffice", "status"]).default("createdAt"),
+  sortDirection: z.enum(["asc", "desc"]).default("desc"),
 }).strict();
 
 export async function GET(request: Request) {
