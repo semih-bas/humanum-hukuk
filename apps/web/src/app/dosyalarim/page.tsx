@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import AppShell from "@/components/app-shell/AppShell";
 import styles from "./page.module.css";
@@ -48,13 +49,15 @@ function Icon({ name }: { name: "download" | "eye" | "more" | "plus" | "search" 
 }
 
 export default function FilesPage() {
+  const searchParams = useSearchParams();
+  const createdReference = searchParams.get("created");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [detailRecord, setDetailRecord] = useState<CaseRecord | null>(null);
   const [actionMenu, setActionMenu] = useState<number | null>(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(createdReference ? `${createdReference} numaralı dosya başarıyla oluşturuldu.` : "");
 
   const filteredRecords = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
