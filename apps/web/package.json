@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
-    "db:check": "tsx scripts/check-database.ts"
+    "db:check": "tsx scripts/check-database.ts",
+    "db:check:case-domain": "tsx scripts/check-case-domain.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "1.7.1",

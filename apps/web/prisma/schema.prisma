@@ -8,20 +8,27 @@ datasource db {
 }
 
 model User {
-  id            String     @id
+  id            String           @id
   name          String
   email         String
-  emailVerified Boolean    @default(false)
+  emailVerified Boolean          @default(false)
   image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   role          String?
-  banned        Boolean?   @default(false)
+  banned        Boolean?         @default(false)
   banReason     String?
   banExpires    DateTime?
   sessions      Session[]
   accounts      Account[]
   auditLogs     AuditLog[]
+  createdCases  CaseFile[]       @relation("CaseFileCreatedBy")
+  updatedCases  CaseFile[]       @relation("CaseFileUpdatedBy")
+  archivedCases CaseFile[]       @relation("CaseFileArchivedBy")
+  caseChanges   CaseFileChange[]
+  caseNotes     CaseNote[]
+  caseDocuments CaseDocument[]
+  caseReminders CaseReminder[]
 
   @@unique([email])
   @@index([role])
@@ -98,4 +105,148 @@ model AuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+enum CaseFileStatus {
+  OPEN
+  ENFORCEMENT
+  INSTALLMENT
+  PENDING
+  CLOSED
+}
+
+enum DebtorType {
+  INSURANCE_COMPANY
+  INDIVIDUAL
+  COMPANY
+}
+
+enum CaseFileChangeType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  PARTIALLY_SENT
+  FAILED
+  CANCELLED
+}
+
+model CaseFile {
+  id                    String           @id @default(cuid())
+  referenceNumber       String           @unique
+  licenseHolder         String
+  vehiclePlate          String
+  accidentDate          DateTime         @db.Date
+  debtorType            DebtorType
+  debtorName            String?
+  damageAmount          Decimal          @default(0) @db.Decimal(18, 2)
+  depreciationAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  profitLossAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  discountAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  enforcementOffice     String?
+  enforcementFileNumber String?
+  vehicleLien           Boolean          @default(false)
+  bankLien              Boolean          @default(false)
+  titleDeedLien         Boolean          @default(false)
+  installmentCount      Int?
+  status                CaseFileStatus   @default(OPEN)
+  version               Int              @default(1)
+  createdById           String
+  updatedById           String
+  archivedById          String?
+  archivedAt            DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  createdBy             User             @relation("CaseFileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User             @relation("CaseFileUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy            User?            @relation("CaseFileArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  changes               CaseFileChange[]
+  notes                 CaseNote[]
+  documents             CaseDocument[]
+  reminders             CaseReminder[]
+
+  @@unique([enforcementOffice, enforcementFileNumber])
+  @@index([status])
+  @@index([vehiclePlate])
+  @@index([accidentDate])
+  @@index([debtorName])
+  @@index([createdAt])
+  @@index([archivedAt])
+  @@map("case_file")
+}
+
+model CaseFileChange {
+  id              String             @id @default(cuid())
+  caseFileId      String
+  changedById     String
+  changeType      CaseFileChangeType
+  previousVersion Int?
+  newVersion      Int
+  changedFields   Json?
+  snapshot        Json
+  createdAt       DateTime           @default(now())
+  caseFile        CaseFile           @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  changedBy       User               @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([caseFileId, createdAt])
+  @@index([changedById, createdAt])
+  @@map("case_file_change")
+}
+
+model CaseNote {
+  id         String   @id @default(cuid())
+  caseFileId String
+  authorId   String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  caseFile   CaseFile @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([caseFileId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("case_note")
+}
+
+model CaseDocument {
+  id           String   @id @default(cuid())
+  caseFileId   String
+  uploadedById String
+  originalName String   @db.VarChar(255)
+  storageKey   String   @unique
+  mimeType     String   @db.VarChar(100)
+  sizeBytes    Int
+  sha256       String   @db.Char(64)
+  createdAt    DateTime @default(now())
+  caseFile     CaseFile @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([caseFileId, createdAt])
+  @@index([uploadedById, createdAt])
+  @@map("case_document")
+}
+
+model CaseReminder {
+  id          String         @id @default(cuid())
+  caseFileId  String
+  createdById String
+  title       String
+  dueAt       DateTime
+  sendEmail   Boolean        @default(true)
+  sendSms     Boolean        @default(true)
+  status      ReminderStatus @default(PENDING)
+  sentAt      DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  caseFile    CaseFile       @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([status, dueAt])
+  @@index([caseFileId, dueAt])
+  @@index([createdById, createdAt])
+  @@map("case_reminder")
 }
