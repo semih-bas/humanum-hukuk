@@ -71,12 +71,13 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState(initialMode === "edit");
-  const [activityMode, setActivityMode] = useState<"note" | "reminder" | null>(initialMode === "reminder" ? "reminder" : null);
+  const [activityMode, setActivityMode] = useState<"note" | "reminder" | "document" | null>(initialMode === "reminder" ? "reminder" : null);
   const [noteContent, setNoteContent] = useState("");
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderDueAt, setReminderDueAt] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(true);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [activitySaving, setActivitySaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -174,11 +175,14 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
     setError("");
     try {
       const isReminder = activityMode === "reminder";
-      const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/${isReminder ? "reminders" : "notes"}`, {
+      const isDocument = activityMode === "document";
+      const documentBody = new FormData();
+      if (documentFile) documentBody.set("file", documentFile);
+      const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/${isDocument ? "documents" : isReminder ? "reminders" : "notes"}`, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isReminder ? {
+        headers: isDocument ? undefined : { "Content-Type": "application/json" },
+        body: isDocument ? documentBody : JSON.stringify(isReminder ? {
           title: reminderTitle,
           dueAt: reminderDueAt ? new Date(reminderDueAt).toISOString() : "",
           sendEmail,
@@ -190,6 +194,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
       setNoteContent("");
       setReminderTitle("");
       setReminderDueAt("");
+      setDocumentFile(null);
       setActivityMode(null);
       await loadDetail();
       onSaved();
@@ -235,8 +240,11 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
       </form> : <>
         <div className={styles.detailScroll}>
           {activityMode && <form className={styles.activityForm} onSubmit={saveActivity}>
-            <div><h3>{activityMode === "note" ? "Yeni Not" : "Yeni Hatırlatma"}</h3><button type="button" onClick={() => setActivityMode(null)}>×</button></div>
-            {activityMode === "note" ? <textarea required maxLength={10_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" /> : <>
+            <div><h3>{activityMode === "note" ? "Yeni Not" : activityMode === "reminder" ? "Yeni Hatırlatma" : "Yeni Evrak"}</h3><button type="button" onClick={() => setActivityMode(null)}>×</button></div>
+            {activityMode === "note" ? <textarea required maxLength={10_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" /> : activityMode === "document" ? <>
+              <input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} />
+              <small>PDF, JPG veya PNG · En fazla 20 MB</small>
+            </> : <>
               <input required maxLength={200} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Hatırlatma başlığı" />
               <input required type="datetime-local" value={reminderDueAt} onChange={(event) => setReminderDueAt(event.target.value)} />
               <p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p>
@@ -255,7 +263,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <section className={styles.detailSection}><h3>Düzenleme Geçmişi</h3>{detail.changes.map((change) => <article key={change.id}><b>Sürüm {change.newVersion}</b><span>{change.changedBy.name} · {formatDateTime(change.createdAt)}</span><small>{changedFieldText(change.changedFields)}</small></article>)}</section>
           <section className={styles.detailSection}><h3>Notlar ({detail.notes.length}) <button type="button" onClick={() => setActivityMode("note")}>+ Not Ekle</button></h3>{detail.notes.length ? detail.notes.map((note) => <article key={note.id}><b>{note.author.name}</b><span>{formatDateTime(note.createdAt)}</span><small>{note.content}</small></article>) : <p>Henüz not yok.</p>}</section>
           <section className={styles.detailSection}><h3>Hatırlatmalar ({detail.reminders.length}) <button type="button" onClick={() => setActivityMode("reminder")}>+ Hatırlatma Ekle</button></h3>{detail.reminders.length ? detail.reminders.map((reminder) => <article key={reminder.id}><b>{reminder.title}</b><span>{formatDateTime(reminder.dueAt)} · {reminder.status}</span></article>) : <p>Henüz hatırlatma yok.</p>}</section>
-          <section className={styles.detailSection}><h3>Evraklar ({detail.documents.length})</h3>{detail.documents.length ? detail.documents.map((document) => <article key={document.id}><b>{document.originalName}</b><span>{formatBytes(document.sizeBytes)} · {formatDateTime(document.createdAt)}</span></article>) : <p>Henüz evrak yok.</p>}</section>
+          <section className={styles.detailSection}><h3>Evraklar ({detail.documents.length}) <button type="button" onClick={() => setActivityMode("document")}>+ Evrak Yükle</button></h3>{detail.documents.length ? detail.documents.map((document) => <article key={document.id}><a href={`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(document.id)}`}>{document.originalName}</a><span>{formatBytes(document.sizeBytes)} · {formatDateTime(document.createdAt)}</span></article>) : <p>Henüz evrak yok.</p>}</section>
         </div>
         <footer><button type="button" onClick={onClose}>Kapat</button><button type="button" onClick={() => setEditing(true)}>Düzenle</button></footer>
       </>)}

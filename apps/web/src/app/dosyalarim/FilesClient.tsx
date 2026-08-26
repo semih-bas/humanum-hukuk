@@ -59,6 +59,7 @@ export default function FilesClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const createdReference = searchParams.get("created");
+  const documentFailed = searchParams.get("document") === "failed";
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [records, setRecords] = useState<CaseRecord[]>([]);
@@ -69,7 +70,9 @@ export default function FilesClient() {
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [notice, setNotice] = useState(createdReference ? `${createdReference} numaralı dosya başarıyla oluşturuldu.` : "");
+  const [notice, setNotice] = useState(createdReference
+    ? `${createdReference} numaralı dosya başarıyla oluşturuldu.${documentFailed ? " Seçilen evrak yüklenemedi; dosya ayrıntısından tekrar ekleyebilirsiniz." : ""}`
+    : "");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 

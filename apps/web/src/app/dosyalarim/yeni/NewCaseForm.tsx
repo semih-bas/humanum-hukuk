@@ -8,7 +8,7 @@ import AppShell from "@/components/app-shell/AppShell";
 
 import styles from "./page.module.css";
 
-type Operation = "note" | "reminder" | null;
+type Operation = "note" | "reminder" | "document" | null;
 type Notice = { tone: "error" | "success"; message: string } | null;
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -95,6 +95,7 @@ export default function NewCaseForm() {
   const [note, setNote] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [reminder, setReminder] = useState<ReminderDraft | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft>(emptyReminder);
   const [operation, setOperation] = useState<Operation>(null);
   const [notice, setNotice] = useState<Notice>(null);
@@ -183,7 +184,7 @@ export default function NewCaseForm() {
         }),
       });
       const result = await response.json() as {
-        data?: { referenceNumber: string };
+        data?: { id: string; referenceNumber: string };
         error?: { message?: string; fields?: FieldErrors };
       };
 
@@ -197,8 +198,20 @@ export default function NewCaseForm() {
         return;
       }
 
+      let documentFailed = false;
+      if (documentFile) {
+        const documentBody = new FormData();
+        documentBody.set("file", documentFile);
+        const documentResponse = await fetch(`/api/cases/${encodeURIComponent(result.data.id)}/documents`, {
+          method: "POST",
+          credentials: "same-origin",
+          body: documentBody,
+        });
+        documentFailed = !documentResponse.ok;
+      }
+
       setNotice({ tone: "success", message: `${result.data.referenceNumber} numaralı dosya oluşturuldu.` });
-      router.push(`/dosyalarim?created=${encodeURIComponent(result.data.referenceNumber)}`);
+      router.push(`/dosyalarim?created=${encodeURIComponent(result.data.referenceNumber)}${documentFailed ? "&document=failed" : ""}`);
       router.refresh();
     } catch {
       setNotice({
@@ -298,7 +311,7 @@ export default function NewCaseForm() {
           <h2><span>8</span>Dosya İşlemleri</h2>
           <div className={styles.operationGrid}>
             <button type="button" className={note ? styles.operationAdded : ""} onClick={openNote}><Icon name="note" /><span>{note ? "Not Eklendi" : "Not Ekle"}</span></button>
-            <button type="button" onClick={() => setNotice({ tone: "error", message: "Evrak yükleme, güvenli dosya depolama adımında etkinleştirilecek." })}><Icon name="document" /><span>Evrak Ekle</span></button>
+            <button type="button" className={documentFile ? styles.operationAdded : ""} onClick={() => setOperation("document")}><Icon name="document" /><span>{documentFile ? "Evrak Eklendi" : "Evrak Ekle"}</span></button>
             <button type="button" className={reminder ? styles.operationAdded : ""} onClick={openReminder}><Icon name="bell" /><span>{reminder ? "Hatırlatma Eklendi" : "Hatırlatma Ekle"}</span></button>
           </div>
           <FieldError errors={fieldErrors} name="reminder" />
@@ -309,9 +322,10 @@ export default function NewCaseForm() {
 
     {operation && <div className={styles.modalBackdrop} onMouseDown={() => setOperation(null)}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="operation-title" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2 id="operation-title">{operation === "note" ? "Not Ekle" : "Hatırlatma Ekle"}</h2><button type="button" aria-label="Pencereyi kapat" onClick={() => setOperation(null)}><Icon name="x" /></button></header>
+        <header><h2 id="operation-title">{operation === "note" ? "Not Ekle" : operation === "reminder" ? "Hatırlatma Ekle" : "Evrak Ekle"}</h2><button type="button" aria-label="Pencereyi kapat" onClick={() => setOperation(null)}><Icon name="x" /></button></header>
         <div className={styles.modalBody}>
           {operation === "note" && <label className={styles.field}><span>Dosya Notu</span><textarea maxLength={10_000} rows={6} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
+          {operation === "document" && <label className={styles.field}><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} /></label>}
           {operation === "reminder" && <>
             <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={200} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
             <label className={styles.field}><span>Tarih ve Saat</span><input required type="datetime-local" value={reminderDraft.dueAt} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: event.target.value })} /></label>
@@ -323,6 +337,15 @@ export default function NewCaseForm() {
           <button type="button" onClick={() => {
             if (operation === "note") {
               setNote(noteDraft.trim());
+              setOperation(null);
+              return;
+            }
+
+            if (operation === "document") {
+              if (!documentFile) {
+                setNotice({ tone: "error", message: "Lütfen yüklenecek evrakı seçin." });
+                return;
+              }
               setOperation(null);
               return;
             }

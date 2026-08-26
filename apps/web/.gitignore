@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# private runtime document storage
+/.data/
+
 # next.js
 /.next/
 /out/
