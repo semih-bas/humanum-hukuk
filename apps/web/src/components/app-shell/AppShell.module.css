@@ -116,6 +116,7 @@
 .popover p:last-child { border: 0; }
 .popover b { font-size: 13px; }
 .popover small { color: #6e7987; font-size: 11px; }
+.notificationLink { display: flex; flex-direction: column; gap: 5px; padding: 12px 10px; border-bottom: 1px solid #f0f2f5; color: #17283b; text-decoration: none; }.notificationLink:hover { background: #f7f9fb; }.notificationLink:last-child { border-bottom: 0; }
 .profilePopover { width: 250px; }
 .profilePopover a, .profilePopover button, .profileAction { display: flex; width: 100%; align-items: center; gap: 9px; padding: 11px 10px; border: 0; background: transparent; color: #bf3d42; cursor: pointer; text-decoration: none; font-size: 13px; }
 .profileAction { color: #244a6e; }.profileAction:hover { background: #f5f8fa; }

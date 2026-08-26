@@ -4,6 +4,7 @@ import { prisma } from "./database";
 
 export type AdminNotification = {
   id: string;
+  caseFileId: string;
   title: string;
   dueAt: string;
   status: "PENDING" | "PARTIALLY_SENT" | "FAILED";
@@ -40,6 +41,7 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
           status: true,
           caseFile: {
             select: {
+              id: true,
               referenceNumber: true,
               vehiclePlate: true,
             },
@@ -51,6 +53,7 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
     return {
       items: reminders.map((reminder) => ({
         id: reminder.id,
+        caseFileId: reminder.caseFile.id,
         title: reminder.title,
         dueAt: reminder.dueAt.toISOString(),
         status: reminder.status as AdminNotification["status"],
@@ -61,4 +64,34 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
       generatedAt: now.toISOString(),
     };
   }, { isolationLevel: "RepeatableRead" });
+}
+
+export async function listAdminReminderTasks() {
+  const now = new Date();
+  const where: Prisma.CaseReminderWhereInput = {
+    status: { in: ["PENDING", "PARTIALLY_SENT", "FAILED"] },
+    caseFile: { archivedAt: null },
+  };
+  const [totalCount, reminders] = await prisma.$transaction([
+    prisma.caseReminder.count({ where }),
+    prisma.caseReminder.findMany({
+      where,
+      orderBy: [{ dueAt: "asc" }, { id: "asc" }],
+      take: 200,
+      select: {
+        id: true,
+        title: true,
+        dueAt: true,
+        status: true,
+        sendEmail: true,
+        sendSms: true,
+        caseFile: { select: { referenceNumber: true, vehiclePlate: true } },
+        createdBy: { select: { name: true } },
+      },
+    }),
+  ]);
+  return {
+    totalCount,
+    items: reminders.map((reminder) => ({ ...reminder, dueAt: reminder.dueAt.toISOString(), overdue: reminder.dueAt < now })),
+  };
 }

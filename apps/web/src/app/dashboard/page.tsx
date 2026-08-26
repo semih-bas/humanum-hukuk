@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
+import Link from "next/link";
 
 import AppShell from "@/components/app-shell/AppShell";
 import { getDashboardSummary } from "@/lib/dashboard-summary";
+import { requireSession } from "@/lib/session";
 
 import styles from "./page.module.css";
 
@@ -14,7 +16,9 @@ function SummaryIcon({ name }: { name: "briefcase" | "lock" | "document" }) {
 }
 
 export default async function DashboardPage() {
-  const summary = await getDashboardSummary();
+  const session = await requireSession();
+  const isManager = session.user.role === "admin";
+  const summary = await getDashboardSummary(isManager);
   const summaryCards = [
     { label: "Açık Dosyalar", value: summary.counts.open, icon: "briefcase", tone: "gold" },
     { label: "Kapalı Dosyalar", value: summary.counts.closed, icon: "lock", tone: "green" },
@@ -40,7 +44,7 @@ export default async function DashboardPage() {
         </article>)}
       </section>
 
-      <section className={styles.detailGrid}>
+      <section className={`${styles.detailGrid} ${!isManager ? styles.detailGridTwo : ""}`}>
         <article className={styles.panel}>
           <header className={styles.panelHeader}><div><h2>Dosya Durum Dağılımı</h2><p>Aktif ve tamamlanan dosyalar</p></div></header>
           <div className={styles.distributionBody}>
@@ -62,17 +66,17 @@ export default async function DashboardPage() {
           </div>
         </article>
 
-        <article className={styles.panel}>
+        {isManager && <article className={styles.panel}>
           <header className={styles.panelHeader}><div><h2>Yaklaşan Görevler</h2><p>En yakın üç hatırlatma</p></div><span className={styles.taskCount}>{summary.reminders.length}</span></header>
           <div className={styles.taskList}>
-            {summary.reminders.map((reminder) => <div className={styles.task} key={reminder.id}>
+            {summary.reminders.map((reminder) => <Link className={styles.task} href={`/dosyalarim?query=${encodeURIComponent(reminder.referenceNumber)}`} key={reminder.id}>
               <span className={styles.calendarIcon}><span>{formatDay(reminder.dueAt)}</span></span>
               <div><strong>{reminder.title}</strong><small>{reminder.referenceNumber} · {formatDateTime(reminder.dueAt)}</small></div>
-            </div>)}
+            </Link>)}
             {summary.reminders.length === 0 && <p className={styles.emptyTasks}>Yaklaşan hatırlatma bulunmuyor.</p>}
           </div>
-          <div className={styles.allTasks}>Tüm görevler hatırlatma ekranında yönetilecek <span>→</span></div>
-        </article>
+          <Link className={styles.allTasks} href="/hatirlatmalar">Tüm görevler <span>→</span></Link>
+        </article>}
       </section>
     </div>
   </AppShell>;

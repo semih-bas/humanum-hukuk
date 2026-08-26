@@ -35,6 +35,7 @@ type TeamMember = {
 
 type AdminNotification = {
   id: string;
+  caseFileId: string;
   title: string;
   dueAt: string;
   status: "PENDING" | "PARTIALLY_SENT" | "FAILED";
@@ -292,10 +293,10 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   {notificationState === "loading" && <p><small>Bildirimler yükleniyor...</small></p>}
                   {notificationState === "error" && <p><b>Bildirimler yüklenemedi</b><small>Tekrar denemek için zil simgesine basın.</small></p>}
                   {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
-                  {notifications.map((notification) => <p key={notification.id}>
+                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?query=${encodeURIComponent(notification.referenceNumber)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
                     <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
                     <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
-                  </p>)}
+                  </Link>)}
                 </div>
               )}
             </div>}

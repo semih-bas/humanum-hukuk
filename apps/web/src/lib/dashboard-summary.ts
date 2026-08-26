@@ -35,7 +35,7 @@ export type DashboardSummary = {
   }>;
 };
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(includeReminders: boolean): Promise<DashboardSummary> {
   return prisma.$transaction(async (transaction) => {
     const [statusGroups, totalAmounts, closedAmounts, reminders] = await Promise.all([
       transaction.caseFile.groupBy({
@@ -61,7 +61,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
           discountAmount: true,
         },
       }),
-      transaction.caseReminder.findMany({
+      includeReminders ? transaction.caseReminder.findMany({
         where: {
           status: "PENDING",
           dueAt: { gte: new Date() },
@@ -80,7 +80,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
             },
           },
         },
-      }),
+      }) : Promise.resolve([]),
     ]);
 
     const closed = statusGroups.find((group) => group.status === "CLOSED")?._count._all ?? 0;

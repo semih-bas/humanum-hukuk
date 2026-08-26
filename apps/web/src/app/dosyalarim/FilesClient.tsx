@@ -60,8 +60,9 @@ export default function FilesClient() {
   const searchParams = useSearchParams();
   const createdReference = searchParams.get("created");
   const documentFailed = searchParams.get("document") === "failed";
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const initialQuery = searchParams.get("query")?.slice(0, 200) ?? "";
+  const [query, setQuery] = useState(initialQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim());
   const [records, setRecords] = useState<CaseRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
