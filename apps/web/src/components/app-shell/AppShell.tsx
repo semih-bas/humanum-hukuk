@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import styles from "./AppShell.module.css";
@@ -31,6 +31,15 @@ type TeamMember = {
   email: string;
   name: string;
   role?: string | null;
+};
+
+type AdminNotification = {
+  id: string;
+  title: string;
+  dueAt: string;
+  status: "PENDING" | "PARTIALLY_SENT" | "FAILED";
+  referenceNumber: string;
+  vehiclePlate: string;
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -84,7 +93,41 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notificationState, setNotificationState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const menuAreaRef = useRef<HTMLDivElement>(null);
+
+  const loadNotifications = useCallback(async (signal?: AbortSignal) => {
+    setNotificationState("loading");
+
+    try {
+      const response = await fetch("/api/notifications", {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal,
+      });
+      const result = await response.json() as {
+        data?: { items: AdminNotification[]; totalCount: number };
+      };
+
+      if (!response.ok || !result.data) {
+        throw new Error("Notifications unavailable");
+      }
+
+      setNotifications(result.data.items);
+      setNotificationCount(result.data.totalCount);
+      setNotificationState("ready");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      setNotifications([]);
+      setNotificationCount(0);
+      setNotificationState("error");
+    }
+  }, []);
 
   useEffect(() => {
     function closeMenus(event: MouseEvent) {
@@ -94,6 +137,19 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     document.addEventListener("mousedown", closeMenus);
     return () => document.removeEventListener("mousedown", closeMenus);
   }, []);
+
+  useEffect(() => {
+    if (!isManager) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => void loadNotifications(controller.signal), 0);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [isManager, loadNotifications]);
 
   async function loadTeamMembers() {
     setTeamState("loading");
@@ -224,15 +280,22 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
 
           <div className={styles.topbarMenus} ref={menuAreaRef}>
             {currentUser.isManager && <div className={styles.menuWrapper}>
-              <button className={styles.notificationButton} type="button" aria-label="Bildirimler" aria-expanded={openMenu === "notifications"} onClick={() => setOpenMenu((value) => value === "notifications" ? null : "notifications")}>
-                <Icon name="bell" /><span className={styles.notificationCount}>3</span>
+              <button className={styles.notificationButton} type="button" aria-label="Bildirimler" aria-expanded={openMenu === "notifications"} onClick={() => {
+                setOpenMenu((value) => value === "notifications" ? null : "notifications");
+                if (notificationState === "error") void loadNotifications();
+              }}>
+                <Icon name="bell" />{notificationCount > 0 && <span className={styles.notificationCount}>{Math.min(notificationCount, 99)}</span>}
               </button>
               {openMenu === "notifications" && (
                 <div className={styles.popover}>
-                  <div className={styles.popoverHeader}><strong>Bildirimler</strong><span>3 yeni</span></div>
-                  <p><b>ABC Sigorta</b><small>Takım duruşması yarın 10:30’da.</small></p>
-                  <p><b>XYZ A.Ş.</b><small>İcra takibi için yeni hatırlatma.</small></p>
-                  <p><b>Dosya güncellendi</b><small>34 ABC 123 numaralı dosya düzenlendi.</small></p>
+                  <div className={styles.popoverHeader}><strong>Bildirimler</strong><span>{notificationCount} yaklaşan</span></div>
+                  {notificationState === "loading" && <p><small>Bildirimler yükleniyor...</small></p>}
+                  {notificationState === "error" && <p><b>Bildirimler yüklenemedi</b><small>Tekrar denemek için zil simgesine basın.</small></p>}
+                  {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
+                  {notifications.map((notification) => <p key={notification.id}>
+                    <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
+                    <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
+                  </p>)}
                 </div>
               )}
             </div>}
@@ -264,4 +327,12 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
       </div>
     </div>
   );
+}
+
+function formatNotificationDate(value: string): string {
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Istanbul",
+  }).format(new Date(value));
 }
