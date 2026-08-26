@@ -43,6 +43,7 @@
 .calendarIcon::before { width: 100%; height: 7px; align-self: start; border-radius: 6px 6px 0 0; background: #d74b50; content: ""; }
 .calendarIcon span { margin-top: -7px; font-size: 12px; font-weight: 700; }
 .task div { display: flex; flex-direction: column; gap: 7px; }.task strong { color: #283446; font-size: 11px; line-height: 1.4; }.task small { color: #89939f; font-size: 10px; }
+.emptyTasks { margin: 0; padding: 40px 0; color: #89939f; text-align: center; font-size: 11px; }
 .allTasks { display: flex; min-height: 56px; align-items: center; justify-content: space-between; padding: 0 23px; border: 0; border-top: 1px solid #edf0f3; background: #fff; color: #1c69a7; cursor: pointer; font-size: 11px; font-weight: 600; }
 .allTasks:hover { background: #f8fbfd; }.allTasks span { font-size: 18px; }
 
