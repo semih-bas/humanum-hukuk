@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24.12.0-bookworm-slim AS dependencies
+FROM node:24.12.0-bookworm-slim AS base
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -14,7 +19,7 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     BETTER_AUTH_SECRET=build-only-placeholder-secret-at-least-32-characters
 RUN npm run db:generate && npm run build
 
-FROM node:24.12.0-bookworm-slim AS migrator
+FROM base AS migrator
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -23,7 +28,7 @@ COPY prisma ./prisma
 COPY src/lib/database-url.ts src/lib/environment.ts ./src/lib/
 CMD ["npx", "prisma", "migrate", "deploy"]
 
-FROM node:24.12.0-bookworm-slim AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 RUN groupadd --system --gid 1001 nodejs \
