@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
+import { buildSpreadsheetCsv } from "@/lib/csv-export";
 
 import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
@@ -185,7 +186,7 @@ export default function FilesClient() {
         statusLabels[record.status],
       ]),
     ];
-    const csv = `\uFEFF${rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+    const csv = buildSpreadsheetCsv(rows);
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
