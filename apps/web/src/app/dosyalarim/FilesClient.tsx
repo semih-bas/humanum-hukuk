@@ -66,7 +66,7 @@ export default function FilesClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
-  const [detailRequest, setDetailRequest] = useState<{ id: string; editing: boolean } | null>(null);
+  const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference ? `${createdReference} numaralı dosya başarıyla oluşturuldu.` : "");
@@ -222,10 +222,10 @@ export default function FilesClient() {
                   <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
                   <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
                   <td><div className={styles.rowActions}>
-                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRequest({ id: record.id, editing: false })}><Icon name="eye" /></button>
+                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
                     <div className={styles.actionWrapper}>
                       <button type="button" aria-label={`${record.vehiclePlate} işlem menüsü`} aria-expanded={actionMenu === record.id} onClick={() => setActionMenu((id) => id === record.id ? null : record.id)}><Icon name="more" /></button>
-                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setDetailRequest({ id: record.id, editing: true }); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için yeni hatırlatma ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
+                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setDetailRequest({ id: record.id, mode: "edit" }); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setDetailRequest({ id: record.id, mode: "reminder" }); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
                     </div>
                   </div></td>
                 </tr>;
@@ -252,7 +252,7 @@ export default function FilesClient() {
 
     {detailRequest && <CaseDetailModal
       caseId={detailRequest.id}
-      startEditing={detailRequest.editing}
+      initialMode={detailRequest.mode}
       onClose={() => setDetailRequest(null)}
       onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
     />}

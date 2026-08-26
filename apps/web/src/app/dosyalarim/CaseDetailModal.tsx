@@ -62,15 +62,22 @@ const fieldLabels: Record<string, string> = {
   installmentCount: "Taksit sayısı", status: "Dosya durumu",
 };
 
-export default function CaseDetailModal({ caseId, startEditing, onClose, onSaved }: {
+export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved }: {
   caseId: string;
-  startEditing: boolean;
+  initialMode: "view" | "edit" | "reminder";
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [editing, setEditing] = useState(startEditing);
+  const [editing, setEditing] = useState(initialMode === "edit");
+  const [activityMode, setActivityMode] = useState<"note" | "reminder" | null>(initialMode === "reminder" ? "reminder" : null);
+  const [noteContent, setNoteContent] = useState("");
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [reminderDueAt, setReminderDueAt] = useState("");
+  const [sendEmail, setSendEmail] = useState(true);
+  const [sendSms, setSendSms] = useState(true);
+  const [activitySaving, setActivitySaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -160,6 +167,39 @@ export default function CaseDetailModal({ caseId, startEditing, onClose, onSaved
     }
   }
 
+  async function saveActivity(event: FormEvent) {
+    event.preventDefault();
+    if (!activityMode || activitySaving) return;
+    setActivitySaving(true);
+    setError("");
+    try {
+      const isReminder = activityMode === "reminder";
+      const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/${isReminder ? "reminders" : "notes"}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isReminder ? {
+          title: reminderTitle,
+          dueAt: reminderDueAt ? new Date(reminderDueAt).toISOString() : "",
+          sendEmail,
+          sendSms,
+        } : { content: noteContent }),
+      });
+      const result = await response.json() as { data?: { id: string }; error?: { message?: string } };
+      if (!response.ok || !result.data) throw new Error(result.error?.message ?? "Bilgi eklenemedi.");
+      setNoteContent("");
+      setReminderTitle("");
+      setReminderDueAt("");
+      setActivityMode(null);
+      await loadDetail();
+      onSaved();
+    } catch (activityError) {
+      setError(activityError instanceof Error ? activityError.message : "Bilgi eklenemedi.");
+    } finally {
+      setActivitySaving(false);
+    }
+  }
+
   return <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
     <section className={`${styles.detailModal} ${styles.fullDetailModal}`} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
       <header>
@@ -194,6 +234,15 @@ export default function CaseDetailModal({ caseId, startEditing, onClose, onSaved
         <footer><button type="button" onClick={() => { setDraft(toDraft(detail)); setEditing(false); setError(""); }}>Vazgeç</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}</button></footer>
       </form> : <>
         <div className={styles.detailScroll}>
+          {activityMode && <form className={styles.activityForm} onSubmit={saveActivity}>
+            <div><h3>{activityMode === "note" ? "Yeni Not" : "Yeni Hatırlatma"}</h3><button type="button" onClick={() => setActivityMode(null)}>×</button></div>
+            {activityMode === "note" ? <textarea required maxLength={10_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" /> : <>
+              <input required maxLength={200} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Hatırlatma başlığı" />
+              <input required type="datetime-local" value={reminderDueAt} onChange={(event) => setReminderDueAt(event.target.value)} />
+              <p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p>
+            </>}
+            <button type="submit" disabled={activitySaving}>{activitySaving ? "Ekleniyor…" : "Kaydet"}</button>
+          </form>}
           <dl>
             <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} /><Detail label="Borçlu Taraf" value={detail.debtorName ?? "—"} />
             <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} /><Detail label="Dosya Durumu" value={statusLabels[detail.status]} />
@@ -204,8 +253,8 @@ export default function CaseDetailModal({ caseId, startEditing, onClose, onSaved
             <Detail label="Son Güncelleyen" value={`${detail.updatedBy.name} · ${formatDateTime(detail.updatedAt)}`} />
           </dl>
           <section className={styles.detailSection}><h3>Düzenleme Geçmişi</h3>{detail.changes.map((change) => <article key={change.id}><b>Sürüm {change.newVersion}</b><span>{change.changedBy.name} · {formatDateTime(change.createdAt)}</span><small>{changedFieldText(change.changedFields)}</small></article>)}</section>
-          <section className={styles.detailSection}><h3>Notlar ({detail.notes.length})</h3>{detail.notes.length ? detail.notes.map((note) => <article key={note.id}><b>{note.author.name}</b><span>{formatDateTime(note.createdAt)}</span><small>{note.content}</small></article>) : <p>Henüz not yok.</p>}</section>
-          <section className={styles.detailSection}><h3>Hatırlatmalar ({detail.reminders.length})</h3>{detail.reminders.length ? detail.reminders.map((reminder) => <article key={reminder.id}><b>{reminder.title}</b><span>{formatDateTime(reminder.dueAt)} · {reminder.status}</span></article>) : <p>Henüz hatırlatma yok.</p>}</section>
+          <section className={styles.detailSection}><h3>Notlar ({detail.notes.length}) <button type="button" onClick={() => setActivityMode("note")}>+ Not Ekle</button></h3>{detail.notes.length ? detail.notes.map((note) => <article key={note.id}><b>{note.author.name}</b><span>{formatDateTime(note.createdAt)}</span><small>{note.content}</small></article>) : <p>Henüz not yok.</p>}</section>
+          <section className={styles.detailSection}><h3>Hatırlatmalar ({detail.reminders.length}) <button type="button" onClick={() => setActivityMode("reminder")}>+ Hatırlatma Ekle</button></h3>{detail.reminders.length ? detail.reminders.map((reminder) => <article key={reminder.id}><b>{reminder.title}</b><span>{formatDateTime(reminder.dueAt)} · {reminder.status}</span></article>) : <p>Henüz hatırlatma yok.</p>}</section>
           <section className={styles.detailSection}><h3>Evraklar ({detail.documents.length})</h3>{detail.documents.length ? detail.documents.map((document) => <article key={document.id}><b>{document.originalName}</b><span>{formatBytes(document.sizeBytes)} · {formatDateTime(document.createdAt)}</span></article>) : <p>Henüz evrak yok.</p>}</section>
         </div>
         <footer><button type="button" onClick={onClose}>Kapat</button><button type="button" onClick={() => setEditing(true)}>Düzenle</button></footer>

@@ -30,7 +30,7 @@ const money = z
   .transform((value) => new Prisma.Decimal(value))
   .refine((value) => value.lte(MAX_MONEY), "Tutar izin verilen üst sınırı aşıyor.");
 
-const reminderSchema = z.object({
+export const addCaseReminderSchema = z.object({
   title: requiredText("Hatırlatma başlığı", 200),
   dueAt: z.iso.datetime({ offset: true, error: "Hatırlatma tarihi geçerli bir tarih-saat olmalıdır." })
     .transform((value) => new Date(value)),
@@ -75,7 +75,11 @@ const rawCaseCoreSchema = z.object({
 
 const rawCreateCaseSchema = rawCaseCoreSchema.extend({
   note: optionalText("Not", 10_000),
-  reminder: reminderSchema.nullable().optional().transform((value) => value ?? null),
+  reminder: addCaseReminderSchema.nullable().optional().transform((value) => value ?? null),
+}).strict();
+
+export const addCaseNoteSchema = z.object({
+  content: requiredText("Not", 10_000),
 }).strict();
 
 type CaseCoreInput = z.infer<typeof rawCaseCoreSchema>;
