@@ -2,7 +2,51 @@ import { Prisma } from "@/generated/prisma/client";
 import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
 import { createCaseFile } from "@/lib/cases/create-case";
 import { createCaseSchema } from "@/lib/cases/create-case-input";
+import { listCaseFiles } from "@/lib/cases/list-cases";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/;
+const listQuerySchema = z.object({
+  query: z.string().trim().max(200).refine((value) => !CONTROL_CHARACTER_PATTERN.test(value)).default(""),
+  page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  pageSize: z.coerce.number().int().refine((value) => [5, 10, 20].includes(value)).default(10),
+}).strict();
+
+export async function GET(request: Request) {
+  try {
+    await requireApiSession(request);
+    const url = new URL(request.url);
+    const validation = listQuerySchema.safeParse(Object.fromEntries(url.searchParams.entries()));
+
+    if (!validation.success) {
+      return jsonResponse({
+        error: {
+          code: "INVALID_QUERY",
+          message: "Listeleme parametreleri geçerli değil.",
+        },
+      }, 400);
+    }
+
+    const result = await listCaseFiles(validation.data);
+    return jsonResponse({ data: result }, 200);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
+    }
+
+    console.error("Failed to list case files", {
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+
+    return jsonResponse({
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Dosyalar listelenirken beklenmeyen bir hata oluştu.",
+      },
+    }, 500);
+  }
+}
 
 export async function POST(request: Request) {
   try {

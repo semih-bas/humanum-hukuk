@@ -1,0 +1,285 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+import AppShell from "@/components/app-shell/AppShell";
+
+import styles from "./page.module.css";
+
+type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
+
+type CaseRecord = {
+  id: string;
+  referenceNumber: string;
+  licenseHolder: string;
+  vehiclePlate: string;
+  accidentDate: string;
+  debtorName: string | null;
+  enforcementOffice: string | null;
+  enforcementFileNumber: string | null;
+  status: CaseStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type Pagination = {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  totalCount: number;
+};
+
+const statusLabels: Record<CaseStatus, string> = {
+  OPEN: "Devam Ediyor",
+  ENFORCEMENT: "İcra Takibinde",
+  INSTALLMENT: "Taksitli Ödeme",
+  PENDING: "Beklemede",
+  CLOSED: "Sonuçlandı",
+};
+
+function Icon({ name }: { name: "download" | "eye" | "more" | "plus" | "search" | "sort" | "x" }) {
+  const paths = {
+    download: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2" /></>,
+    eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
+    more: <><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></>,
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
+    sort: <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" />,
+    x: <><path d="m6 6 12 12M18 6 6 18" /></>,
+  };
+
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+export default function FilesClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const createdReference = searchParams.get("created");
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [records, setRecords] = useState<CaseRecord[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
+  const [detailRecord, setDetailRecord] = useState<CaseRecord | null>(null);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [notice, setNotice] = useState(createdReference ? `${createdReference} numaralı dosya başarıyla oluşturuldu.` : "");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadCases() {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const parameters = new URLSearchParams({
+          query: debouncedQuery,
+          page: String(currentPage),
+          pageSize: String(rowsPerPage),
+        });
+        const response = await fetch(`/api/cases?${parameters}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = await response.json() as {
+          data?: { items: CaseRecord[]; pagination: Pagination };
+          error?: { message?: string };
+        };
+
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!response.ok || !result.data) {
+          throw new Error(result.error?.message ?? "Dosyalar yüklenemedi.");
+        }
+
+        setRecords(result.data.items);
+        setPagination(result.data.pagination);
+        setSelectedIds([]);
+        setActionMenu(null);
+
+        if (result.data.pagination.page !== currentPage) {
+          setCurrentPage(result.data.pagination.page);
+        }
+      } catch (loadError) {
+        if (loadError instanceof DOMException && loadError.name === "AbortError") {
+          return;
+        }
+
+        setRecords([]);
+        setSelectedIds([]);
+        setError(loadError instanceof Error ? loadError.message : "Dosyalar yüklenemedi.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadCases();
+    return () => controller.abort();
+  }, [debouncedQuery, currentPage, rowsPerPage, router]);
+
+  const allVisibleSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
+  const visiblePages = useMemo(() => getVisiblePages(pagination.page, pagination.pageCount), [pagination]);
+
+  function toggleRecord(id: string) {
+    setSelectedIds((ids) => ids.includes(id) ? ids.filter((selectedId) => selectedId !== id) : [...ids, id]);
+  }
+
+  function toggleVisibleRecords() {
+    setSelectedIds(allVisibleSelected ? [] : records.map((record) => record.id));
+  }
+
+  function exportRecords() {
+    const exportList = selectedIds.length ? records.filter((record) => selectedIds.includes(record.id)) : records;
+
+    if (exportList.length === 0) {
+      setNotice("Dışa aktarılacak dosya bulunmuyor.");
+      return;
+    }
+
+    const rows = [
+      ["Dosya No", "Ruhsat Sahibi", "Araç Plakası", "Kaza Tarihi", "Borçlu Taraf", "İcra Dairesi", "İcra Dosya No", "Durum"],
+      ...exportList.map((record) => [
+        record.referenceNumber,
+        record.licenseHolder,
+        record.vehiclePlate,
+        formatDate(record.accidentDate),
+        record.debtorName ?? "",
+        record.enforcementOffice ?? "",
+        record.enforcementFileNumber ?? "",
+        statusLabels[record.status],
+      ]),
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";")).join("\n")}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "humanum-dosyalari.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    setNotice(`${exportList.length} görüntülenen dosya dışa aktarıldı.`);
+  }
+
+  const searchField = <label className={styles.searchField}>
+    <span className={styles.srOnly}>Dosyalarda ara</span>
+    <input value={query} onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }} maxLength={200} placeholder="Plaka, dosya no, taraf, sigorta..." />
+    <Icon name="search" />
+  </label>;
+
+  return <AppShell headerContent={searchField}>
+    <div className={styles.filesPage}>
+      <header className={styles.pageHeader}>
+        <div><h1>Dosyalarım</h1><p><Link href="/dashboard">Ana Sayfa</Link><span>›</span>Dosyalarım</p></div>
+        <div className={styles.mobileSearch}>{searchField}</div>
+      </header>
+
+      <section className={styles.tableCard}>
+        <header className={styles.tableToolbar}>
+          <div><h2>Dosya Listesi</h2>{selectedIds.length > 0 && <span>{selectedIds.length} dosya seçildi</span>}</div>
+          <div className={styles.toolbarActions}>
+            <button className={styles.exportButton} type="button" disabled={isLoading} onClick={exportRecords}><Icon name="download" />Excel&apos;e Aktar</button>
+            <Link className={styles.newFileButton} href="/dosyalarim/yeni"><Icon name="plus" />Yeni Dosya<span>⌄</span></Link>
+          </div>
+        </header>
+
+        {notice && <p className={styles.notice} role="status">{notice}<button type="button" aria-label="Bildirimi kapat" onClick={() => setNotice("")}><Icon name="x" /></button></p>}
+        {error && <p className={`${styles.notice} ${styles.errorNotice}`} role="alert">{error}<button type="button" aria-label="Hatayı kapat" onClick={() => setError("")}><Icon name="x" /></button></p>}
+
+        <div className={styles.tableViewport}>
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" aria-label="Görünen dosyaların tümünü seç" checked={allVisibleSelected} disabled={records.length === 0} onChange={toggleVisibleRecords} /></th>
+              <th>Ruhsat Sahibi <Icon name="sort" /></th><th>Araç Plakası <Icon name="sort" /></th><th>Kaza Tarihi <Icon name="sort" /></th><th>Borçlu Taraf <Icon name="sort" /></th><th>İcra Dairesi / No <Icon name="sort" /></th><th>Dosya Durumu <Icon name="sort" /></th><th>İşlemler</th>
+            </tr></thead>
+            <tbody>
+              {!isLoading && records.map((record) => {
+                const statusLabel = statusLabels[record.status];
+                return <tr key={record.id}>
+                  <td><input type="checkbox" aria-label={`${record.vehiclePlate} dosyasını seç`} checked={selectedIds.includes(record.id)} onChange={() => toggleRecord(record.id)} /></td>
+                  <td><strong>{record.licenseHolder}</strong><small>{record.referenceNumber}{record.version > 1 ? " · Düzenlendi" : ""}</small></td>
+                  <td>{record.vehiclePlate}</td>
+                  <td>{formatDate(record.accidentDate)}</td>
+                  <td>{record.debtorName ?? "—"}</td>
+                  <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
+                  <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
+                  <td><div className={styles.rowActions}>
+                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRecord(record)}><Icon name="eye" /></button>
+                    <div className={styles.actionWrapper}>
+                      <button type="button" aria-label={`${record.vehiclePlate} işlem menüsü`} aria-expanded={actionMenu === record.id} onClick={() => setActionMenu((id) => id === record.id ? null : record.id)}><Icon name="more" /></button>
+                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için düzenleme ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için yeni hatırlatma ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
+                    </div>
+                  </div></td>
+                </tr>;
+              })}
+              {isLoading && <tr><td className={styles.emptyState} colSpan={8}>Dosyalar yükleniyor…</td></tr>}
+              {!isLoading && !error && records.length === 0 && <tr><td className={styles.emptyState} colSpan={8}>{debouncedQuery ? "Aramanızla eşleşen dosya bulunamadı." : "Henüz kayıtlı dosya bulunmuyor."}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <footer className={styles.tableFooter}>
+          <p>{pagination.totalCount ? (pagination.page - 1) * pagination.pageSize + 1 : 0} - {Math.min(pagination.page * pagination.pageSize, pagination.totalCount)} / {pagination.totalCount} kayıt gösteriliyor</p>
+          <div className={styles.pagination}>
+            <button type="button" disabled={isLoading || pagination.page === 1} onClick={() => setCurrentPage(1)}>«</button>
+            <button type="button" disabled={isLoading || pagination.page === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>‹</button>
+            {visiblePages.map((page) => <button className={pagination.page === page ? styles.activePage : ""} type="button" key={page} disabled={isLoading} onClick={() => setCurrentPage(page)}>{page}</button>)}
+            <button type="button" disabled={isLoading || pagination.page === pagination.pageCount} onClick={() => setCurrentPage((page) => Math.min(pagination.pageCount, page + 1))}>›</button>
+            <button type="button" disabled={isLoading || pagination.page === pagination.pageCount} onClick={() => setCurrentPage(pagination.pageCount)}>»</button>
+          </div>
+          <label className={styles.rowsPerPage}><select value={rowsPerPage} disabled={isLoading} onChange={(event) => { setRowsPerPage(Number(event.target.value)); setCurrentPage(1); }}><option value="5">5 / sayfa</option><option value="10">10 / sayfa</option><option value="20">20 / sayfa</option></select></label>
+        </footer>
+      </section>
+    </div>
+
+    {detailRecord && <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setDetailRecord(null)}>
+      <section className={styles.detailModal} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header><div><p>{detailRecord.referenceNumber}</p><h2 id="detail-title">{detailRecord.vehiclePlate}</h2></div><button type="button" aria-label="Detay penceresini kapat" onClick={() => setDetailRecord(null)}><Icon name="x" /></button></header>
+        <dl>
+          <div><dt>Ruhsat Sahibi</dt><dd>{detailRecord.licenseHolder}</dd></div>
+          <div><dt>Borçlu Taraf</dt><dd>{detailRecord.debtorName ?? "—"}</dd></div>
+          <div><dt>Kaza Tarihi</dt><dd>{formatDate(detailRecord.accidentDate)}</dd></div>
+          <div><dt>İcra Dairesi</dt><dd>{detailRecord.enforcementOffice ?? "—"}</dd></div>
+          <div><dt>İcra Dosya Numarası</dt><dd>{detailRecord.enforcementFileNumber ?? "—"}</dd></div>
+          <div><dt>Dosya Durumu</dt><dd><span className={`${styles.status} ${styles[`status${statusLabels[detailRecord.status].replaceAll(" ", "")}`]}`}>{statusLabels[detailRecord.status]}</span></dd></div>
+          <div><dt>Kayıt Durumu</dt><dd>{detailRecord.version > 1 ? `${detailRecord.version - 1} kez düzenlendi` : "Henüz düzenlenmedi"}</dd></div>
+          <div><dt>Son Güncelleme</dt><dd>{formatDateTime(detailRecord.updatedAt)}</dd></div>
+        </dl>
+        <footer><button type="button" onClick={() => setDetailRecord(null)}>Kapat</button></footer>
+      </section>
+    </div>}
+  </AppShell>;
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/Istanbul",
+  }).format(new Date(value));
+}
+
+function getVisiblePages(currentPage: number, pageCount: number): number[] {
+  const pages = new Set([1, pageCount, currentPage - 1, currentPage, currentPage + 1]);
+  return [...pages].filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right);
+}
