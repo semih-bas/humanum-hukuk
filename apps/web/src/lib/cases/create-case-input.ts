@@ -54,7 +54,7 @@ const reminderSchema = z.object({
   }
 });
 
-const rawCreateCaseSchema = z.object({
+const rawCaseCoreSchema = z.object({
   licenseHolder: requiredText("Ruhsat sahibi", 200),
   vehiclePlate: requiredText("Araç plakası", 20),
   accidentDate: z.string().regex(DATE_PATTERN, "Kaza tarihi YYYY-MM-DD biçiminde olmalıdır."),
@@ -71,11 +71,16 @@ const rawCreateCaseSchema = z.object({
   titleDeedLien: z.boolean(),
   installmentCount: z.union([z.literal(3), z.literal(4), z.null()]),
   status: z.enum(["OPEN", "ENFORCEMENT", "INSTALLMENT", "PENDING", "CLOSED"]),
+});
+
+const rawCreateCaseSchema = rawCaseCoreSchema.extend({
   note: optionalText("Not", 10_000),
   reminder: reminderSchema.nullable().optional().transform((value) => value ?? null),
 }).strict();
 
-export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context) => {
+type CaseCoreInput = z.infer<typeof rawCaseCoreSchema>;
+
+function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
   const accidentDate = parseDateOnly(value.accidentDate);
 
   if (!accidentDate || value.accidentDate > currentIstanbulDate()) {
@@ -136,9 +141,15 @@ export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context)
       message: "İndirim tutarı toplam talep tutarını aşamaz.",
     });
   }
-});
+}
+
+export const createCaseSchema = rawCreateCaseSchema.superRefine(validateCaseRules);
+export const updateCaseSchema = rawCaseCoreSchema.extend({
+  version: z.number({ error: "Dosya sürümü sayı olmalıdır." }).int().min(1).max(2_147_483_647),
+}).strict().superRefine(validateCaseRules);
 
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
+export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
 
 export type CaseFinancialSummary = {
   totalClaimAmount: Prisma.Decimal;
@@ -146,7 +157,7 @@ export type CaseFinancialSummary = {
   monthlyInstallmentAmount: Prisma.Decimal | null;
 };
 
-export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInput {
+export function normalizeCaseCoreInput<T extends CaseCoreInput>(input: T): T {
   return {
     ...input,
     licenseHolder: collapseWhitespace(input.licenseHolder),
@@ -156,11 +167,17 @@ export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInpu
     enforcementFileNumber: input.enforcementFileNumber
       ? collapseWhitespace(input.enforcementFileNumber).toLocaleUpperCase("tr-TR")
       : null,
+  };
+}
+
+export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInput {
+  return {
+    ...normalizeCaseCoreInput(input),
     note: input.note?.trim() || null,
   };
 }
 
-export function calculateCaseFinancials(input: CreateCaseInput): CaseFinancialSummary {
+export function calculateCaseFinancials(input: CaseCoreInput): CaseFinancialSummary {
   const totalClaimAmount = input.damageAmount.add(input.depreciationAmount).add(input.profitLossAmount);
   const netClaimAmount = totalClaimAmount.sub(input.discountAmount);
   const monthlyInstallmentAmount = input.installmentCount

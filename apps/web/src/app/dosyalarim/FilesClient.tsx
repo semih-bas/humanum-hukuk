@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
 
+import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
 
 type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
@@ -65,8 +66,9 @@ export default function FilesClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
-  const [detailRecord, setDetailRecord] = useState<CaseRecord | null>(null);
+  const [detailRequest, setDetailRequest] = useState<{ id: string; editing: boolean } | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference ? `${createdReference} numaralı dosya başarıyla oluşturuldu.` : "");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -133,7 +135,7 @@ export default function FilesClient() {
 
     void loadCases();
     return () => controller.abort();
-  }, [debouncedQuery, currentPage, rowsPerPage, router]);
+  }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router]);
 
   const allVisibleSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
   const visiblePages = useMemo(() => getVisiblePages(pagination.page, pagination.pageCount), [pagination]);
@@ -220,10 +222,10 @@ export default function FilesClient() {
                   <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
                   <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
                   <td><div className={styles.rowActions}>
-                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRecord(record)}><Icon name="eye" /></button>
+                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRequest({ id: record.id, editing: false })}><Icon name="eye" /></button>
                     <div className={styles.actionWrapper}>
                       <button type="button" aria-label={`${record.vehiclePlate} işlem menüsü`} aria-expanded={actionMenu === record.id} onClick={() => setActionMenu((id) => id === record.id ? null : record.id)}><Icon name="more" /></button>
-                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için düzenleme ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için yeni hatırlatma ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
+                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setDetailRequest({ id: record.id, editing: true }); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setNotice(`${record.referenceNumber} için yeni hatırlatma ekranı sonraki aşamada bağlanacak.`); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
                     </div>
                   </div></td>
                 </tr>;
@@ -248,35 +250,17 @@ export default function FilesClient() {
       </section>
     </div>
 
-    {detailRecord && <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setDetailRecord(null)}>
-      <section className={styles.detailModal} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><p>{detailRecord.referenceNumber}</p><h2 id="detail-title">{detailRecord.vehiclePlate}</h2></div><button type="button" aria-label="Detay penceresini kapat" onClick={() => setDetailRecord(null)}><Icon name="x" /></button></header>
-        <dl>
-          <div><dt>Ruhsat Sahibi</dt><dd>{detailRecord.licenseHolder}</dd></div>
-          <div><dt>Borçlu Taraf</dt><dd>{detailRecord.debtorName ?? "—"}</dd></div>
-          <div><dt>Kaza Tarihi</dt><dd>{formatDate(detailRecord.accidentDate)}</dd></div>
-          <div><dt>İcra Dairesi</dt><dd>{detailRecord.enforcementOffice ?? "—"}</dd></div>
-          <div><dt>İcra Dosya Numarası</dt><dd>{detailRecord.enforcementFileNumber ?? "—"}</dd></div>
-          <div><dt>Dosya Durumu</dt><dd><span className={`${styles.status} ${styles[`status${statusLabels[detailRecord.status].replaceAll(" ", "")}`]}`}>{statusLabels[detailRecord.status]}</span></dd></div>
-          <div><dt>Kayıt Durumu</dt><dd>{detailRecord.version > 1 ? `${detailRecord.version - 1} kez düzenlendi` : "Henüz düzenlenmedi"}</dd></div>
-          <div><dt>Son Güncelleme</dt><dd>{formatDateTime(detailRecord.updatedAt)}</dd></div>
-        </dl>
-        <footer><button type="button" onClick={() => setDetailRecord(null)}>Kapat</button></footer>
-      </section>
-    </div>}
+    {detailRequest && <CaseDetailModal
+      caseId={detailRequest.id}
+      startEditing={detailRequest.editing}
+      onClose={() => setDetailRequest(null)}
+      onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
+    />}
   </AppShell>;
 }
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
-}
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Europe/Istanbul",
-  }).format(new Date(value));
 }
 
 function getVisiblePages(currentPage: number, pageCount: number): number[] {
