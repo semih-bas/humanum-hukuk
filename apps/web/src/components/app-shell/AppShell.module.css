@@ -81,7 +81,7 @@
 .teamList { max-height: 190px; overflow-y: auto; }
 .teamMember { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
 .memberAvatar { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #1c334b; color: #d7ac5c; font-size: 9px; font-weight: 700; }
-.teamMember > span:last-child { display: flex; flex-direction: column; gap: 2px; }.teamMember strong { font-size: 10px; }.teamMember small { color: #8d9baa; font-size: 9px; }
+.teamMember > span:last-child { display: flex; flex-direction: column; gap: 2px; }.teamMember strong { font-size: 10px; }.teamMember small { color: #8d9baa; font-size: 9px; }.memberInfo { min-width: 0; }.statusButton { margin-left: auto; border: 0; background: transparent; color: #d7ac5c; cursor: pointer; font-size: 9px; white-space: nowrap; }.statusButton:hover { color: #fff; }.statusButton:disabled { cursor: wait; opacity: .55; }
 .addMemberButton { display: flex; width: 100%; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-top: 1px solid rgb(255 255 255 / 8%); background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; font-weight: 600; }
 .addMemberButton:hover { background: rgb(255 255 255 / 5%); }.addMemberButton .icon { width: 16px; }
 .managementNotice { margin: 0; padding: 0 13px 12px; color: #9ba9b8; font-size: 9px; line-height: 1.5; }
@@ -129,6 +129,16 @@
 .content { min-height: calc(100vh - 78px); }
 .workspaceWithoutTopbar .content { min-height: 100vh; }
 .backdrop, .mobileClose { display: none; }
+.confirmationBackdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: rgb(3 12 23 / 62%); }
+.confirmationDialog { width: min(100%, 430px); padding: 26px; border: 1px solid #dce3e8; border-radius: 10px; background: #fff; box-shadow: 0 24px 70px rgb(0 0 0 / 25%); color: #17283b; }
+.confirmationEyebrow { margin: 0 0 8px; color: #b17d28; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.confirmationDialog h2 { margin: 0 0 12px; font-size: 21px; }
+.confirmationDialog > p:not(.confirmationEyebrow) { margin: 0; color: #58697a; font-size: 13px; line-height: 1.55; }
+.confirmationActions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
+.confirmationActions button { min-height: 38px; padding: 0 14px; border: 1px solid #cbd5de; border-radius: 5px; background: #fff; color: #32465b; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; }
+.confirmationActions button:hover { background: #f4f6f9; }
+.confirmationActions .dangerButton { border-color: #b5363b; background: #b5363b; color: #fff; }
+.confirmationActions .dangerButton:hover { background: #922f34; }
 
 .shellCollapsed { --sidebar-width: 82px; }
 .shellCollapsed .brandText, .shellCollapsed .navItem span, .shellCollapsed .sidebarUserText, .shellCollapsed .teamChevron, .shellCollapsed .logoutLink span { opacity: 0; pointer-events: none; }

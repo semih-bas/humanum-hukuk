@@ -39,7 +39,32 @@ export const auth = betterAuth({
         },
       },
       update: {
+        before: async (user, context) => {
+          if (user.banned !== true || !user.id || !context?.context.session) return;
+
+          const target = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { role: true, banned: true },
+          });
+          if (target?.role !== "admin" || target.banned) return;
+
+          const activeAdminCount = await prisma.user.count({
+            where: { role: "admin", banned: false },
+          });
+          if (activeAdminCount <= 1) {
+            throw new Error("The last active administrator cannot be deactivated.");
+          }
+        },
         after: async (user, context) => {
+          if (context?.path === "/admin/ban-user" || context?.path === "/admin/unban-user") {
+            await tryWriteAuditLog({
+              actorUserId: context?.context.session?.user.id ?? null,
+              event: user.banned ? "user.deactivated" : "user.activated",
+              targetType: "user",
+              targetId: user.id,
+              context: { targetName: user.name },
+            });
+          }
           await tryWriteAuditLog({
             actorUserId: context?.context.session?.user.id ?? user.id,
             event: "user.updated",

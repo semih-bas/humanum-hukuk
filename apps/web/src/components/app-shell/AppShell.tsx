@@ -32,6 +32,7 @@ type TeamMember = {
   email: string;
   name: string;
   role?: string | null;
+  banned?: boolean | null;
 };
 
 type AdminNotification = {
@@ -95,6 +96,8 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [managementNotice, setManagementNotice] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
+  const [changingUserId, setChangingUserId] = useState<string | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<TeamMember | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -206,6 +209,49 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     await loadTeamMembers();
   }
 
+  async function handleUserStatusChange(member: TeamMember) {
+    const isBanned = member.banned === true;
+    if (!isBanned) {
+      setPendingStatusChange(member);
+      return;
+    }
+
+    await applyUserStatusChange(member, "unban");
+  }
+
+  async function applyUserStatusChange(member: TeamMember, action: "ban" | "unban") {
+    setChangingUserId(member.id);
+    setManagementNotice("");
+    try {
+      const response = await fetch("/api/admin/users/status", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ userId: member.id, action }),
+      });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) {
+        setManagementNotice(result.error?.message ?? "Kullanıcı durumu değiştirilemedi.");
+        return;
+      }
+
+      setManagementNotice(action === "unban" ? `${member.name} tekrar aktifleştirildi.` : `${member.name} pasifleştirildi.`);
+      await loadTeamMembers();
+    } catch {
+      setManagementNotice("Kullanıcı durumu değiştirilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setChangingUserId(null);
+    }
+  }
+
+  async function confirmUserDeactivation() {
+    if (!pendingStatusChange) return;
+
+    const member = pendingStatusChange;
+    setPendingStatusChange(null);
+    await applyUserStatusChange(member, "ban");
+  }
+
   async function handleSignOut() {
     if (isSigningOut) return;
 
@@ -243,7 +289,10 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                 {teamMembers.map((member) => (
                   <div className={styles.teamMember} key={member.id}>
                     <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
-                    <span><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
+                    <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"} · {member.banned ? "Pasif" : "Aktif"}</small></span>
+                    {member.id !== session?.user.id && <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
+                      {changingUserId === member.id ? "..." : member.banned ? "Tekrar Aktifleştir" : "Pasifleştir"}
+                    </button>}
                   </div>
                 ))}
               </div>
@@ -273,6 +322,18 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
       </aside>
 
       {sidebarOpen && <button className={styles.backdrop} type="button" aria-label="Menüyü kapat" onClick={() => setSidebarOpen(false)} />}
+
+      {pendingStatusChange && <div className={styles.confirmationBackdrop} role="presentation" onMouseDown={() => setPendingStatusChange(null)}>
+        <section className={styles.confirmationDialog} role="dialog" aria-modal="true" aria-labelledby="deactivation-title" aria-describedby="deactivation-description" onMouseDown={(event) => event.stopPropagation()}>
+          <p className={styles.confirmationEyebrow}>Kullanıcı erişimi</p>
+          <h2 id="deactivation-title">Kullanıcıyı pasifleştir?</h2>
+          <p id="deactivation-description"><strong>{pendingStatusChange.name}</strong> adlı kullanıcının hesabı pasifleştirilecek. Açık oturumları sonlandırılacak ve yeniden aktifleştirilene kadar giriş yapamayacak.</p>
+          <div className={styles.confirmationActions}>
+            <button type="button" onClick={() => setPendingStatusChange(null)}>Vazgeç</button>
+            <button type="button" className={styles.dangerButton} onClick={() => void confirmUserDeactivation()}>Pasifleştir</button>
+          </div>
+        </section>
+      </div>}
 
       <div className={`${styles.workspace} ${hideTopbar ? styles.workspaceWithoutTopbar : ""}`}>
         {!hideTopbar && <header className={styles.topbar}>
