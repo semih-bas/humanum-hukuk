@@ -26,8 +26,8 @@ const basePayload = {
   vehicleLien: false,
   bankLien: false,
   titleDeedLien: false,
-  installmentCount: null,
-  status: "OPEN",
+  installmentCount: 6,
+  status: "ENFORCEMENT",
   version: 1,
 } as const;
 
@@ -39,7 +39,7 @@ try {
   const updated = updateCaseSchema.parse({
     ...basePayload,
     licenseHolder: "Güncellenmiş Ruhsat Sahibi",
-    status: "ENFORCEMENT",
+    status: "OPEN",
   });
   const rollbackMarker = "ROLLBACK_CASE_UPDATE_CHECK";
   let staleVersionRejected = false;
@@ -83,7 +83,7 @@ try {
       });
 
       const result = await updateCaseFileInTransaction(transaction, caseFile.id, updated, actor.id);
-      if (result.version !== 2 || !result.changedFields.includes("licenseHolder") || !result.changedFields.includes("status")) {
+      if (result.version !== 2 || !result.changedFields.includes("licenseHolder") || !result.changedFields.includes("status") || result.changedFields.includes("installmentCount")) {
         throw new Error("Case update did not report the expected version and changed fields.");
       }
 
@@ -95,7 +95,8 @@ try {
       if (
         !stored
         || stored.version !== 2
-        || stored.status !== "ENFORCEMENT"
+        || stored.status !== "OPEN"
+        || stored.installmentCount !== 6
         || stored.changes.length !== 2
         || stored.changes[1].changeType !== "STATUS_CHANGED"
         || stored.changes[1].previousVersion !== 1

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
+import { INSTALLMENT_OPTIONS } from "@/lib/form-input";
+import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
 
 import styles from "./page.module.css";
@@ -95,7 +97,7 @@ export default function NewCaseForm() {
   const [bankLien, setBankLien] = useState(false);
   const [titleDeedLien, setTitleDeedLien] = useState(false);
   const [installmentEnabled, setInstallmentEnabled] = useState(false);
-  const [installmentCount, setInstallmentCount] = useState<3 | 4>(3);
+  const [installmentCount, setInstallmentCount] = useState<InstallmentCount>(3);
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
@@ -111,11 +113,13 @@ export default function NewCaseForm() {
     const total = toCents(damage) + toCents(depreciation) + toCents(profitLoss);
     const net = total > toCents(discount) ? total - toCents(discount) : 0n;
     const monthly = installmentEnabled ? divideCents(net, BigInt(installmentCount)) : 0n;
+    const remainder = installmentEnabled ? net % BigInt(installmentCount) : 0n;
 
     return {
       total: centsToInput(total),
       net: centsToInput(net),
       monthly: centsToInput(monthly),
+      final: centsToInput(monthly + remainder),
     };
   }, [damage, depreciation, profitLoss, discount, installmentEnabled, installmentCount]);
 
@@ -131,16 +135,11 @@ export default function NewCaseForm() {
 
   function changeInstallment(enabled: boolean) {
     setInstallmentEnabled(enabled);
-    if (enabled) {
-      setStatus("INSTALLMENT");
-    } else if (status === "INSTALLMENT") {
-      setStatus("OPEN");
-    }
+    if (!enabled) setInstallmentCount(3);
   }
 
   function changeStatus(nextStatus: string) {
     setStatus(nextStatus);
-    setInstallmentEnabled(nextStatus === "INSTALLMENT");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -299,9 +298,12 @@ export default function NewCaseForm() {
         <section className={styles.sectionCard}>
           <h2><span>6</span>Taksit Bilgileri</h2>
           <div className={styles.threeColumns}>
-            <label className={styles.field}><span>Taksit Durumu</span><select value={installmentEnabled ? "yes" : "no"} onChange={(event) => changeInstallment(event.target.value === "yes")}><option value="no">Taksit Yok</option><option value="yes">Taksitli Ödeme</option></select></label>
-            <label className={styles.field}><span>Taksit Sayısı</span><select disabled={!installmentEnabled} value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as 3 | 4)}><option value="3">3 Ay</option><option value="4">4 Ay</option></select><FieldError errors={fieldErrors} name="installmentCount" /></label>
-            <AmountInput label="Aylık Taksit Tutarı" value={financials.monthly} readOnly />
+            <label className={styles.field}><span>Taksit Var mı?</span><select value={installmentEnabled ? "yes" : "no"} onChange={(event) => changeInstallment(event.target.value === "yes")}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
+            {installmentEnabled && <>
+              <label className={styles.field}><span>Taksit Sayısı</span><select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select><FieldError errors={fieldErrors} name="installmentCount" /></label>
+              <AmountInput label="Aylık Taksit Tutarı" value={financials.monthly} readOnly />
+              <AmountInput label="Son Taksit Tutarı" value={financials.final} readOnly />
+            </>}
           </div>
         </section>
       </div>

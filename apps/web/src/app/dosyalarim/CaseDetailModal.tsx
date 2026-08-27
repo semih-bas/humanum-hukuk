@@ -3,6 +3,8 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
+import { INSTALLMENT_OPTIONS } from "@/lib/form-input";
+import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import styles from "./page.module.css";
 
 type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
@@ -24,12 +26,13 @@ type CaseDetail = {
   totalClaimAmount: string;
   netClaimAmount: string;
   monthlyInstallmentAmount: string | null;
+  finalInstallmentAmount: string | null;
   enforcementOffice: string | null;
   enforcementFileNumber: string | null;
   vehicleLien: boolean;
   bankLien: boolean;
   titleDeedLien: boolean;
-  installmentCount: 3 | 4 | null;
+  installmentCount: InstallmentCount | null;
   status: CaseStatus;
   version: number;
   createdAt: string;
@@ -60,7 +63,7 @@ const fieldLabels: Record<string, string> = {
   depreciationAmount: "Değer kaybı", profitLossAmount: "Kazanç kaybı", discountAmount: "İndirim",
   enforcementOffice: "İcra dairesi", enforcementFileNumber: "İcra dosya numarası",
   vehicleLien: "Araç haczi", bankLien: "Banka haczi", titleDeedLien: "Tapu haczi",
-  installmentCount: "Taksit sayısı", status: "Dosya durumu",
+  installmentCount: "Taksit bilgisi", status: "Dosya durumu",
 };
 
 export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved }: {
@@ -147,7 +150,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           depreciationAmount: normalizeMoney(draft.depreciationAmount),
           profitLossAmount: normalizeMoney(draft.profitLossAmount),
           discountAmount: normalizeMoney(draft.discountAmount),
-          installmentCount: draft.status === "INSTALLMENT" ? draft.installmentCount ?? 3 : null,
+          installmentCount: draft.installmentCount,
         }),
       });
       const result = await response.json() as { data?: { version: number }; error?: { message?: string; fields?: FieldErrors; code?: string } };
@@ -230,7 +233,9 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <TextField label="İcra Dairesi" maxLength={150} value={draft.enforcementOffice ?? ""} error={fieldErrors.enforcementOffice?.[0]} onChange={(value) => update("enforcementOffice", value)} />
           <TextField label="İcra Dosya No" maxLength={50} value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
           <label><span>Dosya Durumu</span><select value={draft.status} onChange={(event) => update("status", event.target.value as CaseStatus)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          {draft.status === "INSTALLMENT" && <label><span>Taksit Sayısı</span><select value={draft.installmentCount ?? 3} onChange={(event) => update("installmentCount", Number(event.target.value) as 3 | 4)}><option value="3">3 Ay</option><option value="4">4 Ay</option></select></label>}
+          <label><span>Taksit Var mı?</span><select value={draft.installmentCount === null ? "no" : "yes"} onChange={(event) => update("installmentCount", event.target.value === "yes" ? draft.installmentCount ?? 3 : null)}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
+          {draft.installmentCount !== null && <label><span>Taksit Sayısı</span><select value={draft.installmentCount} onChange={(event) => update("installmentCount", Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select></label>}
+          {draft.installmentCount !== null && <div className={styles.installmentPreview}><span>Aylık / son taksit</span><strong>{formatMoney(calculateDraftInstallment(draft).monthly)} TL / {formatMoney(calculateDraftInstallment(draft).final)} TL</strong></div>}
         </div>
         <div className={styles.editChecks}>
           <label><input type="checkbox" checked={draft.vehicleLien} onChange={(event) => update("vehicleLien", event.target.checked)} /> Araç haczi</label>
@@ -256,6 +261,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
             <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} /><Detail label="Borçlu Taraf" value={detail.debtorName ?? "—"} />
             <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} /><Detail label="Dosya Durumu" value={statusLabels[detail.status]} />
             <Detail label="Toplam Talep" value={`${formatMoney(detail.totalClaimAmount)} TL`} /><Detail label="Net Talep" value={`${formatMoney(detail.netClaimAmount)} TL`} />
+            <Detail label="Taksit Bilgisi" value={detail.installmentCount ? `${detail.installmentCount} ay · ${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay · Son ${formatMoney(detail.finalInstallmentAmount ?? "0")} TL` : "Taksit yok"} />
             <Detail label="İcra Dairesi / No" value={[detail.enforcementOffice, detail.enforcementFileNumber].filter(Boolean).join(" · ") || "—"} />
             <Detail label="Hacizler" value={[detail.vehicleLien && "Araç", detail.bankLien && "Banka", detail.titleDeedLien && "Tapu"].filter(Boolean).join(", ") || "Yok"} />
             <Detail label="Oluşturan" value={`${detail.createdBy.name} · ${formatDateTime(detail.createdAt)}`} />
@@ -284,6 +290,14 @@ function Detail({ label, value }: { label: string; value: string }) { return <di
 function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: detail.damageAmount, depreciationAmount: detail.depreciationAmount, profitLossAmount: detail.profitLossAmount, discountAmount: detail.discountAmount, enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
 function formatMoney(value: string) { const cents = parseMoneyToCents(value); return cents === null ? "0,00" : centsToMoneyString(cents); }
+function calculateDraftInstallment(draft: Draft) {
+  const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);
+  const discount = parseMoneyToCents(draft.discountAmount) ?? 0n;
+  const net = total > discount ? total - discount : 0n;
+  const count = BigInt(draft.installmentCount ?? 1);
+  const monthly = net / count;
+  return { monthly: centsToMoneyString(monthly), final: centsToMoneyString(monthly + net % count) };
+}
 function changedFieldText(value: unknown) { return Array.isArray(value) && value.length ? value.map((field) => fieldLabels[String(field)] ?? String(field)).join(", ") : "İlk kayıt"; }
 function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`)); }
 function formatDateTime(value: string) { return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(value)); }

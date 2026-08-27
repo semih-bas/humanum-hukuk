@@ -24,7 +24,7 @@ const validPayload = {
   bankLien: false,
   titleDeedLien: false,
   installmentCount: 3,
-  status: "INSTALLMENT",
+  status: "ENFORCEMENT",
   note: "Geçici servis doğrulama notu",
   reminder: {
     title: "Geçici servis doğrulama hatırlatması",
@@ -62,8 +62,12 @@ try {
       damageAmount: "9999999999999999.99",
       depreciationAmount: "1.00",
     }),
-    expectRejectedValidation("unsupported installment count", { ...validPayload, installmentCount: 2 }),
-    expectRejectedValidation("installment without installment status", { ...validPayload, status: "OPEN" }),
+    expectRejectedValidation("unsupported installment count 2", { ...validPayload, installmentCount: 2 }),
+    expectRejectedValidation("unsupported installment count 5", { ...validPayload, installmentCount: 5 }),
+    expectRejectedValidation("unsupported installment count 7", { ...validPayload, installmentCount: 7 }),
+    expectRejectedValidation("unsupported installment count 8", { ...validPayload, installmentCount: 8 }),
+    expectRejectedValidation("unsupported installment count 10", { ...validPayload, installmentCount: 10 }),
+    expectRejectedValidation("unsupported installment count 11", { ...validPayload, installmentCount: 11 }),
     expectRejectedValidation("future accident date", { ...validPayload, accidentDate: "2099-01-15" }),
     expectRejectedValidation("partial enforcement identity", { ...validPayload, enforcementFileNumber: null }),
     expectRejectedValidation("reminder without delivery channel", {

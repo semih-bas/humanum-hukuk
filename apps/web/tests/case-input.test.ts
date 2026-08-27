@@ -49,11 +49,15 @@ test("icra dairesi ve dosya numarası birlikte girilir", () => {
   assert.ok(result.error.flatten().fieldErrors.enforcementFileNumber?.length);
 });
 
-test("taksitli dosyada yalnızca 3 veya 4 ay kullanılabilir", () => {
-  const missingCount = createCaseSchema.safeParse({ ...validCase, status: "INSTALLMENT", installmentCount: null });
-  const invalidCount = createCaseSchema.safeParse({ ...validCase, status: "INSTALLMENT", installmentCount: 5 });
-  assert.equal(missingCount.success, false);
-  assert.equal(invalidCount.success, false);
+test("taksit sayısı dosya durumundan bağımsız olarak 3, 4, 6, 9 veya 12 olabilir", () => {
+  for (const installmentCount of [3, 4, 6, 9, 12] as const) {
+    assert.equal(createCaseSchema.safeParse({ ...validCase, status: "OPEN", installmentCount }).success, true);
+    assert.equal(createCaseSchema.safeParse({ ...validCase, status: "ENFORCEMENT", installmentCount }).success, true);
+  }
+  for (const installmentCount of [2, 5, 7, 8, 10, 11] as const) {
+    assert.equal(createCaseSchema.safeParse({ ...validCase, installmentCount }).success, false);
+  }
+  assert.equal(createCaseSchema.safeParse({ ...validCase, status: "INSTALLMENT", installmentCount: null }).success, true);
 });
 
 test("gelecek kaza tarihini ve kontrol karakterlerini reddeder", () => {
@@ -112,4 +116,21 @@ test("para ayırıcıları Türkçe ve uluslararası girişleri doğru yorumlar"
 
 test("BigInt para biçimlendirmesi hassasiyet kaybetmez", () => {
   assert.equal(centsToMoneyString(123456789012345678901n), "1.234.567.890.123.456.789,01");
+});
+
+test("taksit hesabı bölünmeyen kuruşu son taksite ekler", () => {
+  const result = createCaseSchema.safeParse({ ...validCase, status: "OPEN", installmentCount: 6 });
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  const financials = calculateCaseFinancials(result.data);
+  assert.equal(financials.monthlyInstallmentAmount?.toFixed(2), "200.00");
+  assert.equal(financials.finalInstallmentAmount?.toFixed(2), "200.00");
+
+  const uneven = createCaseSchema.safeParse({ ...validCase, damageAmount: "1000.01", depreciationAmount: "0", profitLossAmount: "0", discountAmount: "0", installmentCount: 6 });
+  assert.equal(uneven.success, true);
+  if (uneven.success) {
+    const unevenFinancials = calculateCaseFinancials(uneven.data);
+    assert.equal(unevenFinancials.monthlyInstallmentAmount?.toFixed(2), "166.66");
+    assert.equal(unevenFinancials.finalInstallmentAmount?.toFixed(2), "166.71");
+  }
 });

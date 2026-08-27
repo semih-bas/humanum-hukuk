@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "../database";
 
 export async function getCaseFile(id: string) {
@@ -61,7 +62,10 @@ export async function getCaseFile(id: string) {
   const totalClaimAmount = record.damageAmount.add(record.depreciationAmount).add(record.profitLossAmount);
   const netClaimAmount = totalClaimAmount.sub(record.discountAmount);
   const monthlyInstallmentAmount = record.installmentCount
-    ? netClaimAmount.div(record.installmentCount).toDecimalPlaces(2)
+    ? centsToDecimal(BigInt(netClaimAmount.toFixed(2).replace(".", "")) / BigInt(record.installmentCount))
+    : null;
+  const finalInstallmentAmount = record.installmentCount
+    ? netClaimAmount.sub(monthlyInstallmentAmount!.mul(record.installmentCount - 1))
     : null;
 
   return {
@@ -74,6 +78,7 @@ export async function getCaseFile(id: string) {
     totalClaimAmount: totalClaimAmount.toFixed(2),
     netClaimAmount: netClaimAmount.toFixed(2),
     monthlyInstallmentAmount: monthlyInstallmentAmount?.toFixed(2) ?? null,
+    finalInstallmentAmount: finalInstallmentAmount?.toFixed(2) ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     notes: record.notes.map((note) => ({
@@ -98,3 +103,7 @@ export async function getCaseFile(id: string) {
 }
 
 export type CaseFileDetail = NonNullable<Awaited<ReturnType<typeof getCaseFile>>>;
+
+function centsToDecimal(cents: bigint): Prisma.Decimal {
+  return new Prisma.Decimal(`${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`);
+}

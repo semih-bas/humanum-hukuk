@@ -1,3 +1,5 @@
+export const INSTALLMENT_OPTIONS = [3, 4, 6, 9, 12] as const;
+
 export const PLATE_MAX_LENGTH = 20;
 export const PERSON_OR_COMPANY_MAX_LENGTH = 150;
 export const ENFORCEMENT_OFFICE_MAX_LENGTH = 150;

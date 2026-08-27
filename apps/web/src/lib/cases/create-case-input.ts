@@ -11,7 +11,10 @@ import {
   normalizeText,
   parseMoneyToCents,
   validatePlate,
+  INSTALLMENT_OPTIONS,
 } from "@/lib/form-input";
+
+export type InstallmentCount = typeof INSTALLMENT_OPTIONS[number];
 
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -90,7 +93,7 @@ const rawCaseCoreSchema = z.object({
   vehicleLien: z.boolean(),
   bankLien: z.boolean(),
   titleDeedLien: z.boolean(),
-  installmentCount: z.union([z.literal(3), z.literal(4), z.null()]),
+  installmentCount: z.union(INSTALLMENT_OPTIONS.map((count) => z.literal(count)) as [z.ZodLiteral<InstallmentCount>, ...z.ZodLiteral<InstallmentCount>[]]).nullable(),
   status: z.enum(["OPEN", "ENFORCEMENT", "INSTALLMENT", "PENDING", "CLOSED"]),
 });
 
@@ -121,22 +124,6 @@ function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
       code: "custom",
       path: value.enforcementOffice ? ["enforcementFileNumber"] : ["enforcementOffice"],
       message: "İcra dairesi ve icra dosya numarası birlikte girilmelidir.",
-    });
-  }
-
-  if (value.status === "INSTALLMENT" && value.installmentCount === null) {
-    context.addIssue({
-      code: "custom",
-      path: ["installmentCount"],
-      message: "Taksitli ödeme durumunda taksit sayısı seçilmelidir.",
-    });
-  }
-
-  if (value.status !== "INSTALLMENT" && value.installmentCount !== null) {
-    context.addIssue({
-      code: "custom",
-      path: ["installmentCount"],
-      message: "Taksit sayısı yalnızca taksitli ödeme durumunda kullanılabilir.",
     });
   }
 
@@ -180,6 +167,7 @@ export type CaseFinancialSummary = {
   totalClaimAmount: Prisma.Decimal;
   netClaimAmount: Prisma.Decimal;
   monthlyInstallmentAmount: Prisma.Decimal | null;
+  finalInstallmentAmount: Prisma.Decimal | null;
 };
 
 export function normalizeCaseCoreInput<T extends CaseCoreInput>(input: T): T {
@@ -205,11 +193,17 @@ export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInpu
 export function calculateCaseFinancials(input: CaseCoreInput): CaseFinancialSummary {
   const totalClaimAmount = input.damageAmount.add(input.depreciationAmount).add(input.profitLossAmount);
   const netClaimAmount = totalClaimAmount.sub(input.discountAmount);
-  const monthlyInstallmentAmount = input.installmentCount
-    ? netClaimAmount.div(input.installmentCount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-    : null;
+  const installmentCents = input.installmentCount ? BigInt(netClaimAmount.toFixed(2).replace(".", "")) : 0n;
+  const monthlyCents = input.installmentCount ? installmentCents / BigInt(input.installmentCount) : 0n;
+  const remainderCents = input.installmentCount ? installmentCents % BigInt(input.installmentCount) : 0n;
+  const monthlyInstallmentAmount = input.installmentCount ? centsToDecimal(monthlyCents) : null;
+  const finalInstallmentAmount = input.installmentCount ? centsToDecimal(monthlyCents + remainderCents) : null;
 
-  return { totalClaimAmount, netClaimAmount, monthlyInstallmentAmount };
+  return { totalClaimAmount, netClaimAmount, monthlyInstallmentAmount, finalInstallmentAmount };
+}
+
+function centsToDecimal(cents: bigint): Prisma.Decimal {
+  return new Prisma.Decimal(`${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`);
 }
 
 export function parseDateOnly(value: string): Date | null {

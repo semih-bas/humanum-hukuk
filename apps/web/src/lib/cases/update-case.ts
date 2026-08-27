@@ -97,6 +97,7 @@ export async function updateCaseFileInTransaction(
     totalClaimAmount: financials.totalClaimAmount.toFixed(2),
     netClaimAmount: financials.netClaimAmount.toFixed(2),
     monthlyInstallmentAmount: financials.monthlyInstallmentAmount?.toFixed(2) ?? null,
+    finalInstallmentAmount: financials.finalInstallmentAmount?.toFixed(2) ?? null,
     enforcementOffice: input.enforcementOffice,
     enforcementFileNumber: input.enforcementFileNumber,
     vehicleLien: input.vehicleLien,

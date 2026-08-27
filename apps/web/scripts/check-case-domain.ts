@@ -170,10 +170,38 @@ try {
     })),
   ]);
 
+  const independentInstallments = await prisma.$transaction(async (transaction) => {
+    const values = [
+      { count: 6, status: "ENFORCEMENT" as const },
+      { count: 12, status: "OPEN" as const },
+      { count: null, status: "INSTALLMENT" as const },
+    ];
+    for (const value of values) {
+      await transaction.caseFile.create({
+        data: {
+          referenceNumber: `${testPrefix}-INDEPENDENT-${value.count ?? "NONE"}`,
+          licenseHolder: "Test",
+          vehiclePlate: `34 TEST ${value.count ?? 999}`,
+          accidentDate: new Date("2026-01-15T00:00:00.000Z"),
+          debtorType: "INDIVIDUAL",
+          installmentCount: value.count,
+          status: value.status,
+          createdById: user.id,
+          updatedById: user.id,
+        },
+      });
+    }
+    throw new Error("ROLLBACK_CASE_DOMAIN_INSTALLMENT_CHECK");
+  }).catch((error) => {
+    if (!(error instanceof Error) || error.message !== "ROLLBACK_CASE_DOMAIN_INSTALLMENT_CHECK") throw error;
+    return true;
+  });
+
   console.log({
     status: "case-domain-valid",
     validRelations: ["change", "note", "document", "reminder"],
     rejectedInputs,
+    independentInstallments,
     canDeleteCases: runtimePermissions.canDeleteCases,
     canRewriteHistory: runtimePermissions.canRewriteHistory,
     temporaryRecordsPersisted: false,
