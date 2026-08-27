@@ -90,6 +90,11 @@
 .createUserForm label { display: grid; gap: 4px; color: #aab5c1; font-size: 9px; }
 .createUserForm input { width: 100%; height: 34px; border: 1px solid rgb(255 255 255 / 14%); border-radius: 5px; outline: none; padding: 0 9px; background: #07182a; color: #fff; font-size: 10px; }
 .createUserForm input:focus { border-color: #d7ac5c; }
+.passwordField { position: relative; display: block; }
+.passwordField input { padding-right: 34px; }
+.passwordToggle { position: absolute; top: 0; right: 0; display: grid; width: 34px; height: 34px; place-items: center; padding: 0 !important; background: transparent !important; color: #aab5c1 !important; }
+.passwordToggle:hover { color: #d7ac5c !important; }
+.passwordToggle .icon { width: 15px; }
 .createUserForm > div { display: flex; gap: 7px; justify-content: flex-end; }
 .createUserForm button { border: 0; border-radius: 4px; padding: 7px 9px; background: rgb(255 255 255 / 8%); color: #d3dbe4; cursor: pointer; font-size: 9px; }
 .createUserForm button[type="submit"] { background: #d3a956; color: #07182a; font-weight: 700; }

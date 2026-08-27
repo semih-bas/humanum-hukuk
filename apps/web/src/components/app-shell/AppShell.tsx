@@ -18,6 +18,7 @@ type IconName =
   | "logout"
   | "menu"
   | "plus"
+  | "eye"
   | "users";
 
 type AppShellProps = {
@@ -54,6 +55,7 @@ function Icon({ name }: { name: IconName }) {
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></>,
     menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
+    eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
   };
 
@@ -92,6 +94,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [managementNotice, setManagementNotice] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -247,7 +250,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
               {createUserOpen && <form className={styles.createUserForm} onSubmit={handleCreateUser}>
                 <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" disabled={isCreatingUser} /></label>
                 <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" disabled={isCreatingUser} /></label>
-                <label><span>Geçici Şifre</span><input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" disabled={isCreatingUser} /></label>
+                <label><span>Geçici Şifre</span><span className={styles.passwordField}><input name="password" type={showTemporaryPassword ? "text" : "password"} required minLength={10} maxLength={128} autoComplete="new-password" disabled={isCreatingUser} /><button type="button" className={styles.passwordToggle} aria-label={showTemporaryPassword ? "Geçici şifreyi gizle" : "Geçici şifreyi göster"} aria-pressed={showTemporaryPassword} onClick={() => setShowTemporaryPassword((visible) => !visible)} disabled={isCreatingUser}><Icon name="eye" /></button></span></label>
                 <div><button type="button" onClick={() => setCreateUserOpen(false)} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
               </form>}
               {!createUserOpen && <button className={styles.addMemberButton} type="button" onClick={() => { setCreateUserOpen(true); setManagementNotice(""); }}><Icon name="plus" />Yeni kullanıcı ekle</button>}

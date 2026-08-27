@@ -9,6 +9,8 @@ import { prisma } from "./database";
 import { requireEnvironmentVariable, requireHttpUrl } from "./environment";
 
 const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 128;
 
 export const auth = betterAuth({
   appName: "Humanum Hukuk",
@@ -22,6 +24,12 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, context) => {
+          if (context?.context.session?.user.role === "admin") {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { mustChangePassword: true },
+            });
+          }
           await tryWriteAuditLog({
             actorUserId: context?.context.session?.user.id ?? null,
             event: "user.created",
@@ -38,6 +46,15 @@ export const auth = betterAuth({
             targetType: "user",
             targetId: user.id,
           });
+        },
+      },
+    },
+    account: {
+      update: {
+        before: async (_account, context) => {
+          if (context?.path === "/admin/set-user-password") {
+            throw new Error("Administrator password changes for other users are disabled.");
+          }
         },
       },
     },
@@ -58,8 +75,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
-    minPasswordLength: 12,
-    maxPasswordLength: 128,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: PASSWORD_MAX_LENGTH,
     revokeSessionsOnPasswordReset: true,
   },
   rateLimit: {

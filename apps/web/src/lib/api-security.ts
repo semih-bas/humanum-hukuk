@@ -1,4 +1,5 @@
 import { auth } from "./auth";
+import { prisma } from "./database";
 import { requireHttpUrl } from "./environment";
 
 const MAX_JSON_BODY_BYTES = 32 * 1024;
@@ -28,6 +29,15 @@ export async function requireApiSession(request: Request) {
 
   if (!session || session.user.banned) {
     throw new ApiRequestError(401, "UNAUTHORIZED", "Bu işlem için giriş yapmalısınız.");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { mustChangePassword: true },
+  });
+
+  if (user?.mustChangePassword) {
+    throw new ApiRequestError(403, "PASSWORD_CHANGE_REQUIRED", "Devam etmek için şifrenizi değiştirmeniz gerekir.");
   }
 
   return session;
