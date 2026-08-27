@@ -67,7 +67,6 @@ export default function FilesClient() {
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim());
   const [records, setRecords] = useState<CaseRecord[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
@@ -123,7 +122,6 @@ export default function FilesClient() {
 
         setRecords(result.data.items);
         setPagination(result.data.pagination);
-        setSelectedIds([]);
         setActionMenu(null);
 
         if (result.data.pagination.page !== currentPage) {
@@ -135,7 +133,6 @@ export default function FilesClient() {
         }
 
         setRecords([]);
-        setSelectedIds([]);
         setError(loadError instanceof Error ? loadError.message : "Dosyalar yüklenemedi.");
       } finally {
         if (!controller.signal.aborted) {
@@ -148,16 +145,7 @@ export default function FilesClient() {
     return () => controller.abort();
   }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router, sortBy, sortDirection]);
 
-  const allVisibleSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
   const visiblePages = useMemo(() => getVisiblePages(pagination.page, pagination.pageCount), [pagination]);
-
-  function toggleRecord(id: string) {
-    setSelectedIds((ids) => ids.includes(id) ? ids.filter((selectedId) => selectedId !== id) : [...ids, id]);
-  }
-
-  function toggleVisibleRecords() {
-    setSelectedIds(allVisibleSelected ? [] : records.map((record) => record.id));
-  }
 
   function changeSort(field: SortField) {
     if (sortBy === field) setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
@@ -166,7 +154,7 @@ export default function FilesClient() {
   }
 
   function exportRecords() {
-    const exportList = selectedIds.length ? records.filter((record) => selectedIds.includes(record.id)) : records;
+    const exportList = records;
 
     if (exportList.length === 0) {
       setNotice("Dışa aktarılacak dosya bulunmuyor.");
@@ -211,7 +199,7 @@ export default function FilesClient() {
 
       <section className={styles.tableCard}>
         <header className={styles.tableToolbar}>
-          <div><h2>Dosya Listesi</h2>{selectedIds.length > 0 && <span>{selectedIds.length} dosya seçildi</span>}</div>
+          <div><h2>Dosya Listesi</h2></div>
           <div className={styles.toolbarActions}>
             <button className={styles.exportButton} type="button" disabled={isLoading} onClick={exportRecords}><Icon name="download" />Excel&apos;e Aktar</button>
             <Link className={styles.newFileButton} href="/dosyalarim/yeni"><Icon name="plus" />Yeni Dosya<span>⌄</span></Link>
@@ -224,7 +212,6 @@ export default function FilesClient() {
         <div className={styles.tableViewport}>
           <table>
             <thead><tr>
-              <th><input type="checkbox" aria-label="Görünen dosyaların tümünü seç" checked={allVisibleSelected} disabled={records.length === 0} onChange={toggleVisibleRecords} /></th>
               <SortableHeader label="Ruhsat Sahibi" field="licenseHolder" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
               <SortableHeader label="Araç Plakası" field="vehiclePlate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
               <SortableHeader label="Kaza Tarihi" field="accidentDate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
@@ -237,7 +224,6 @@ export default function FilesClient() {
               {!isLoading && records.map((record) => {
                 const statusLabel = statusLabels[record.status];
                 return <tr key={record.id}>
-                  <td><input type="checkbox" aria-label={`${record.vehiclePlate} dosyasını seç`} checked={selectedIds.includes(record.id)} onChange={() => toggleRecord(record.id)} /></td>
                   <td><strong>{record.licenseHolder}</strong><small>{record.referenceNumber}{record.version > 1 ? " · Düzenlendi" : ""}</small></td>
                   <td>{record.vehiclePlate}</td>
                   <td>{formatDate(record.accidentDate)}</td>
@@ -253,8 +239,8 @@ export default function FilesClient() {
                   </div></td>
                 </tr>;
               })}
-              {isLoading && <tr><td className={styles.emptyState} colSpan={8}>Dosyalar yükleniyor…</td></tr>}
-              {!isLoading && !error && records.length === 0 && <tr><td className={styles.emptyState} colSpan={8}>{debouncedQuery ? "Aramanızla eşleşen dosya bulunamadı." : "Henüz kayıtlı dosya bulunmuyor."}</td></tr>}
+              {isLoading && <tr><td className={styles.emptyState} colSpan={7}>Dosyalar yükleniyor…</td></tr>}
+              {!isLoading && !error && records.length === 0 && <tr><td className={styles.emptyState} colSpan={7}>{debouncedQuery ? "Aramanızla eşleşen dosya bulunamadı." : "Henüz kayıtlı dosya bulunmuyor."}</td></tr>}
             </tbody>
           </table>
         </div>

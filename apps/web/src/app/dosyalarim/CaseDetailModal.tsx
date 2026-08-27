@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
 import styles from "./page.module.css";
 
 type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
@@ -217,17 +218,17 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
 
       {!loading && detail && draft && (editing ? <form className={styles.editForm} onSubmit={save}>
         <div className={styles.editGrid}>
-          <TextField label="Ruhsat Sahibi" value={draft.licenseHolder} error={fieldErrors.licenseHolder?.[0]} onChange={(value) => update("licenseHolder", value)} />
-          <TextField label="Araç Plakası" value={draft.vehiclePlate} error={fieldErrors.vehiclePlate?.[0]} onChange={(value) => update("vehiclePlate", value)} />
+          <TextField label="Ruhsat Sahibi" maxLength={150} value={draft.licenseHolder} error={fieldErrors.licenseHolder?.[0]} onChange={(value) => update("licenseHolder", value)} />
+          <TextField label="Araç Plakası" maxLength={20} value={draft.vehiclePlate} error={fieldErrors.vehiclePlate?.[0]} onChange={(value) => update("vehiclePlate", value)} />
           <TextField label="Kaza Tarihi" type="date" value={draft.accidentDate} error={fieldErrors.accidentDate?.[0]} onChange={(value) => update("accidentDate", value)} />
           <label><span>Borçlu Türü</span><select value={draft.debtorType} onChange={(event) => update("debtorType", event.target.value as DebtorType)}><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select></label>
-          <TextField label="Borçlu Taraf" value={draft.debtorName ?? ""} error={fieldErrors.debtorName?.[0]} onChange={(value) => update("debtorName", value)} />
+          <TextField label="Borçlu Taraf" maxLength={150} value={draft.debtorName ?? ""} error={fieldErrors.debtorName?.[0]} onChange={(value) => update("debtorName", value)} />
           <TextField label="Hasar Bedeli (TL)" value={draft.damageAmount} error={fieldErrors.damageAmount?.[0]} onChange={(value) => update("damageAmount", value)} />
           <TextField label="Değer Kaybı (TL)" value={draft.depreciationAmount} error={fieldErrors.depreciationAmount?.[0]} onChange={(value) => update("depreciationAmount", value)} />
           <TextField label="Kazanç Kaybı (TL)" value={draft.profitLossAmount} error={fieldErrors.profitLossAmount?.[0]} onChange={(value) => update("profitLossAmount", value)} />
           <TextField label="İndirim (TL)" value={draft.discountAmount} error={fieldErrors.discountAmount?.[0]} onChange={(value) => update("discountAmount", value)} />
-          <TextField label="İcra Dairesi" value={draft.enforcementOffice ?? ""} error={fieldErrors.enforcementOffice?.[0]} onChange={(value) => update("enforcementOffice", value)} />
-          <TextField label="İcra Dosya No" value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
+          <TextField label="İcra Dairesi" maxLength={150} value={draft.enforcementOffice ?? ""} error={fieldErrors.enforcementOffice?.[0]} onChange={(value) => update("enforcementOffice", value)} />
+          <TextField label="İcra Dosya No" maxLength={50} value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
           <label><span>Dosya Durumu</span><select value={draft.status} onChange={(event) => update("status", event.target.value as CaseStatus)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           {draft.status === "INSTALLMENT" && <label><span>Taksit Sayısı</span><select value={draft.installmentCount ?? 3} onChange={(event) => update("installmentCount", Number(event.target.value) as 3 | 4)}><option value="3">3 Ay</option><option value="4">4 Ay</option></select></label>}
         </div>
@@ -241,11 +242,11 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         <div className={styles.detailScroll}>
           {activityMode && <form className={styles.activityForm} onSubmit={saveActivity}>
             <div><h3>{activityMode === "note" ? "Yeni Not" : activityMode === "reminder" ? "Yeni Hatırlatma" : "Yeni Evrak"}</h3><button type="button" onClick={() => setActivityMode(null)}>×</button></div>
-            {activityMode === "note" ? <textarea required maxLength={10_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" /> : activityMode === "document" ? <>
+            {activityMode === "note" ? <><textarea required maxLength={2_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" />{fieldErrors.content?.[0] && <small>{fieldErrors.content[0]}</small>}</> : activityMode === "document" ? <>
               <input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} />
               <small>PDF, JPG veya PNG · En fazla 20 MB</small>
             </> : <>
-              <input required maxLength={200} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Hatırlatma başlığı" />
+              <input required maxLength={500} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Hatırlatma başlığı" />
               <input required type="datetime-local" value={reminderDueAt} onChange={(event) => setReminderDueAt(event.target.value)} />
               <p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p>
             </>}
@@ -254,7 +255,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <dl>
             <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} /><Detail label="Borçlu Taraf" value={detail.debtorName ?? "—"} />
             <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} /><Detail label="Dosya Durumu" value={statusLabels[detail.status]} />
-            <Detail label="Toplam Talep" value={`${detail.totalClaimAmount} TL`} /><Detail label="Net Talep" value={`${detail.netClaimAmount} TL`} />
+            <Detail label="Toplam Talep" value={`${formatMoney(detail.totalClaimAmount)} TL`} /><Detail label="Net Talep" value={`${formatMoney(detail.netClaimAmount)} TL`} />
             <Detail label="İcra Dairesi / No" value={[detail.enforcementOffice, detail.enforcementFileNumber].filter(Boolean).join(" · ") || "—"} />
             <Detail label="Hacizler" value={[detail.vehicleLien && "Araç", detail.bankLien && "Banka", detail.titleDeedLien && "Tapu"].filter(Boolean).join(", ") || "Yok"} />
             <Detail label="Oluşturan" value={`${detail.createdBy.name} · ${formatDateTime(detail.createdAt)}`} />
@@ -271,12 +272,18 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
   </div>;
 }
 
-function TextField({ label, value, onChange, error, type = "text" }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string }) {
-  return <label><span>{label}</span><input required={label !== "İcra Dairesi" && label !== "İcra Dosya No"} type={type} value={value} onChange={(event) => onChange(event.target.value)} />{error && <small>{error}</small>}</label>;
+function TextField({ label, value, onChange, error, type = "text", maxLength }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; maxLength?: number }) {
+  return <label><span>{label}</span><input required={label !== "İcra Dairesi" && label !== "İcra Dosya No"} maxLength={maxLength} type={type} value={value} onChange={(event) => onChange(event.target.value)} onBlur={() => {
+    if (label.endsWith("(TL)")) {
+      const cents = parseMoneyToCents(value);
+      if (cents !== null) onChange(centsToMoneyString(cents));
+    }
+  }} />{error && <small>{error}</small>}</label>;
 }
 function Detail({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
 function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: detail.damageAmount, depreciationAmount: detail.depreciationAmount, profitLossAmount: detail.profitLossAmount, discountAmount: detail.discountAmount, enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
-function normalizeMoney(value: string) { return value.trim().replace(",", ".") || "0"; }
+function normalizeMoney(value: string) { return value.trim() || "0"; }
+function formatMoney(value: string) { const cents = parseMoneyToCents(value); return cents === null ? "0,00" : centsToMoneyString(cents); }
 function changedFieldText(value: unknown) { return Array.isArray(value) && value.length ? value.map((field) => fieldLabels[String(field)] ?? String(field)).join(", ") : "İlk kayıt"; }
 function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`)); }
 function formatDateTime(value: string) { return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(value)); }

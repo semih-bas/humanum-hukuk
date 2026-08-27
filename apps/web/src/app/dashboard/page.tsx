@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import AppShell from "@/components/app-shell/AppShell";
+import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
 import { getDashboardSummary } from "@/lib/dashboard-summary";
 import { requireSession } from "@/lib/session";
 
@@ -83,9 +84,8 @@ export default async function DashboardPage() {
 }
 
 function formatMoney(value: string): string {
-  const [whole, fraction = "00"] = value.split(".");
-  const groupedWhole = new Intl.NumberFormat("tr-TR").format(BigInt(whole));
-  return `${groupedWhole},${fraction.padEnd(2, "0").slice(0, 2)} TL`;
+  const cents = parseMoneyToCents(value);
+  return `${cents === null ? "0,00" : centsToMoneyString(cents)} TL`;
 }
 
 function formatPercentage(value: number): string {

@@ -1,23 +1,33 @@
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import {
+  ENFORCEMENT_FILE_NUMBER_MAX_LENGTH,
+  ENFORCEMENT_OFFICE_MAX_LENGTH,
+  NOTE_MAX_LENGTH,
+  PERSON_OR_COMPANY_MAX_LENGTH,
+  SHORT_TEXT_MAX_LENGTH,
+  hasControlCharacter,
+  normalizePlate,
+  normalizeText,
+  parseMoneyToCents,
+  validatePlate,
+} from "@/lib/form-input";
 
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
-const MONEY_PATTERN = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/;
 
 const requiredText = (label: string, maximum: number) => z
   .string({ error: `${label} metin olmalıdır.` })
   .trim()
   .min(1, `${label} zorunludur.`)
   .max(maximum, `${label} en fazla ${maximum} karakter olabilir.`)
-  .refine((value) => !CONTROL_CHARACTER_PATTERN.test(value), `${label} geçersiz kontrol karakterleri içeremez.`);
+  .refine((value) => !hasControlCharacter(value), `${label} geçersiz kontrol karakterleri içeremez.`);
 
 const optionalText = (label: string, maximum: number) => z
   .string({ error: `${label} metin olmalıdır.` })
   .trim()
   .max(maximum, `${label} en fazla ${maximum} karakter olabilir.`)
-  .refine((value) => !CONTROL_CHARACTER_PATTERN.test(value), `${label} geçersiz kontrol karakterleri içeremez.`)
+  .refine((value) => !hasControlCharacter(value), `${label} geçersiz kontrol karakterleri içeremez.`)
   .transform((value) => value || null)
   .nullable()
   .optional()
@@ -25,13 +35,16 @@ const optionalText = (label: string, maximum: number) => z
 
 const money = z
   .string({ error: "Tutar metin biçiminde gönderilmelidir." })
-  .trim()
-  .regex(MONEY_PATTERN, "Tutar en fazla iki ondalık basamak içeren pozitif bir sayı olmalıdır.")
-  .transform((value) => new Prisma.Decimal(value))
+  .transform(normalizeText)
+  .refine((value) => parseMoneyToCents(value) !== null, "Tutar 0 veya pozitif, en fazla iki ondalık basamak içeren geçerli bir sayı olmalıdır.")
+  .transform((value) => {
+    const cents = parseMoneyToCents(value) ?? 0n;
+    return new Prisma.Decimal(`${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`);
+  })
   .refine((value) => value.lte(MAX_MONEY), "Tutar izin verilen üst sınırı aşıyor.");
 
 export const addCaseReminderSchema = z.object({
-  title: requiredText("Hatırlatma başlığı", 200),
+  title: requiredText("Hatırlatma başlığı", SHORT_TEXT_MAX_LENGTH),
   dueAt: z.iso.datetime({ offset: true, error: "Hatırlatma tarihi geçerli bir tarih-saat olmalıdır." })
     .transform((value) => new Date(value)),
   sendEmail: z.boolean(),
@@ -55,17 +68,25 @@ export const addCaseReminderSchema = z.object({
 });
 
 const rawCaseCoreSchema = z.object({
-  licenseHolder: requiredText("Ruhsat sahibi", 200),
-  vehiclePlate: requiredText("Araç plakası", 20),
+  licenseHolder: requiredText("Ruhsat sahibi", PERSON_OR_COMPANY_MAX_LENGTH),
+  vehiclePlate: z.string({ error: "Araç plakası metin olmalıdır." })
+    .trim()
+    .min(1, "Araç plakası zorunludur.")
+    .max(20, "Araç plakası en fazla 20 karakter olabilir.")
+    .transform(normalizePlate)
+    .superRefine((value, context) => {
+      const message = validatePlate(value);
+      if (message) context.addIssue({ code: "custom", message });
+    }),
   accidentDate: z.string().regex(DATE_PATTERN, "Kaza tarihi YYYY-MM-DD biçiminde olmalıdır."),
   debtorType: z.enum(["INSURANCE_COMPANY", "INDIVIDUAL", "COMPANY"]),
-  debtorName: optionalText("Borçlu taraf", 200),
+  debtorName: optionalText("Borçlu taraf", PERSON_OR_COMPANY_MAX_LENGTH),
   damageAmount: money,
   depreciationAmount: money,
   profitLossAmount: money,
   discountAmount: money,
-  enforcementOffice: optionalText("İcra dairesi", 200),
-  enforcementFileNumber: optionalText("İcra dosya numarası", 100),
+  enforcementOffice: optionalText("İcra dairesi", ENFORCEMENT_OFFICE_MAX_LENGTH),
+  enforcementFileNumber: optionalText("İcra dosya numarası", ENFORCEMENT_FILE_NUMBER_MAX_LENGTH),
   vehicleLien: z.boolean(),
   bankLien: z.boolean(),
   titleDeedLien: z.boolean(),
@@ -74,12 +95,12 @@ const rawCaseCoreSchema = z.object({
 });
 
 const rawCreateCaseSchema = rawCaseCoreSchema.extend({
-  note: optionalText("Not", 10_000),
+  note: optionalText("Not", NOTE_MAX_LENGTH),
   reminder: addCaseReminderSchema.nullable().optional().transform((value) => value ?? null),
 }).strict();
 
 export const addCaseNoteSchema = z.object({
-  content: requiredText("Not", 10_000),
+  content: requiredText("Not", NOTE_MAX_LENGTH),
 }).strict();
 
 type CaseCoreInput = z.infer<typeof rawCaseCoreSchema>;
@@ -164,12 +185,12 @@ export type CaseFinancialSummary = {
 export function normalizeCaseCoreInput<T extends CaseCoreInput>(input: T): T {
   return {
     ...input,
-    licenseHolder: collapseWhitespace(input.licenseHolder),
-    vehiclePlate: collapseWhitespace(input.vehiclePlate).toLocaleUpperCase("tr-TR"),
-    debtorName: input.debtorName ? collapseWhitespace(input.debtorName) : null,
-    enforcementOffice: input.enforcementOffice ? collapseWhitespace(input.enforcementOffice) : null,
+    licenseHolder: normalizeText(input.licenseHolder),
+    vehiclePlate: normalizePlate(input.vehiclePlate),
+    debtorName: input.debtorName ? normalizeText(input.debtorName) : null,
+    enforcementOffice: input.enforcementOffice ? normalizeText(input.enforcementOffice) : null,
     enforcementFileNumber: input.enforcementFileNumber
-      ? collapseWhitespace(input.enforcementFileNumber).toLocaleUpperCase("tr-TR")
+      ? normalizeText(input.enforcementFileNumber).toLocaleUpperCase("tr-TR")
       : null,
   };
 }
@@ -209,6 +230,3 @@ function currentIstanbulDate(): string {
   }).format(new Date());
 }
 
-function collapseWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}

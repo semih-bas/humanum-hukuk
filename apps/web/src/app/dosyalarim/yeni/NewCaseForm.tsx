@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
+import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
 
 import styles from "./page.module.css";
 
@@ -65,7 +66,11 @@ function AmountInput({
         value={value}
         placeholder="0,00"
         readOnly={readOnly}
-        onChange={(event) => onChange?.(event.target.value.replace(",", "."))}
+        onChange={(event) => onChange?.(event.target.value)}
+        onBlur={(event) => {
+          const cents = parseMoneyToCents(event.target.value);
+          if (onChange && cents !== null) onChange(centsToMoneyString(cents));
+        }}
       />
       <b>TL</b>
     </div>
@@ -246,11 +251,11 @@ export default function NewCaseForm() {
       <section className={styles.sectionCard}>
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
         <div className={styles.partyColumns}>
-          <label className={styles.field}><span>Ruhsat Sahibi</span><input required maxLength={200} value={licenseHolder} onChange={(event) => setLicenseHolder(event.target.value)} placeholder="Ruhsat sahibi adı soyadı" /><FieldError errors={fieldErrors} name="licenseHolder" /></label>
+          <label className={styles.field}><span>Ruhsat Sahibi</span><input required maxLength={150} value={licenseHolder} onChange={(event) => setLicenseHolder(event.target.value)} placeholder="Ruhsat sahibi adı soyadı" /><FieldError errors={fieldErrors} name="licenseHolder" /></label>
           <label className={styles.field}><span>Araç Plakası</span><input required maxLength={20} value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value)} placeholder="34 ABC 123" /><FieldError errors={fieldErrors} name="vehiclePlate" /></label>
           <label className={styles.field}><span>Kaza Tarihi</span><input required type="date" max={todayDate()} value={accidentDate} onChange={(event) => setAccidentDate(event.target.value)} /><FieldError errors={fieldErrors} name="accidentDate" /></label>
           <label className={styles.field}><span>Borçlu Türü</span><select required value={debtorType} onChange={(event) => setDebtorType(event.target.value)}><option value="" disabled>Tür seçiniz</option><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select><FieldError errors={fieldErrors} name="debtorType" /></label>
-          <label className={styles.field}><span>Borçlu Taraf</span><input required maxLength={200} value={debtorName} onChange={(event) => setDebtorName(event.target.value)} placeholder="Kişi veya şirket adı" /><FieldError errors={fieldErrors} name="debtorName" /></label>
+          <label className={styles.field}><span>Borçlu Taraf</span><input required maxLength={150} value={debtorName} onChange={(event) => setDebtorName(event.target.value)} placeholder="Kişi veya şirket adı" /><FieldError errors={fieldErrors} name="debtorName" /></label>
         </div>
       </section>
 
@@ -268,8 +273,8 @@ export default function NewCaseForm() {
         <section className={styles.sectionCard}>
           <h2><span>3</span>İcra Bilgileri</h2>
           <div className={styles.threeColumns}>
-            <label className={styles.field}><span>İcra Dairesi</span><input maxLength={200} value={enforcementOffice} onChange={(event) => setEnforcementOffice(event.target.value)} placeholder="İstanbul 12. İcra Dairesi" /><FieldError errors={fieldErrors} name="enforcementOffice" /></label>
-            <label className={styles.field}><span>İcra Dosya Numarası</span><input maxLength={100} value={enforcementFileNumber} onChange={(event) => setEnforcementFileNumber(event.target.value)} placeholder="2026/12345" /><FieldError errors={fieldErrors} name="enforcementFileNumber" /></label>
+            <label className={styles.field}><span>İcra Dairesi</span><input maxLength={150} value={enforcementOffice} onChange={(event) => setEnforcementOffice(event.target.value)} placeholder="İstanbul 12. İcra Dairesi" /><FieldError errors={fieldErrors} name="enforcementOffice" /></label>
+            <label className={styles.field}><span>İcra Dosya Numarası</span><input maxLength={50} value={enforcementFileNumber} onChange={(event) => setEnforcementFileNumber(event.target.value)} placeholder="2026/12345" /><FieldError errors={fieldErrors} name="enforcementFileNumber" /></label>
             <AmountInput label="Toplam Dosya Hesabı" value={financials.total} readOnly />
           </div>
         </section>
@@ -324,10 +329,10 @@ export default function NewCaseForm() {
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="operation-title" onMouseDown={(event) => event.stopPropagation()}>
         <header><h2 id="operation-title">{operation === "note" ? "Not Ekle" : operation === "reminder" ? "Hatırlatma Ekle" : "Evrak Ekle"}</h2><button type="button" aria-label="Pencereyi kapat" onClick={() => setOperation(null)}><Icon name="x" /></button></header>
         <div className={styles.modalBody}>
-          {operation === "note" && <label className={styles.field}><span>Dosya Notu</span><textarea maxLength={10_000} rows={6} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
+          {operation === "note" && <label className={styles.field}><span>Dosya Notu</span><textarea maxLength={2_000} rows={6} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
           {operation === "document" && <label className={styles.field}><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} /></label>}
           {operation === "reminder" && <>
-            <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={200} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
+            <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={500} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
             <label className={styles.field}><span>Tarih ve Saat</span><input required type="datetime-local" value={reminderDraft.dueAt} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: event.target.value })} /></label>
             <div className={styles.channels}><label><input type="checkbox" checked={reminderDraft.sendEmail} onChange={(event) => setReminderDraft({ ...reminderDraft, sendEmail: event.target.checked })} /> E-posta</label><label><input type="checkbox" checked={reminderDraft.sendSms} onChange={(event) => setReminderDraft({ ...reminderDraft, sendSms: event.target.checked })} /> SMS</label></div>
           </>}
@@ -369,14 +374,11 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 function normalizeMoney(value: string): string {
-  const normalized = value.trim().replace(",", ".");
-  return normalized || "0";
+  return value.trim() || "0";
 }
 
 function toCents(value: string): bigint {
-  const match = /^(\d{1,16})(?:[.,](\d{0,2}))?$/.exec(value.trim());
-  if (!match) return 0n;
-  return BigInt(match[1]) * 100n + BigInt((match[2] ?? "").padEnd(2, "0"));
+  return parseMoneyToCents(value) ?? 0n;
 }
 
 function divideCents(value: bigint, divisor: bigint): bigint {
@@ -384,9 +386,7 @@ function divideCents(value: bigint, divisor: bigint): bigint {
 }
 
 function centsToInput(value: bigint): string {
-  const units = value / 100n;
-  const cents = (value % 100n).toString().padStart(2, "0");
-  return `${units}.${cents}`;
+  return centsToMoneyString(value);
 }
 
 function todayDate(): string {

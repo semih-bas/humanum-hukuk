@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { calculateCaseFinancials, createCaseSchema, updateCaseSchema } from "../src/lib/cases/create-case-input";
+import { centsToMoneyString } from "../src/lib/form-input";
 
 const validCase = {
   licenseHolder: "Semih Baş",
@@ -71,4 +72,44 @@ test("düzenleme sürümü zorunlu ve pozitif tam sayıdır", () => {
   assert.equal(updateCaseSchema.safeParse(editableCase).success, false);
   assert.equal(updateCaseSchema.safeParse({ ...editableCase, version: 0 }).success, false);
   assert.equal(updateCaseSchema.safeParse({ ...editableCase, version: 1.5 }).success, false);
+});
+
+test("plaka zorunlu, normalize edilmiş ve kontrol karakterlerinden arındırılmış olmalıdır", () => {
+  const normalized = createCaseSchema.safeParse({ ...validCase, vehiclePlate: "  34   abc  123 " });
+  assert.equal(normalized.success, true);
+  if (normalized.success) assert.equal(normalized.data.vehiclePlate, "34 ABC 123");
+  assert.equal(createCaseSchema.safeParse({ ...validCase, vehiclePlate: "5555555" }).success, true);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, vehiclePlate: "1" }).success, true);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, vehiclePlate: "34 ABC<script>" }).success, false);
+});
+
+test("metin limitleri ve Türkçe para biçimleri alan bazında doğrulanır", () => {
+  assert.equal(createCaseSchema.safeParse({ ...validCase, licenseHolder: "a".repeat(151) }).success, false);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, note: "a".repeat(2_001) }).success, false);
+  const formattedMoney = createCaseSchema.safeParse({ ...validCase, damageAmount: "1.250.000,50" });
+  assert.equal(formattedMoney.success, true);
+  if (formattedMoney.success) assert.equal(formattedMoney.data.damageAmount.toFixed(2), "1250000.50");
+  assert.equal(createCaseSchema.safeParse({ ...validCase, damageAmount: "1.2.3" }).success, false);
+});
+
+test("para ayırıcıları Türkçe ve uluslararası girişleri doğru yorumlar", () => {
+  const values = [
+    ["1250", "1250.00"],
+    ["1.250", "1250.00"],
+    ["1250,50", "1250.50"],
+    ["1250.50", "1250.50"],
+    ["1.250,50", "1250.50"],
+    ["1,250.50", "1250.50"],
+  ] as const;
+
+  for (const [input, expected] of values) {
+    const result = createCaseSchema.safeParse({ ...validCase, damageAmount: input });
+    assert.equal(result.success, true, input);
+    if (result.success) assert.equal(result.data.damageAmount.toFixed(2), expected, input);
+  }
+  assert.equal(createCaseSchema.safeParse({ ...validCase, damageAmount: "1.2.3" }).success, false);
+});
+
+test("BigInt para biçimlendirmesi hassasiyet kaybetmez", () => {
+  assert.equal(centsToMoneyString(123456789012345678901n), "1.234.567.890.123.456.789,01");
 });
