@@ -1,0 +1,70 @@
+name: humanum-hukuk-acceptance
+
+services:
+  database:
+    image: postgres:17.11-alpine3.24
+    env_file:
+      - path: ./apps/web/.env.acceptance.database
+        required: true
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - humanum-acceptance-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    build:
+      context: ./apps/web
+      target: migrator
+    env_file:
+      - path: ./apps/web/.env.acceptance.app
+        required: true
+      - path: ./apps/web/.env.acceptance.database
+        required: true
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: ./apps/web
+      target: runner
+    env_file:
+      - path: ./apps/web/.env.acceptance.app
+        required: true
+      - path: ./apps/web/.env.acceptance.database
+        required: true
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - humanum-acceptance-documents:/var/lib/humanum/documents
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  humanum-acceptance-postgres-data:
+    name: humanum-acceptance-postgres-data
+  humanum-acceptance-documents:
+    name: humanum-acceptance-documents

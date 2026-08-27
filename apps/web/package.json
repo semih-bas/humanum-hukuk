@@ -14,7 +14,8 @@
     "db:check": "tsx scripts/check-database.ts",
     "db:check:case-domain": "tsx scripts/check-case-domain.ts",
     "db:check:case-create": "tsx scripts/check-case-create.ts",
-    "db:check:case-update": "tsx scripts/check-case-update.ts"
+    "db:check:case-update": "tsx scripts/check-case-update.ts",
+    "db:bootstrap:acceptance": "tsx scripts/bootstrap-acceptance.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "1.7.1",

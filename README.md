@@ -52,6 +52,32 @@ docker compose stop database
 Do not use `docker compose down --volumes` for routine shutdowns. The
 `--volumes` option permanently deletes the local database data.
 
+## Acceptance test environment
+
+The acceptance environment is completely separate from development. It uses
+the `humanum-acceptance-postgres-data` and `humanum-acceptance-documents`
+volumes, PostgreSQL port `55432`, and application port `3001`.
+
+Create the three ignored files from their `.example` counterparts, using
+different strong random values for every password and secret:
+
+- `apps/web/.env.acceptance.database`
+- `apps/web/.env.acceptance.app`
+- `apps/web/.env.acceptance.bootstrap`
+
+Start and verify it from the repository root:
+
+```powershell
+docker compose -f compose.acceptance.yaml up --detach --build --wait
+Set-Location apps/web
+npm run db:bootstrap:acceptance
+```
+
+Open `http://localhost:3001/login` and sign in with
+`admin@humanum.local`. The bootstrap command creates only this administrator
+and does not print the password. Keep the acceptance volumes until testing is
+complete; never use `down --volumes` without explicit approval.
+
 Database roles are separated by responsibility:
 
 - `humanum_admin`: bootstrap administration only
