@@ -94,7 +94,9 @@ function formatPercentage(value: number): string {
 
 function formatToday(): string {
   return new Intl.DateTimeFormat("tr-TR", {
-    dateStyle: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
     weekday: "long",
     timeZone: "Europe/Istanbul",
   }).format(new Date());
