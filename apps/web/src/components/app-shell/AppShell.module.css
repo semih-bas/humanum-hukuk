@@ -127,8 +127,9 @@
 .menuButton, .notificationButton, .profileButton, .mobileClose { border: 0; background: transparent; color: inherit; cursor: pointer; }
 .menuButton { display: none; width: 42px; height: 42px; place-items: center; border-radius: 7px; }
 .menuButton:hover, .notificationButton:hover { background: #f1f4f7; }
-.headerContent { width: min(430px, 40vw); margin-right: auto; }
+.headerContent { width: min(430px, 40vw); margin-right: 22px; margin-left: auto; }
 .topbarMenus { display: flex; align-items: center; gap: 15px; margin-left: auto; }
+.headerContent + .topbarMenus { margin-left: 0; }
 .menuWrapper { position: relative; }
 .notificationButton { position: relative; display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; }
 .notificationCount { position: absolute; top: 2px; right: 2px; display: grid; width: 17px; height: 17px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #d93d42; color: #fff; font-size: 9px; font-weight: 700; }
