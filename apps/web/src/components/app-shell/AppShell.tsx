@@ -104,6 +104,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [notificationCount, setNotificationCount] = useState(0);
   const [notificationState, setNotificationState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const menuAreaRef = useRef<HTMLDivElement>(null);
+  const teamAreaRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async (signal?: AbortSignal) => {
     setNotificationState("loading");
@@ -144,6 +145,17 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     document.addEventListener("mousedown", closeMenus);
     return () => document.removeEventListener("mousedown", closeMenus);
   }, []);
+
+  useEffect(() => {
+    if (!teamOpen) return;
+
+    function closeTeamPanel(event: MouseEvent) {
+      if (!teamAreaRef.current?.contains(event.target as Node)) setTeamOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeTeamPanel);
+    return () => document.removeEventListener("mousedown", closeTeamPanel);
+  }, [teamOpen]);
 
   useEffect(() => {
     if (!isManager) {
@@ -204,6 +216,8 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
 
     form.reset();
     setCreateUserOpen(false);
+    setShowTemporaryPassword(false);
+    setTeamOpen(true);
     setManagementNotice("Kullanıcı güvenli şekilde oluşturuldu.");
     setIsCreatingUser(false);
     await loadTeamMembers();
@@ -271,15 +285,15 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
         </div>
 
         <nav className={styles.navigation} aria-label="Ana menü">
-          <Link className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navItemActive : ""}`} href="/dashboard" onClick={() => setSidebarOpen(false)}>
+          <Link className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navItemActive : ""}`} href="/dashboard" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
             <Icon name="home" /><span>Dashboard</span>
           </Link>
-          <Link className={`${styles.navItem} ${pathname.startsWith("/dosyalarim") ? styles.navItemActive : ""}`} href="/dosyalarim" onClick={() => setSidebarOpen(false)}>
+          <Link className={`${styles.navItem} ${pathname.startsWith("/dosyalarim") ? styles.navItemActive : ""}`} href="/dosyalarim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
             <Icon name="folder" /><span>Dosyalarım</span>
           </Link>
         </nav>
 
-        <div className={styles.sidebarFooter}>
+        <div className={styles.sidebarFooter} ref={teamAreaRef}>
           {currentUser.isManager && teamOpen && (
             <div className={styles.teamPanel}>
               <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>{teamState === "ready" ? `${teamMembers.length} kişi` : "Yönetim"}</span></div>
@@ -289,24 +303,19 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                 {teamMembers.map((member) => (
                   <div className={styles.teamMember} key={member.id}>
                     <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
-                    <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"} · {member.banned ? "Pasif" : "Aktif"}</small></span>
+                    <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
+                    <span className={`${styles.memberStatus} ${member.banned ? styles.memberStatusInactive : ""}`}><i />{member.banned ? "Pasif" : "Aktif"}</span>
                     {member.id !== session?.user.id && <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
                       {changingUserId === member.id ? "..." : member.banned ? "Tekrar Aktifleştir" : "Pasifleştir"}
                     </button>}
                   </div>
                 ))}
               </div>
-              {createUserOpen && <form className={styles.createUserForm} onSubmit={handleCreateUser}>
-                <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" disabled={isCreatingUser} /></label>
-                <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" disabled={isCreatingUser} /></label>
-                <label><span>Geçici Şifre</span><span className={styles.passwordField}><input name="password" type={showTemporaryPassword ? "text" : "password"} required minLength={10} maxLength={128} autoComplete="new-password" disabled={isCreatingUser} /><button type="button" className={styles.passwordToggle} aria-label={showTemporaryPassword ? "Geçici şifreyi gizle" : "Geçici şifreyi göster"} aria-pressed={showTemporaryPassword} onClick={() => setShowTemporaryPassword((visible) => !visible)} disabled={isCreatingUser}><Icon name="eye" /></button></span></label>
-                <div><button type="button" onClick={() => setCreateUserOpen(false)} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
-              </form>}
-              {!createUserOpen && <button className={styles.addMemberButton} type="button" onClick={() => { setCreateUserOpen(true); setManagementNotice(""); }}><Icon name="plus" />Yeni kullanıcı ekle</button>}
+              <button className={styles.addMemberButton} type="button" onClick={() => { setCreateUserOpen(true); setTeamOpen(false); setManagementNotice(""); }}><Icon name="plus" />Yeni kullanıcı ekle</button>
               {managementNotice && <p className={styles.managementNotice} role="status">{managementNotice}</p>}
             </div>
           )}
-          <button className={styles.sidebarUser} type="button" aria-expanded={teamOpen} onClick={() => {
+          <button className={`${styles.sidebarUser} ${teamOpen ? styles.sidebarUserActive : ""}`} type="button" aria-label={teamOpen ? "Ekip yönetimini kapat" : "Ekip yönetimini aç"} aria-expanded={teamOpen} onClick={() => {
             if (sidebarCollapsed) setSidebarCollapsed(false);
             if (currentUser.isManager) {
               setTeamOpen((value) => !value);
@@ -314,14 +323,32 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
             }
           }}>
             <span className={styles.avatar}>{currentUser.initials}</span>
-            <span className={styles.sidebarUserText}><strong>{currentUser.name}</strong><small>{currentUser.role}</small></span>
+            <span className={styles.sidebarUserText}><strong title={currentUser.name}>{currentUser.name}</strong><small>{currentUser.role}</small></span>
             {currentUser.isManager && <span className={`${styles.teamChevron} ${teamOpen ? styles.teamChevronOpen : ""}`}><Icon name="chevron" /></span>}
           </button>
           <button className={styles.logoutLink} type="button" onClick={handleSignOut} disabled={isSigningOut}><Icon name="logout" /><span>{isSigningOut ? "Çıkış yapılıyor..." : "Çıkış Yap"}</span></button>
         </div>
       </aside>
 
-      {sidebarOpen && <button className={styles.backdrop} type="button" aria-label="Menüyü kapat" onClick={() => setSidebarOpen(false)} />}
+      {currentUser.isManager && teamOpen && <button className={styles.teamBackdrop} type="button" aria-label="Ekip panelini kapat" onClick={() => setTeamOpen(false)} />}
+      {sidebarOpen && <button className={styles.backdrop} type="button" aria-label="Menüyü kapat" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }} />}
+
+      {createUserOpen && <div className={styles.userModalBackdrop} role="presentation" onMouseDown={() => { if (!isCreatingUser) { setCreateUserOpen(false); setShowTemporaryPassword(false); } }}>
+        <section className={styles.userModal} role="dialog" aria-modal="true" aria-labelledby="create-user-title" aria-describedby="create-user-description" onMouseDown={(event) => event.stopPropagation()}>
+          <header className={styles.userModalHeader}>
+            <span className={styles.userModalIcon}><Icon name="users" /></span>
+            <span><small>Ekip yönetimi</small><h2 id="create-user-title">Yeni kullanıcı ekle</h2></span>
+            <button type="button" aria-label="Kullanıcı ekleme penceresini kapat" onClick={() => { setCreateUserOpen(false); setShowTemporaryPassword(false); }} disabled={isCreatingUser}><Icon name="close" /></button>
+          </header>
+          <form className={styles.createUserForm} onSubmit={handleCreateUser}>
+            <p id="create-user-description">Yeni kullanıcı bu bilgilerle ilk girişini yapar ve ardından kendi şifresini belirler.</p>
+            <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" placeholder="Kullanıcının adı ve soyadı" disabled={isCreatingUser} /></label>
+            <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" placeholder="ornek@humanum.com" disabled={isCreatingUser} /></label>
+            <label><span>Geçici Şifre</span><span className={styles.passwordField}><input name="password" type={showTemporaryPassword ? "text" : "password"} required minLength={10} maxLength={128} autoComplete="new-password" placeholder="En az 10 karakter" disabled={isCreatingUser} /><button type="button" className={styles.passwordToggle} aria-label={showTemporaryPassword ? "Geçici şifreyi gizle" : "Geçici şifreyi göster"} aria-pressed={showTemporaryPassword} onClick={() => setShowTemporaryPassword((visible) => !visible)} disabled={isCreatingUser}><Icon name="eye" /></button></span><small className={styles.passwordHint}>En az 10 karakter kullanın. Bu şifre yalnızca ilk giriş içindir.</small></label>
+            <div className={styles.createUserActions}><button type="button" onClick={() => { setCreateUserOpen(false); setShowTemporaryPassword(false); }} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
+          </form>
+        </section>
+      </div>}
 
       {pendingStatusChange && <div className={styles.confirmationBackdrop} role="presentation" onMouseDown={() => setPendingStatusChange(null)}>
         <section className={styles.confirmationDialog} role="dialog" aria-modal="true" aria-labelledby="deactivation-title" aria-describedby="deactivation-description" onMouseDown={(event) => event.stopPropagation()}>
@@ -368,7 +395,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
             <div className={styles.menuWrapper}>
               <button className={styles.profileButton} type="button" aria-expanded={openMenu === "profile"} onClick={() => setOpenMenu((value) => value === "profile" ? null : "profile")}>
                 <span className={styles.avatar}>{currentUser.initials}</span>
-                <span className={styles.profileText}><strong>{currentUser.name}</strong><small>{currentUser.role}</small></span>
+                <span className={styles.profileText}><strong title={currentUser.name}>{currentUser.name}</strong><small>{currentUser.role}</small></span>
                 <Icon name="chevron" />
               </button>
               {openMenu === "profile" && (

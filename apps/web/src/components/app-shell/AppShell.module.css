@@ -12,7 +12,7 @@
   display: flex;
   width: var(--sidebar-width);
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(180deg, #07182b 0%, #041222 100%);
   color: #f6f8fb;
   transition: width 180ms ease, transform 180ms ease;
@@ -65,42 +65,56 @@
 .navItemActive::before { position: absolute; inset: 0 auto 0 -14px; width: 3px; background: #d6aa58; content: ""; }
 .navItemActive .icon { color: #d6aa58; }
 
-.sidebarFooter { position: relative; margin-top: auto; border-top: 1px solid rgb(255 255 255 / 8%); padding: 18px 14px; }
-.sidebarUser { display: flex; width: 100%; align-items: center; gap: 12px; padding: 0 14px 18px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.sidebarUser:hover .sidebarUserText strong { color: #d9ae61; }
+.sidebarFooter { position: relative; margin-top: auto; border-top: 1px solid rgb(255 255 255 / 8%); padding: 14px; }
+.sidebarUser { display: flex; width: 100%; min-height: 62px; align-items: center; gap: 12px; margin-bottom: 9px; padding: 9px 11px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: inherit; cursor: pointer; text-align: left; transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease; }
+.sidebarUser:hover, .sidebarUserActive { border-color: rgb(221 177 94 / 24%); background: rgb(255 255 255 / 6%); }.sidebarUser:hover { transform: translateY(-1px); }.sidebarUser:hover .sidebarUserText strong, .sidebarUserActive .sidebarUserText strong { color: #e1ba71; }
 .avatar { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #dfe5eb; color: #203047; font-size: 13px; font-weight: 700; }
-.sidebarUserText, .profileText { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
-.sidebarUserText strong, .profileText strong { font-size: 13px; }
+.sidebarUserText, .profileText { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; white-space: nowrap; }
+.sidebarUserText strong, .profileText strong { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.sidebarUserText strong { max-width: 132px; }.profileText strong { max-width: 210px; }
 .sidebarUserText small, .profileText small { color: #9da9b7; font-size: 11px; }
 .teamChevron { display: grid; margin-left: auto; transition: transform 160ms ease; }
 .teamChevron .icon { width: 15px; transform: rotate(90deg); }
 .teamChevronOpen { transform: rotate(180deg); }
-.teamPanel { margin: 0 0 14px; overflow: hidden; border: 1px solid rgb(255 255 255 / 10%); border-radius: 9px; background: #0b1e32; box-shadow: 0 -14px 35px rgb(0 0 0 / 20%); }
-.teamPanelHeader { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid rgb(255 255 255 / 8%); }
-.teamPanelHeader strong { font-size: 12px; }.teamPanelHeader span { color: #98a6b5; font-size: 10px; }
-.teamList { max-height: 190px; overflow-y: auto; }
-.teamMember { display: flex; align-items: center; gap: 10px; padding: 9px 13px; }
-.memberAvatar { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #1c334b; color: #d7ac5c; font-size: 9px; font-weight: 700; }
-.teamMember > span:last-child { display: flex; flex-direction: column; gap: 2px; }.teamMember strong { font-size: 10px; }.teamMember small { color: #8d9baa; font-size: 9px; }.memberInfo { min-width: 0; }.statusButton { margin-left: auto; border: 0; background: transparent; color: #d7ac5c; cursor: pointer; font-size: 9px; white-space: nowrap; }.statusButton:hover { color: #fff; }.statusButton:disabled { cursor: wait; opacity: .55; }
-.addMemberButton { display: flex; width: 100%; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-top: 1px solid rgb(255 255 255 / 8%); background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; font-weight: 600; }
-.addMemberButton:hover { background: rgb(255 255 255 / 5%); }.addMemberButton .icon { width: 16px; }
-.managementNotice { margin: 0; padding: 0 13px 12px; color: #9ba9b8; font-size: 9px; line-height: 1.5; }
-.retryButton { margin: 10px 13px; border: 0; background: transparent; color: #d7ac5c; cursor: pointer; font-size: 10px; }
-.createUserForm { display: grid; gap: 9px; padding: 12px 13px; border-top: 1px solid rgb(255 255 255 / 8%); }
-.createUserForm label { display: grid; gap: 4px; color: #aab5c1; font-size: 9px; }
-.createUserForm input { width: 100%; height: 34px; border: 1px solid rgb(255 255 255 / 14%); border-radius: 5px; outline: none; padding: 0 9px; background: #07182a; color: #fff; font-size: 10px; }
-.createUserForm input:focus { border-color: #d7ac5c; }
+.teamPanel { position: absolute; z-index: 2; right: -398px; bottom: 8px; width: 382px; overflow: hidden; border: 1px solid #d9e2e9; border-radius: 17px; background: #fff; color: #17283c; box-shadow: 0 28px 76px rgb(4 18 34 / 30%); animation: teamPanelIn 180ms ease-out both; }
+.teamPanelHeader { display: flex; min-height: 68px; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e3e9ee; background: linear-gradient(120deg, #fff 0%, #f8fafb 70%, #faf5ec 100%); }
+.teamPanelHeader strong { font-size: 15px; }.teamPanelHeader span { padding: 5px 9px; border-radius: 999px; background: #edf3f7; color: #587087; font-size: 10px; font-weight: 700; }
+.teamList { display: grid; max-height: 354px; gap: 8px; overflow-y: auto; padding: 10px; background: #f4f7f9; scrollbar-color: #aeb9c5 transparent; scrollbar-width: thin; }
+.teamMember { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 70px; padding: 10px 12px; border: 1px solid #e5eaee; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgb(21 44 67 / 4%); transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.teamMember:hover { border-color: #d8c29a; box-shadow: 0 7px 18px rgb(21 44 67 / 8%); transform: translateY(-1px); }
+.memberAvatar { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: linear-gradient(145deg, #102b45, #1d4668); color: #e2bd72; font-size: 10px; font-weight: 800; }
+.teamMember strong { overflow: hidden; color: #17283c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.teamMember small { color: #8190a0; font-size: 10px; }.memberInfo { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.memberStatus { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; background: #eaf7ef; color: #34754d; font-size: 9px; font-weight: 700; }.memberStatus i { width: 6px; height: 6px; border-radius: 50%; background: #3a9a61; }.memberStatusInactive { background: #f1f2f4; color: #717c88; }.memberStatusInactive i { background: #9ba4ae; }
+.statusButton { grid-column: 2 / -1; justify-self: start; margin-top: -4px; padding: 4px 8px; border: 0; border-radius: 999px; background: #fff8ec; color: #93651f; cursor: pointer; font-size: 9px; font-weight: 700; white-space: nowrap; }.statusButton:hover { background: #f3e3c6; color: #17324e; }.statusButton:disabled { cursor: wait; opacity: .55; }
+.addMemberButton { display: flex; width: calc(100% - 20px); min-height: 48px; align-items: center; justify-content: center; gap: 8px; margin: 9px 10px 11px; border: 1px solid #d7b978; border-radius: 10px; background: linear-gradient(135deg, #fffdf8, #fff7e9); color: #865a18; cursor: pointer; font-size: 11px; font-weight: 700; box-shadow: 0 5px 14px rgb(164 112 31 / 7%); }
+.addMemberButton:hover { border-color: #c99b4c; background: #fff5e4; }.addMemberButton .icon { width: 16px; }
+.managementNotice { margin: 0; padding: 4px 18px 14px; color: #657587; font-size: 10px; line-height: 1.5; }
+.retryButton { margin: 12px; border: 0; background: transparent; color: #9b6c24; cursor: pointer; font-size: 11px; font-weight: 700; }
+.userModalBackdrop { position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; padding: 20px; background: rgb(3 12 23 / 66%); backdrop-filter: blur(6px); animation: modalBackdropIn 160ms ease-out both; }
+.userModal { width: min(100%, 520px); overflow: hidden; border: 1px solid rgb(255 255 255 / 16%); border-radius: 18px; background: #fff; color: #17283c; box-shadow: 0 30px 90px rgb(0 0 0 / 34%); animation: userModalIn 190ms ease-out both; }
+.userModalHeader { display: grid; grid-template-columns: 46px minmax(0, 1fr) 38px; align-items: center; gap: 13px; min-height: 100px; padding: 20px 24px; background: linear-gradient(125deg, #071a2e 0%, #102f4b 72%, #1b405e 100%); color: #fff; }
+.userModalIcon { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid rgb(223 183 107 / 35%); border-radius: 13px; background: rgb(223 183 107 / 12%); color: #e2bd72; }.userModalIcon .icon { width: 22px; height: 22px; }
+.userModalHeader small { display: block; margin-bottom: 4px; color: #e0b76b; font-size: 9px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }.userModalHeader h2 { margin: 0; font-size: 22px; letter-spacing: -.015em; }
+.userModalHeader > button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 50%; background: rgb(255 255 255 / 9%); color: #fff; cursor: pointer; }.userModalHeader > button:hover { background: rgb(255 255 255 / 16%); }.userModalHeader > button:disabled { cursor: wait; opacity: .55; }.userModalHeader > button .icon { width: 17px; }
+.createUserForm { display: grid; gap: 16px; padding: 24px; background: linear-gradient(180deg, #fff, #fbfcfd); }
+.createUserForm > p { margin: 0 0 2px; padding: 12px 14px; border: 1px solid #e3e9ee; border-radius: 9px; background: #f6f8fa; color: #657587; font-size: 11px; line-height: 1.55; }
+.createUserForm label { display: grid; gap: 7px; color: #3f5368; font-size: 11px; font-weight: 700; }
+.createUserForm input { width: 100%; height: 48px; border: 1px solid #d5dee6; border-radius: 9px; outline: none; padding: 0 13px; background: #fff; color: #17283c; font-size: 12px; }
+.createUserForm input:focus { border-color: #c99b4c; box-shadow: 0 0 0 3px rgb(201 155 76 / 12%); }
 .passwordField { position: relative; display: block; }
-.passwordField input { padding-right: 34px; }
-.passwordToggle { position: absolute; top: 0; right: 0; display: grid; width: 34px; height: 34px; place-items: center; padding: 0 !important; background: transparent !important; color: #aab5c1 !important; }
+.passwordField input { padding-right: 48px; }
+.passwordToggle { position: absolute; top: 0; right: 0; display: grid; width: 48px; height: 48px; place-items: center; padding: 0 !important; border: 0 !important; background: transparent !important; color: #8998a8 !important; }
 .passwordToggle:hover { color: #d7ac5c !important; }
-.passwordToggle .icon { width: 15px; }
-.createUserForm > div { display: flex; gap: 7px; justify-content: flex-end; }
-.createUserForm button { border: 0; border-radius: 4px; padding: 7px 9px; background: rgb(255 255 255 / 8%); color: #d3dbe4; cursor: pointer; font-size: 9px; }
-.createUserForm button[type="submit"] { background: #d3a956; color: #07182a; font-weight: 700; }
+.passwordToggle .icon { width: 17px; }
+.passwordHint { color: #8492a0; font-size: 9px; font-weight: 500; line-height: 1.45; }
+.createUserActions { display: flex; gap: 9px; justify-content: flex-end; margin: 5px -24px -24px; padding: 17px 24px; border-top: 1px solid #e8edf1; background: #fff; }
+.createUserForm button { min-height: 40px; border: 1px solid #d5dee6; border-radius: 8px; padding: 0 16px; background: #fff; color: #46596d; cursor: pointer; font-size: 11px; font-weight: 700; }
+.createUserForm button:hover { background: #f5f7f9; }.createUserForm button:disabled { cursor: wait; opacity: .58; }
+.createUserForm button[type="submit"] { min-width: 138px; border-color: #bc862f; background: linear-gradient(135deg, #d0a14f, #b87924); color: #fff; box-shadow: 0 8px 18px rgb(184 121 36 / 20%); }.createUserForm button[type="submit"]:hover { background: linear-gradient(135deg, #d8ac60, #a96d1f); }
 .logoutLink { border-top: 1px solid rgb(255 255 255 / 7%); border-radius: 0; padding-top: 12px; }
 
 .workspace { min-height: 100vh; padding-left: var(--sidebar-width); transition: padding-left 180ms ease; }
+.teamBackdrop { position: fixed; inset: 0; z-index: 29; border: 0; background: rgb(6 17 29 / 18%); cursor: default; backdrop-filter: blur(3px); animation: modalBackdropIn 150ms ease-out both; }
 .topbar { position: sticky; top: 0; z-index: 20; display: flex; height: 78px; align-items: center; justify-content: space-between; padding: 0 30px; border-bottom: 1px solid #e6e9ed; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(20 36 56 / 4%); }
 .menuButton, .notificationButton, .profileButton, .mobileClose { border: 0; background: transparent; color: inherit; cursor: pointer; }
 .menuButton { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 7px; }
@@ -113,7 +127,7 @@
 .profileButton { display: flex; align-items: center; gap: 10px; padding: 5px 4px; text-align: left; }
 .profileButton > .icon { width: 15px; transform: rotate(90deg); color: #718096; }
 
-.popover { position: absolute; top: calc(100% + 13px); right: 0; width: 330px; padding: 10px; border: 1px solid #e3e7ec; border-radius: 10px; background: #fff; box-shadow: 0 18px 50px rgb(16 35 58 / 16%); }
+.popover { position: absolute; top: calc(100% + 13px); right: 0; width: 330px; padding: 10px; border: 1px solid #dfe5ea; border-radius: 12px; background: #fff; box-shadow: 0 20px 55px rgb(16 35 58 / 18%); animation: popoverIn 150ms ease-out both; }
 .popover::before { position: absolute; top: -6px; right: 16px; width: 10px; height: 10px; border-top: 1px solid #e3e7ec; border-left: 1px solid #e3e7ec; background: #fff; content: ""; transform: rotate(45deg); }
 .popoverHeader { display: flex; justify-content: space-between; padding: 9px 10px 13px; border-bottom: 1px solid #edf0f3; }
 .popoverHeader span { color: #c28e34; font-size: 11px; }
@@ -140,6 +154,11 @@
 .confirmationActions .dangerButton { border-color: #b5363b; background: #b5363b; color: #fff; }
 .confirmationActions .dangerButton:hover { background: #922f34; }
 
+@keyframes teamPanelIn { from { opacity: 0; transform: translateX(-8px) scale(.985); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes popoverIn { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes userModalIn { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
 .shellCollapsed { --sidebar-width: 82px; }
 .shellCollapsed .brandText, .shellCollapsed .navItem span, .shellCollapsed .sidebarUserText, .shellCollapsed .teamChevron, .shellCollapsed .logoutLink span { opacity: 0; pointer-events: none; }
 .shellCollapsed .teamPanel { display: none; }
@@ -151,7 +170,7 @@
 
 @media (max-width: 899px) {
   .shell { --sidebar-width: 0px; }
-  .sidebar { width: 270px; transform: translateX(-100%); }
+  .sidebar { width: 270px; overflow-x: hidden; overflow-y: auto; transform: translateX(-100%); }
   .sidebarOpen { transform: translateX(0); }
   .workspace { padding-left: 0; }
   .mobileClose { display: grid; width: 38px; height: 38px; margin-left: auto; place-items: center; }
@@ -160,6 +179,14 @@
   .content { min-height: calc(100vh - 68px); }
   .workspaceWithoutTopbar .content { min-height: 100vh; }
   .headerContent { width: min(360px, 48vw); margin-right: 10px; }
+  .teamPanel { position: static; width: auto; margin: 0 0 14px; color: #eef3f7; border-color: rgb(255 255 255 / 10%); background: #0b1e32; box-shadow: 0 -14px 35px rgb(0 0 0 / 20%); }
+  .teamPanelHeader { border-color: rgb(255 255 255 / 8%); background: transparent; }.teamPanelHeader strong { color: #fff; }.teamPanelHeader span { background: rgb(255 255 255 / 8%); color: #b6c1cc; }
+  .teamList { background: rgb(255 255 255 / 2%); }
+  .teamMember { border-color: rgb(255 255 255 / 8%); background: rgb(255 255 255 / 3%); box-shadow: none; }.teamMember strong { color: #fff; }.teamMember:hover { border-color: rgb(216 174 96 / 25%); background: rgb(255 255 255 / 6%); }.memberInfo small { color: #98a6b5; }
+  .memberStatus { background: rgb(51 148 89 / 18%); color: #9ad8af; }.memberStatusInactive { background: rgb(255 255 255 / 7%); color: #aeb8c2; }
+  .statusButton { background: rgb(216 174 96 / 9%); color: #dfba72; }.statusButton:hover { background: rgb(216 174 96 / 16%); color: #fff; }
+  .addMemberButton { border-color: rgb(216 174 96 / 35%); background: rgb(216 174 96 / 8%); color: #dfba72; }
+  .teamBackdrop { display: none; }
 }
 
 @media (max-width: 560px) {
@@ -168,4 +195,11 @@
   .topbarMenus { gap: 3px; }
   .popover { position: fixed; top: 76px; right: 12px; left: 12px; width: auto; }
   .popover::before { display: none; }
+  .userModalBackdrop { padding: 12px; }
+  .userModal { border-radius: 14px; }
+  .userModalHeader { grid-template-columns: 40px minmax(0, 1fr) 36px; min-height: 88px; padding: 16px; }
+  .userModalIcon { width: 40px; height: 40px; border-radius: 11px; }
+  .userModalHeader h2 { font-size: 19px; }
+  .createUserForm { gap: 14px; padding: 18px 16px; }
+  .createUserActions { margin: 3px -16px -18px; padding: 15px 16px; }
 }

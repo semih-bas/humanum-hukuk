@@ -247,13 +247,13 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         <div className={styles.detailScroll}>
           {activityMode && <form className={styles.activityForm} onSubmit={saveActivity}>
             <div><h3>{activityMode === "note" ? "Yeni Not" : activityMode === "reminder" ? "Yeni Hatırlatma" : "Yeni Evrak"}</h3><button type="button" onClick={() => setActivityMode(null)}>×</button></div>
-            {activityMode === "note" ? <><textarea required maxLength={2_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" />{fieldErrors.content?.[0] && <small>{fieldErrors.content[0]}</small>}</> : activityMode === "document" ? <>
+            {activityMode === "note" ? <><label className={styles.activityField}><span>Dosya notu</span><textarea required maxLength={2_000} rows={4} value={noteContent} onChange={(event) => setNoteContent(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın…" /></label>{fieldErrors.content?.[0] && <small>{fieldErrors.content[0]}</small>}</> : activityMode === "document" ? <>
               <input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} />
               <small>PDF, JPG veya PNG · En fazla 20 MB</small>
             </> : <>
-              <input required maxLength={500} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Hatırlatma başlığı" />
-              <input required type="datetime-local" value={reminderDueAt} onChange={(event) => setReminderDueAt(event.target.value)} />
-              <p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p>
+              <label className={styles.activityField}><span>Hatırlatma başlığı</span><input required maxLength={500} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Örn: Duruşma hazırlığı" /></label>
+              <label className={styles.activityField}><span>Tarih ve saat</span><input required type="datetime-local" value={reminderDueAt} onChange={(event) => setReminderDueAt(event.target.value)} /></label>
+              <div className={styles.activityChannels}><span>Bildirim kanalları</span><p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p></div>
             </>}
             <button type="submit" disabled={activitySaving}>{activitySaving ? "Ekleniyor…" : "Kaydet"}</button>
           </form>}
