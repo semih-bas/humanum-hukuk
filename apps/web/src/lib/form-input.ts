@@ -20,6 +20,25 @@ export function normalizePlate(value: string): string {
   return normalizeText(value).toLocaleUpperCase("tr-TR");
 }
 
+export function limitDateYear(value: string, currentValue = ""): string {
+  const year = value.split("-")[0] ?? "";
+  return year.length <= 4 ? value : currentValue;
+}
+
+export function formatTimeInput(value: string, currentValue = ""): string {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+
+  const hour = Number(digits.slice(0, 2));
+  const minuteDigits = digits.slice(2);
+  if (hour > 23 || Number(minuteDigits) > 59) return currentValue;
+  return `${digits.slice(0, 2)}:${minuteDigits}`;
+}
+
+export function isValidTime(value: string): boolean {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
 export function validatePlate(value: string): string | null {
   const normalized = normalizePlate(value);
   if (!normalized || normalized.length > PLATE_MAX_LENGTH) {
@@ -65,6 +84,18 @@ export function centsToMoneyString(cents: bigint): string {
   const fraction = (cents % 100n).toString().padStart(2, "0");
   const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `${groupedWhole},${fraction}`;
+}
+
+export function formatMoneyInput(value: string): string {
+  const cleaned = value.replace(/\s|TL/gi, "").replace(/[^\d,]/g, "");
+  if (!cleaned) return "";
+
+  const commaIndex = cleaned.indexOf(",");
+  const rawWhole = (commaIndex === -1 ? cleaned : cleaned.slice(0, commaIndex)).replace(/^0+(?=\d)/, "") || "0";
+  const fraction = commaIndex === -1 ? "" : cleaned.slice(commaIndex + 1).replace(/\D/g, "").slice(0, 2);
+  const groupedWhole = rawWhole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return commaIndex === -1 ? groupedWhole : `${groupedWhole},${fraction}`;
 }
 
 export function hasControlCharacter(value: string): boolean {

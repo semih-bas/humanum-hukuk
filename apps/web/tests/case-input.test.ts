@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { calculateCaseFinancials, createCaseSchema, updateCaseSchema } from "../src/lib/cases/create-case-input";
-import { centsToMoneyString } from "../src/lib/form-input";
+import { centsToMoneyString, formatMoneyInput, formatTimeInput, isValidTime, limitDateYear } from "../src/lib/form-input";
 
 const validCase = {
   licenseHolder: "Semih Baş",
@@ -116,6 +116,26 @@ test("para ayırıcıları Türkçe ve uluslararası girişleri doğru yorumlar"
 
 test("BigInt para biçimlendirmesi hassasiyet kaybetmez", () => {
   assert.equal(centsToMoneyString(123456789012345678901n), "1.234.567.890.123.456.789,01");
+});
+
+test("para alanı yazarken Türkçe binlik ayracı ekler", () => {
+  assert.equal(formatMoneyInput("1"), "1");
+  assert.equal(formatMoneyInput("10000"), "10.000");
+  assert.equal(formatMoneyInput("10.0000"), "100.000");
+  assert.equal(formatMoneyInput("10000,5"), "10.000,5");
+  assert.equal(formatMoneyInput("10000,50 TL"), "10.000,50");
+  assert.equal(formatMoneyInput(""), "");
+});
+
+test("tarih yılı dört haneyi ve saat geçerli aralıkları aşmaz", () => {
+  assert.equal(limitDateYear("2026-08-29", "2025-01-01"), "2026-08-29");
+  assert.equal(limitDateYear("442423-12-23", "2026-08-29"), "2026-08-29");
+  assert.equal(formatTimeInput("106", "10"), "10:6");
+  assert.equal(formatTimeInput("1067", "10:6"), "10:6");
+  assert.equal(formatTimeInput("2359"), "23:59");
+  assert.equal(formatTimeInput("2460", "23:59"), "23:59");
+  assert.equal(isValidTime("23:59"), true);
+  assert.equal(isValidTime("10:67"), false);
 });
 
 test("taksit hesabı bölünmeyen kuruşu son taksite ekler", () => {
