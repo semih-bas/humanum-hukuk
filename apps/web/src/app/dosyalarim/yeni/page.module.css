@@ -57,3 +57,34 @@
 .modalActions button:hover { transform: translateY(-1px); }
 
 @media(max-width:560px){.reminderDateTime{grid-template-columns:1fr}.modal footer.reminderFooter{align-items:stretch;flex-direction:column}.channels,.modalActions{width:100%}.modalActions button{flex:1}}
+
+/* Yeni dosya ekranı: büyütmeden daha belirgin hiyerarşi ve masaüstünde tek ekran akışı. */
+@media (min-width: 1101px) {
+  .newCasePage { height: 100vh; min-height: 0; padding-bottom: 7px; background: linear-gradient(145deg, #f5f7fa 0%, #f1f4f7 72%, #f7f3eb 100%); }
+  .pageHeader { min-height: 72px; margin-bottom: 6px; padding-block: 7px; box-shadow: 0 6px 20px rgb(18 38 60 / 5%); }
+  .pageTitle h1 { margin-bottom: 5px; font-size: 24px; }
+  .pageDescription { position: relative; padding-left: 13px; }
+  .pageDescription::before { position: absolute; top: 50%; left: 0; width: 4px; height: 4px; border-radius: 50%; background: #c9933f; box-shadow: 0 0 0 4px rgb(201 147 63 / 10%); content: ""; transform: translateY(-50%); }
+  .pageActions a, .pageActions button { height: 40px; }
+  .sectionCard { position: relative; margin-top: 6px; overflow: hidden; padding: 13px 16px; border-color: #dce4ea; box-shadow: 0 5px 17px rgb(18 39 62 / 4%); }
+  .sectionCard::before { position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, #d09a42 0%, #ebd2a7 24%, transparent 62%); content: ""; opacity: .72; }
+  .sectionCard:hover { border-color: #d0dbe3; box-shadow: 0 8px 22px rgb(18 39 62 / 6%); transform: translateY(-1px); }
+  .sectionCard h2 { gap: 10px; margin-bottom: 10px; font-size: 13px; }
+  .sectionCard h2 > span { width: 23px; height: 23px; border: 1px solid rgb(218 174 91 / 20%); background: linear-gradient(145deg, #0d2943, #061a2e); box-shadow: 0 3px 9px rgb(10 32 55 / 14%); }
+  .splitGrid { gap: 7px; }
+  .partyColumns, .fourColumns, .threeColumns, .twoColumns { gap: 11px; }
+  .field { gap: 5px; }
+  .field > span { font-size: 10px; }
+  .field input, .field select, .field textarea, .amountInput { min-height: 40px; }
+  .field input, .field select, .field textarea { background: linear-gradient(180deg, #fff, #fdfefe); }
+  .readOnly, .readOnly input { background: #f4f7f9; }
+  .toggleGrid { gap: 10px; }
+  .toggle { min-height: 60px; padding: 9px 12px; }
+  .hint { margin-top: 8px; padding: 8px 11px; }
+  .operationGrid button { min-height: 68px; gap: 6px; }
+  .operationGrid svg { width: 21px; }
+}
+
+@media (min-width: 1101px) and (min-height: 820px) {
+  .newCasePage { overflow: hidden; }
+}
