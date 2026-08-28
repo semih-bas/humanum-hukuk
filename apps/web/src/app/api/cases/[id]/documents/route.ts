@@ -21,8 +21,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const form = await request.formData();
     const file = form.get("file");
+    const requestedName = form.get("documentName");
     if (!(file instanceof File)) throw new DocumentValidationError("Yüklenecek evrak bulunamadı.");
-    return jsonResponse({ data: await storeCaseDocument(idResult.data, file, session.user.id) }, 201);
+    if (requestedName !== null && typeof requestedName !== "string") throw new DocumentValidationError("Evrak adı geçerli değil.");
+    return jsonResponse({ data: await storeCaseDocument(idResult.data, file, session.user.id, requestedName ?? undefined) }, 201);
   } catch (error) {
     if (error instanceof ApiRequestError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof DocumentValidationError) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: error.message } }, 400);

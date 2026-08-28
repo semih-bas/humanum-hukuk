@@ -26,6 +26,24 @@ test("removes directory parts from uploaded names", async () => {
   assert.equal(result.originalName, "dilekce.pdf");
 });
 
+test("uses a safe custom document name while preserving the real extension", async () => {
+  const contents = Buffer.from("%PDF-1.7\n% test document");
+  const result = await inspectDocumentUpload(
+    new File([contents], "uzun-orijinal-ad.pdf", { type: "application/pdf" }),
+    "Bilirkişi Raporu",
+  );
+
+  assert.equal(result.originalName, "Bilirkişi Raporu.pdf");
+});
+
+test("rejects unsafe custom document names", async () => {
+  const contents = Buffer.from("%PDF-1.7\n% test document");
+  await assert.rejects(
+    inspectDocumentUpload(new File([contents], "dilekce.pdf", { type: "application/pdf" }), "../gizli"),
+    DocumentValidationError,
+  );
+});
+
 test("rejects content whose signature does not match the declared type", async () => {
   await assert.rejects(
     inspectDocumentUpload(new File(["not a pdf"], "sahte.pdf", { type: "application/pdf" })),

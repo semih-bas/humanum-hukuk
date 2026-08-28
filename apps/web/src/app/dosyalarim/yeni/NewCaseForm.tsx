@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { INSTALLMENT_OPTIONS } from "@/lib/form-input";
+import { formatTimeInput, INSTALLMENT_OPTIONS, isValidTime, limitDateYear } from "@/lib/form-input";
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
-import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
+import { centsToMoneyString, formatMoneyInput, parseMoneyToCents } from "@/lib/form-input";
 
 import styles from "./page.module.css";
 
@@ -68,7 +68,7 @@ function AmountInput({
         value={value}
         placeholder="0,00"
         readOnly={readOnly}
-        onChange={(event) => onChange?.(event.target.value)}
+        onChange={(event) => onChange?.(formatMoneyInput(event.target.value))}
         onBlur={(event) => {
           const cents = parseMoneyToCents(event.target.value);
           if (onChange && cents !== null) onChange(centsToMoneyString(cents));
@@ -103,6 +103,7 @@ export default function NewCaseForm() {
   const [noteDraft, setNoteDraft] = useState("");
   const [reminder, setReminder] = useState<ReminderDraft | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState("");
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft>(emptyReminder);
   const [operation, setOperation] = useState<Operation>(null);
   const [notice, setNotice] = useState<Notice>(null);
@@ -206,6 +207,7 @@ export default function NewCaseForm() {
       if (documentFile) {
         const documentBody = new FormData();
         documentBody.set("file", documentFile);
+        documentBody.set("documentName", documentName.trim());
         const documentResponse = await fetch(`/api/cases/${encodeURIComponent(result.data.id)}/documents`, {
           method: "POST",
           credentials: "same-origin",
@@ -251,8 +253,8 @@ export default function NewCaseForm() {
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
         <div className={styles.partyColumns}>
           <label className={styles.field}><span>Ruhsat Sahibi</span><input required maxLength={150} value={licenseHolder} onChange={(event) => setLicenseHolder(event.target.value)} placeholder="Ruhsat sahibi adı soyadı" /><FieldError errors={fieldErrors} name="licenseHolder" /></label>
-          <label className={styles.field}><span>Araç Plakası</span><input required maxLength={20} value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value)} placeholder="34 ABC 123" /><FieldError errors={fieldErrors} name="vehiclePlate" /></label>
-          <label className={styles.field}><span>Kaza Tarihi</span><input required type="date" max={todayDate()} value={accidentDate} onChange={(event) => setAccidentDate(event.target.value)} /><FieldError errors={fieldErrors} name="accidentDate" /></label>
+          <label className={styles.field}><span>Araç Plakası</span><input required maxLength={20} value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toLocaleUpperCase("tr-TR"))} placeholder="34 ABC 123" /><FieldError errors={fieldErrors} name="vehiclePlate" /></label>
+          <label className={styles.field}><span>Kaza Tarihi</span><input required type="date" max={todayDate()} value={accidentDate} onChange={(event) => setAccidentDate(limitDateYear(event.target.value, accidentDate))} /><FieldError errors={fieldErrors} name="accidentDate" /></label>
           <label className={styles.field}><span>Borçlu Türü</span><select required value={debtorType} onChange={(event) => setDebtorType(event.target.value)}><option value="" disabled>Tür seçiniz</option><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select><FieldError errors={fieldErrors} name="debtorType" /></label>
           <label className={styles.field}><span>Borçlu Taraf</span><input required maxLength={150} value={debtorName} onChange={(event) => setDebtorName(event.target.value)} placeholder="Kişi veya şirket adı" /><FieldError errors={fieldErrors} name="debtorName" /></label>
         </div>
@@ -302,7 +304,6 @@ export default function NewCaseForm() {
             {installmentEnabled && <>
               <label className={styles.field}><span>Taksit Sayısı</span><select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select><FieldError errors={fieldErrors} name="installmentCount" /></label>
               <AmountInput label="Aylık Taksit Tutarı" value={financials.monthly} readOnly />
-              <AmountInput label="Son Taksit Tutarı" value={financials.final} readOnly />
             </>}
           </div>
         </section>
@@ -332,16 +333,27 @@ export default function NewCaseForm() {
         <header><h2 id="operation-title">{operation === "note" ? "Not Ekle" : operation === "reminder" ? "Hatırlatma Ekle" : "Evrak Ekle"}</h2><button type="button" aria-label="Pencereyi kapat" onClick={() => setOperation(null)}><Icon name="x" /></button></header>
         <div className={styles.modalBody}>
           {operation === "note" && <label className={styles.field}><span>Dosya Notu</span><textarea maxLength={2_000} rows={6} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
-          {operation === "document" && <label className={styles.field}><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} /></label>}
+          {operation === "document" && <>
+            <label className={styles.field}><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setDocumentFile(file);
+              if (file) setDocumentName(file.name.replace(/\.[^.]+$/, ""));
+            }} /></label>
+            {documentFile && <label className={styles.field}><span>Evrak Adı</span><div className={styles.documentNameInput}><input required maxLength={240} value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="Evrak adını yazın" /><b>.{documentExtension(documentFile)}</b></div></label>}
+          </>}
           {operation === "reminder" && <>
             <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={500} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
-            <label className={styles.field}><span>Tarih ve Saat</span><input required type="datetime-local" value={reminderDraft.dueAt} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: event.target.value })} /></label>
-            <div className={styles.channels}><label><input type="checkbox" checked={reminderDraft.sendEmail} onChange={(event) => setReminderDraft({ ...reminderDraft, sendEmail: event.target.checked })} /> E-posta</label><label><input type="checkbox" checked={reminderDraft.sendSms} onChange={(event) => setReminderDraft({ ...reminderDraft, sendSms: event.target.checked })} /> SMS</label></div>
+            <div className={styles.reminderDateTime}>
+              <label className={styles.field}><span>Tarih</span><input required type="date" max="9999-12-31" value={datePart(reminderDraft.dueAt)} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: combineDateTime(limitDateYear(event.target.value, datePart(reminderDraft.dueAt)), timePart(reminderDraft.dueAt)) })} /></label>
+              <label className={styles.field}><span>Saat</span><input required type="text" inputMode="numeric" maxLength={5} placeholder="SS:DD" value={timePart(reminderDraft.dueAt)} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: combineDateTime(datePart(reminderDraft.dueAt), formatTimeInput(event.target.value, timePart(reminderDraft.dueAt))) })} /></label>
+            </div>
           </>}
         </div>
-        <footer>
-          <button type="button" onClick={() => setOperation(null)}>Vazgeç</button>
-          <button type="button" onClick={() => {
+        <footer className={operation === "reminder" ? styles.reminderFooter : undefined}>
+          {operation === "reminder" && <div className={styles.channels}><label><input type="checkbox" checked={reminderDraft.sendEmail} onChange={(event) => setReminderDraft({ ...reminderDraft, sendEmail: event.target.checked })} /> E-posta</label><label><input type="checkbox" checked={reminderDraft.sendSms} onChange={(event) => setReminderDraft({ ...reminderDraft, sendSms: event.target.checked })} /> SMS</label></div>}
+          <div className={styles.modalActions}>
+            <button type="button" onClick={() => setOperation(null)}>Vazgeç</button>
+            <button type="button" onClick={() => {
             if (operation === "note") {
               setNote(noteDraft.trim());
               setOperation(null);
@@ -349,22 +361,23 @@ export default function NewCaseForm() {
             }
 
             if (operation === "document") {
-              if (!documentFile) {
-                setNotice({ tone: "error", message: "Lütfen yüklenecek evrakı seçin." });
+              if (!documentFile || !documentName.trim()) {
+                setNotice({ tone: "error", message: "Lütfen yüklenecek evrakı seçin ve evrak adını yazın." });
                 return;
               }
               setOperation(null);
               return;
             }
 
-            if (!reminderDraft.title.trim() || !reminderDraft.dueAt || (!reminderDraft.sendEmail && !reminderDraft.sendSms)) {
+            if (!reminderDraft.title.trim() || !isCompleteDateTime(reminderDraft.dueAt) || (!reminderDraft.sendEmail && !reminderDraft.sendSms)) {
               setNotice({ tone: "error", message: "Hatırlatma başlığı, tarihi ve en az bir gönderim kanalı zorunludur." });
               return;
             }
 
             setReminder({ ...reminderDraft, title: reminderDraft.title.trim() });
             setOperation(null);
-          }}>Forma Ekle</button>
+            }}>Forma Ekle</button>
+          </div>
         </footer>
       </section>
     </div>}
@@ -389,6 +402,27 @@ function divideCents(value: bigint, divisor: bigint): bigint {
 
 function centsToInput(value: bigint): string {
   return centsToMoneyString(value);
+}
+
+function datePart(value: string): string {
+  return value.split("T")[0] ?? "";
+}
+
+function timePart(value: string): string {
+  return value.includes("T") ? (value.split("T")[1] ?? "") : "";
+}
+
+function combineDateTime(date: string, time: string): string {
+  return date || time ? `${date}T${time}` : "";
+}
+
+function isCompleteDateTime(value: string): boolean {
+  const [date, time = ""] = value.split("T");
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && isValidTime(time);
+}
+
+function documentExtension(file: File): string {
+  return file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg";
 }
 
 function todayDate(): string {

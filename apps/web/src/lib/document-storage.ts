@@ -16,8 +16,8 @@ import {
 export { DocumentValidationError, MAX_DOCUMENT_BYTES, MAX_MULTIPART_BYTES };
 export class DocumentNotFoundError extends Error {}
 
-export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string) {
-  const inspected = await inspectDocumentUpload(file);
+export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string) {
+  const inspected = await inspectDocumentUpload(file, requestedName);
   const { buffer, originalName } = inspected;
 
   const caseFile = await prisma.caseFile.findFirst({ where: { id: caseFileId, archivedAt: null }, select: { referenceNumber: true } });
