@@ -305,16 +305,30 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
             <label><input type="checkbox" checked={draft.titleDeedLien} onChange={(event) => update("titleDeedLien", event.target.checked)} /> Tapu haczi</label>
           </div>
         </div>
-        <section className={styles.editAddSection}>
-          <div className={styles.editAddHeader}><span><b>Dosyaya Ekle</b><small>Dosya bilgilerini değiştirmeden not veya evrak ekleyin.</small></span><div><button type="button" className={editActivity === "note" ? styles.editAddActive : ""} onClick={() => { setEditActivity((value) => value === "note" ? null : "note"); setEditActivityNotice(""); }}>+ Not Ekle</button><button type="button" className={editActivity === "document" ? styles.editAddActive : ""} onClick={() => { setEditActivity((value) => value === "document" ? null : "document"); setEditActivityNotice(""); }}>+ Evrak Ekle</button></div></div>
-          {editActivityNotice && <p className={styles.editAddNotice} role="status">{editActivityNotice}</p>}
-          {editActivity === "note" && <div className={styles.editAddBody}><label><span>Not</span><textarea rows={4} maxLength={2_000} value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label><button type="button" disabled={!editNote.trim() || editActivitySaving} onClick={() => void addNoteFromEdit()}>{editActivitySaving ? "Ekleniyor…" : "Notu Ekle"}</button></div>}
-          {editActivity === "document" && <div className={styles.editAddBody}>
-            <label><span>Dosya</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => { const file = event.target.files?.[0] ?? null; setEditDocument(file); if (file) setEditDocumentName(file.name.replace(/\.[^.]+$/, "")); }} /></label>
-            {editDocument && <label><span>Evrak Adı</span><div className={styles.editDocumentName}><input maxLength={240} value={editDocumentName} onChange={(event) => setEditDocumentName(event.target.value)} /><b>.{documentExtension(editDocument)}</b></div></label>}
-            <button type="button" disabled={!editDocument || !editDocumentName.trim() || editActivitySaving} onClick={() => void addDocumentFromEdit()}>{editActivitySaving ? "Yükleniyor…" : "Evrakı Ekle"}</button>
-          </div>}
+        <section className={styles.editOperationSection}>
+          <div className={styles.editOperationHeading}><span><b>Dosya İşlemleri</b><small>Dosya bilgilerini değiştirmeden not veya evrak ekleyin.</small></span></div>
+          <div className={styles.editOperationGrid}>
+            <button type="button" onClick={() => { setEditActivity("note"); setEditActivityNotice(""); }}><EditActivityIcon name="note" /><span>Not Ekle</span></button>
+            <button type="button" onClick={() => { setEditActivity("document"); setEditActivityNotice(""); }}><EditActivityIcon name="document" /><span>Evrak Ekle</span></button>
+          </div>
+          {editActivityNotice && <p className={styles.editOperationNotice} role="status">{editActivityNotice}</p>}
         </section>
+        {editActivity && <div className={styles.editActivityBackdrop} role="presentation" onMouseDown={() => { if (!editActivitySaving) setEditActivity(null); }}>
+          <section className={styles.editActivityModal} role="dialog" aria-modal="true" aria-labelledby="edit-activity-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header><h3 id="edit-activity-title">{editActivity === "note" ? "Not Ekle" : "Evrak Ekle"}</h3><button type="button" aria-label="Pencereyi kapat" disabled={editActivitySaving} onClick={() => setEditActivity(null)}>×</button></header>
+            <div className={styles.editActivityBody}>
+              {editActivity === "note" && <label><span>Dosya Notu</span><textarea rows={6} maxLength={2_000} value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
+              {editActivity === "document" && <>
+                <label><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => { const file = event.target.files?.[0] ?? null; setEditDocument(file); if (file) setEditDocumentName(file.name.replace(/\.[^.]+$/, "")); }} /></label>
+                {editDocument && <label><span>Evrak Adı</span><div className={styles.editDocumentName}><input maxLength={240} value={editDocumentName} onChange={(event) => setEditDocumentName(event.target.value)} placeholder="Evrak adını yazın" /><b>.{documentExtension(editDocument)}</b></div></label>}
+              </>}
+            </div>
+            <footer>
+              <button type="button" disabled={editActivitySaving} onClick={() => setEditActivity(null)}>Vazgeç</button>
+              <button type="button" disabled={editActivity === "note" ? !editNote.trim() || editActivitySaving : !editDocument || !editDocumentName.trim() || editActivitySaving} onClick={() => void (editActivity === "note" ? addNoteFromEdit() : addDocumentFromEdit())}>{editActivitySaving ? "Ekleniyor…" : editActivity === "note" ? "Notu Ekle" : "Evrakı Ekle"}</button>
+            </footer>
+          </section>
+        </div>}
         <footer><button type="button" onClick={() => { setDraft(toDraft(detail)); setEditing(false); setError(""); }}>Vazgeç</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}</button></footer>
       </form> : <>
         <div className={styles.detailScroll}>
@@ -348,6 +362,10 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
       </>)}
     </section>
   </div>;
+}
+
+function EditActivityIcon({ name }: { name: "note" | "document" }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{name === "note" ? <><path d="M4 4h12v16H4Z" /><path d="m14 4 4 4M8 9h5M8 13h5" /></> : <><path d="M6 3h9l3 3v15H6Z" /><path d="M14 3v4h4M9 12h6M9 16h4" /></>}</svg>;
 }
 
 function TextField({ label, value, onChange, error, type = "text", maxLength }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; maxLength?: number }) {
