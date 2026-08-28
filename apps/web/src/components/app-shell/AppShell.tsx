@@ -88,7 +88,6 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     isManager,
   };
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamState, setTeamState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -276,7 +275,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   }
 
   return (
-    <div className={`${styles.shell} ${sidebarCollapsed ? styles.shellCollapsed : ""}`}>
+    <div className={styles.shell}>
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.sidebarBrand}>
           <Image src="/images/humanum-mark.png" alt="" width={48} height={45} priority />
@@ -288,9 +287,14 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
           <Link className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navItemActive : ""}`} href="/dashboard" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
             <Icon name="home" /><span>Dashboard</span>
           </Link>
-          <Link className={`${styles.navItem} ${pathname.startsWith("/dosyalarim") ? styles.navItemActive : ""}`} href="/dosyalarim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
-            <Icon name="folder" /><span>Dosyalarım</span>
-          </Link>
+          <div className={`${styles.navGroup} ${pathname.startsWith("/dosyalarim") ? styles.navGroupActive : ""}`}>
+            <Link className={`${styles.navItem} ${pathname === "/dosyalarim" ? styles.navItemActive : ""}`} href="/dosyalarim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
+              <Icon name="folder" /><span>Dosyalarım</span>
+            </Link>
+            <Link className={`${styles.subNavItem} ${pathname === "/dosyalarim/yeni" ? styles.subNavItemActive : ""}`} href="/dosyalarim/yeni" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
+              <span className={styles.subNavMarker}><Icon name="plus" /></span><span>Yeni Dosya Ekle</span>
+            </Link>
+          </div>
         </nav>
 
         <div className={styles.sidebarFooter} ref={teamAreaRef}>
@@ -316,7 +320,6 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
             </div>
           )}
           <button className={`${styles.sidebarUser} ${teamOpen ? styles.sidebarUserActive : ""}`} type="button" aria-label={teamOpen ? "Ekip yönetimini kapat" : "Ekip yönetimini aç"} aria-expanded={teamOpen} onClick={() => {
-            if (sidebarCollapsed) setSidebarCollapsed(false);
             if (currentUser.isManager) {
               setTeamOpen((value) => !value);
               if (!teamOpen && teamState === "idle") void loadTeamMembers();
@@ -364,7 +367,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
 
       <div className={`${styles.workspace} ${hideTopbar ? styles.workspaceWithoutTopbar : ""}`}>
         {!hideTopbar && <header className={styles.topbar}>
-          <button className={styles.menuButton} type="button" aria-label="Menüyü aç veya daralt" onClick={() => window.innerWidth < 900 ? setSidebarOpen(true) : setSidebarCollapsed((value) => !value)}>
+          <button className={styles.menuButton} type="button" aria-label="Menüyü aç" onClick={() => setSidebarOpen(true)}>
             <Icon name="menu" />
           </button>
 
@@ -384,7 +387,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   {notificationState === "loading" && <p><small>Bildirimler yükleniyor...</small></p>}
                   {notificationState === "error" && <p><b>Bildirimler yüklenemedi</b><small>Tekrar denemek için zil simgesine basın.</small></p>}
                   {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
-                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?query=${encodeURIComponent(notification.referenceNumber)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
+                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?query=${encodeURIComponent(notification.vehiclePlate)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
                     <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
                     <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
                   </Link>)}
@@ -403,7 +406,6 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   <p><b>{currentUser.fullName}</b><small>{currentUser.email}</small></p>
                   {currentUser.isManager && <button className={styles.profileAction} type="button" onClick={() => {
                     setOpenMenu(null);
-                    setSidebarCollapsed(false);
                     setSidebarOpen(true);
                     setTeamOpen(true);
                     if (teamState === "idle") void loadTeamMembers();

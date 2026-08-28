@@ -39,16 +39,7 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
   const normalizedQuery = input.query.trim();
   const where: Prisma.CaseFileWhereInput = {
     archivedAt: null,
-    ...(normalizedQuery ? {
-      OR: [
-        { referenceNumber: { contains: normalizedQuery, mode: "insensitive" } },
-        { licenseHolder: { contains: normalizedQuery, mode: "insensitive" } },
-        { vehiclePlate: { contains: normalizedQuery, mode: "insensitive" } },
-        { debtorName: { contains: normalizedQuery, mode: "insensitive" } },
-        { enforcementOffice: { contains: normalizedQuery, mode: "insensitive" } },
-        { enforcementFileNumber: { contains: normalizedQuery, mode: "insensitive" } },
-      ],
-    } : {}),
+    ...(normalizedQuery ? { vehiclePlate: { contains: normalizedQuery, mode: "insensitive" } } : {}),
   };
 
   return prisma.$transaction(async (transaction) => {

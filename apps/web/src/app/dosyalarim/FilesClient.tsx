@@ -5,8 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { buildSpreadsheetCsv } from "@/lib/csv-export";
-
 import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
 
@@ -44,9 +42,8 @@ const statusLabels: Record<CaseStatus, string> = {
   CLOSED: "Sonuçlandı",
 };
 
-function Icon({ name }: { name: "download" | "eye" | "more" | "plus" | "search" | "sort" | "x" }) {
+function Icon({ name }: { name: "eye" | "more" | "plus" | "search" | "sort" | "x" }) {
   const paths = {
-    download: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2" /></>,
     eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
     more: <><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
@@ -153,55 +150,29 @@ export default function FilesClient() {
     setCurrentPage(1);
   }
 
-  function exportRecords() {
-    const exportList = records;
-
-    if (exportList.length === 0) {
-      setNotice("Dışa aktarılacak dosya bulunmuyor.");
-      return;
-    }
-
-    const rows = [
-      ["Dosya No", "Ruhsat Sahibi", "Araç Plakası", "Kaza Tarihi", "Borçlu Taraf", "İcra Dairesi", "İcra Dosya No", "Durum"],
-      ...exportList.map((record) => [
-        record.referenceNumber,
-        record.licenseHolder,
-        record.vehiclePlate,
-        formatDate(record.accidentDate),
-        record.debtorName ?? "",
-        record.enforcementOffice ?? "",
-        record.enforcementFileNumber ?? "",
-        statusLabels[record.status],
-      ]),
-    ];
-    const csv = buildSpreadsheetCsv(rows);
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "humanum-dosyalari.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    setNotice(`${exportList.length} görüntülenen dosya dışa aktarıldı.`);
-  }
-
   const searchField = <label className={styles.searchField}>
     <span className={styles.srOnly}>Dosyalarda ara</span>
-    <input value={query} onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }} maxLength={200} placeholder="Plaka, dosya no, taraf, sigorta..." />
+    <input value={query} onChange={(event) => { setQuery(event.target.value.toLocaleUpperCase("tr-TR")); setCurrentPage(1); }} maxLength={20} placeholder="Araç plakası ara..." />
     <Icon name="search" />
   </label>;
 
   return <AppShell headerContent={searchField}>
     <div className={styles.filesPage}>
       <header className={styles.pageHeader}>
-        <div><h1>Dosyalarım</h1><p><Link href="/dashboard">Ana Sayfa</Link><span>›</span>Dosyalarım</p></div>
+        <div className={styles.pageIntro}>
+          <span className={styles.eyebrow}>DOSYA YÖNETİMİ</span>
+          <h1>Dosyalarım</h1>
+          <p className={styles.pageDescription}>Tüm dosyaları görüntüleyin, arayın ve işlemleri tek ekrandan yönetin.</p>
+          <p className={styles.breadcrumb}><Link href="/dashboard">Ana Sayfa</Link><span>›</span>Dosyalarım</p>
+        </div>
+        <div className={styles.recordSummary}><strong>{pagination.totalCount}</strong><span>Toplam dosya</span></div>
         <div className={styles.mobileSearch}>{searchField}</div>
       </header>
 
       <section className={styles.tableCard}>
         <header className={styles.tableToolbar}>
-          <div><h2>Dosya Listesi</h2></div>
+          <div><h2>Dosya Listesi</h2><span>{pagination.totalCount} kayıt</span></div>
           <div className={styles.toolbarActions}>
-            <button className={styles.exportButton} type="button" disabled={isLoading} onClick={exportRecords}><Icon name="download" />Excel&apos;e Aktar</button>
             <Link className={styles.newFileButton} href="/dosyalarim/yeni"><Icon name="plus" />Yeni Dosya<span>⌄</span></Link>
           </div>
         </header>
