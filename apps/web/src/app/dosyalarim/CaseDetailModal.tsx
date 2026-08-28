@@ -320,7 +320,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
               {editActivity === "note" && <label><span>Dosya Notu</span><textarea rows={6} maxLength={2_000} value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
               {editActivity === "document" && <>
                 <label><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => { const file = event.target.files?.[0] ?? null; setEditDocument(file); if (file) setEditDocumentName(file.name.replace(/\.[^.]+$/, "")); }} /></label>
-                {editDocument && <label><span>Evrak Adı</span><div className={styles.editDocumentName}><input maxLength={240} value={editDocumentName} onChange={(event) => setEditDocumentName(event.target.value)} placeholder="Evrak adını yazın" /><b>.{documentExtension(editDocument)}</b></div></label>}
+                <label><span>Evrak Adı</span><div className={styles.editDocumentName}><input disabled={!editDocument} maxLength={240} value={editDocumentName} onChange={(event) => setEditDocumentName(event.target.value)} placeholder={editDocument ? "Evrak adını yazın" : "Önce evrak seçin"} />{editDocument && <b>.{documentExtension(editDocument)}</b>}</div></label>
               </>}
             </div>
             <footer>

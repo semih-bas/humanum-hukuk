@@ -339,7 +339,7 @@ export default function NewCaseForm() {
               setDocumentFile(file);
               if (file) setDocumentName(file.name.replace(/\.[^.]+$/, ""));
             }} /></label>
-            {documentFile && <label className={styles.field}><span>Evrak Adı</span><div className={styles.documentNameInput}><input required maxLength={240} value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="Evrak adını yazın" /><b>.{documentExtension(documentFile)}</b></div></label>}
+            <label className={styles.field}><span>Evrak Adı</span><div className={styles.documentNameInput}><input required disabled={!documentFile} maxLength={240} value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder={documentFile ? "Evrak adını yazın" : "Önce evrak seçin"} />{documentFile && <b>.{documentExtension(documentFile)}</b>}</div></label>
           </>}
           {operation === "reminder" && <>
             <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={500} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
