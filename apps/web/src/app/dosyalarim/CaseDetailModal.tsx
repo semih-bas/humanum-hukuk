@@ -85,6 +85,12 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(true);
   const [activitySaving, setActivitySaving] = useState(false);
+  const [editActivity, setEditActivity] = useState<"note" | "document" | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [editDocument, setEditDocument] = useState<File | null>(null);
+  const [editDocumentName, setEditDocumentName] = useState("");
+  const [editActivitySaving, setEditActivitySaving] = useState(false);
+  const [editActivityNotice, setEditActivityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -205,6 +211,64 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
     }
   }
 
+  async function addNoteFromEdit() {
+    const content = editNote.trim();
+    if (!content || editActivitySaving) return;
+    setEditActivitySaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const result = await response.json() as { data?: { id: string }; error?: { message?: string } };
+      if (!response.ok || !result.data) throw new Error(result.error?.message ?? "Not eklenemedi.");
+      setEditNote("");
+      setEditActivity(null);
+      setEditActivityNotice("Not dosyaya eklendi.");
+      const preservedDraft = draft;
+      await loadDetail();
+      if (preservedDraft) setDraft(preservedDraft);
+      onSaved();
+    } catch (activityError) {
+      setError(activityError instanceof Error ? activityError.message : "Not eklenemedi.");
+    } finally {
+      setEditActivitySaving(false);
+    }
+  }
+
+  async function addDocumentFromEdit() {
+    if (!editDocument || !editDocumentName.trim() || editActivitySaving) return;
+    setEditActivitySaving(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.set("file", editDocument);
+      body.set("documentName", editDocumentName.trim());
+      const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`, {
+        method: "POST",
+        credentials: "same-origin",
+        body,
+      });
+      const result = await response.json() as { data?: { id: string }; error?: { message?: string } };
+      if (!response.ok || !result.data) throw new Error(result.error?.message ?? "Evrak eklenemedi.");
+      setEditDocument(null);
+      setEditDocumentName("");
+      setEditActivity(null);
+      setEditActivityNotice("Evrak dosyaya eklendi.");
+      const preservedDraft = draft;
+      await loadDetail();
+      if (preservedDraft) setDraft(preservedDraft);
+      onSaved();
+    } catch (activityError) {
+      setError(activityError instanceof Error ? activityError.message : "Evrak eklenemedi.");
+    } finally {
+      setEditActivitySaving(false);
+    }
+  }
+
   return <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
     <section className={`${styles.detailModal} ${styles.fullDetailModal}`} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
       <header>
@@ -241,6 +305,16 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
             <label><input type="checkbox" checked={draft.titleDeedLien} onChange={(event) => update("titleDeedLien", event.target.checked)} /> Tapu haczi</label>
           </div>
         </div>
+        <section className={styles.editAddSection}>
+          <div className={styles.editAddHeader}><span><b>Dosyaya Ekle</b><small>Dosya bilgilerini değiştirmeden not veya evrak ekleyin.</small></span><div><button type="button" className={editActivity === "note" ? styles.editAddActive : ""} onClick={() => { setEditActivity((value) => value === "note" ? null : "note"); setEditActivityNotice(""); }}>+ Not Ekle</button><button type="button" className={editActivity === "document" ? styles.editAddActive : ""} onClick={() => { setEditActivity((value) => value === "document" ? null : "document"); setEditActivityNotice(""); }}>+ Evrak Ekle</button></div></div>
+          {editActivityNotice && <p className={styles.editAddNotice} role="status">{editActivityNotice}</p>}
+          {editActivity === "note" && <div className={styles.editAddBody}><label><span>Not</span><textarea rows={4} maxLength={2_000} value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label><button type="button" disabled={!editNote.trim() || editActivitySaving} onClick={() => void addNoteFromEdit()}>{editActivitySaving ? "Ekleniyor…" : "Notu Ekle"}</button></div>}
+          {editActivity === "document" && <div className={styles.editAddBody}>
+            <label><span>Dosya</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => { const file = event.target.files?.[0] ?? null; setEditDocument(file); if (file) setEditDocumentName(file.name.replace(/\.[^.]+$/, "")); }} /></label>
+            {editDocument && <label><span>Evrak Adı</span><div className={styles.editDocumentName}><input maxLength={240} value={editDocumentName} onChange={(event) => setEditDocumentName(event.target.value)} /><b>.{documentExtension(editDocument)}</b></div></label>}
+            <button type="button" disabled={!editDocument || !editDocumentName.trim() || editActivitySaving} onClick={() => void addDocumentFromEdit()}>{editActivitySaving ? "Yükleniyor…" : "Evrakı Ekle"}</button>
+          </div>}
+        </section>
         <footer><button type="button" onClick={() => { setDraft(toDraft(detail)); setEditing(false); setError(""); }}>Vazgeç</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}</button></footer>
       </form> : <>
         <div className={styles.detailScroll}>
@@ -305,6 +379,7 @@ function changedFieldText(value: unknown) { return Array.isArray(value) && value
 function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`)); }
 function formatDateTime(value: string) { return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(value)); }
 function formatBytes(value: number) { return value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`; }
+function documentExtension(file: File) { return file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg"; }
 function reminderStatusLabel(value: string) { return ({ PENDING: "Bekliyor", SENT: "Gönderildi", FAILED: "Gönderilemedi" } as Record<string, string>)[value] ?? value; }
 function datePart(value: string) { return value.split("T")[0] ?? ""; }
 function timePart(value: string) { return value.includes("T") ? (value.split("T")[1] ?? "") : ""; }
