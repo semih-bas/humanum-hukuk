@@ -7,7 +7,7 @@ Bu yapı uygulamayı müşteri sunucusunda Docker ile çalıştırmak içindir. 
 - `app`: Next.js uygulaması; yetkisiz sistem kullanıcısıyla çalışır.
 - `database`: PostgreSQL; dış dünyaya port açmaz.
 - `migrate`: Uygulama başlamadan önce veritabanı güncellemelerini bir kez uygular.
-- `SMTP`: Şifre yenileme e-postalarını gönderen, müşteri tarafından seçilecek posta hizmetidir.
+- `SMTP`: E-posta doğrulama ve şifre yenileme iletilerini gönderen, müşteri tarafından seçilecek posta hizmetidir.
 - `humanum_postgres_data`: Kalıcı veritabanı alanı.
 - `humanum_documents`: İnternete açık olmayan kalıcı evrak alanı.
 
@@ -22,6 +22,8 @@ Bu yapı uygulamayı müşteri sunucusunda Docker ile çalıştırmak içindir. 
 7. Gönderici alan adında SPF, DKIM ve DMARC kayıtlarını e-posta sağlayıcısının talimatlarına göre tamamlayın.
 8. Sunucunun ters proxy ayarında HTTPS adresini `127.0.0.1:3000` hedefine yönlendirin.
 9. Depo kökünde `docker compose -f compose.production.yaml up -d --build` çalıştırın.
+
+Yeni kullanıcılar e-posta adreslerini doğrulamadan oturum açamaz. Kurulumdan sonra gerçek bir kullanıcıyla hem doğrulama hem şifre yenileme e-postasının teslim edildiğini test edin.
 
 Gerçek `.env.production.*` dosyaları Git tarafından yok sayılır. Bu dosyaları GitHub'a eklemeyin ve sohbet/e-posta yoluyla paylaşmayın.
 

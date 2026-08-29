@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildPasswordResetEmail } from "../src/lib/email";
+import { buildEmailVerificationEmail, buildPasswordResetEmail } from "../src/lib/email";
 import { clearSensitiveActionAttempts, consumeSensitiveActionAttempt } from "../src/lib/sensitive-action-rate-limit";
 
 test("şifre yenileme e-postası güvenli bağlantı ve süre bilgisini içerir", () => {
@@ -23,6 +23,16 @@ test("e-posta HTML içeriği kullanıcı adını ve bağlantıyı escape eder", 
   assert.doesNotMatch(email.html, /<script>alert/);
   assert.match(email.html, /&lt;script&gt;/);
   assert.match(email.html, /token=abc&amp;next=&lt;script&gt;/);
+});
+
+test("e-posta doğrulama iletisi güvenli bağlantı ve süre bilgisini içerir", () => {
+  const verificationUrl = "https://hukuk.example.com/api/auth/verify-email?token=abc&callbackURL=%2Flogin";
+  const email = buildEmailVerificationEmail({ recipientName: "Semih Baş", verificationUrl });
+
+  assert.match(email.subject, /doğrulayın/i);
+  assert.match(email.text, /30 dakika/);
+  assert.match(email.text, /yönetici tarafından oluşturuldu/i);
+  assert.match(email.html, /token=abc&amp;callbackURL/);
 });
 
 test("hassas işlem deneme sınırı aşılınca isteği reddeder ve temizlenebilir", () => {

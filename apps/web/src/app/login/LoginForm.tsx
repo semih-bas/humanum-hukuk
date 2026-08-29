@@ -37,12 +37,20 @@ export default function LoginForm() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await authClient.signIn.email({ email, password, rememberMe });
+      const { error } = await authClient.signIn.email({
+        email,
+        password,
+        rememberMe,
+        callbackURL: `${window.location.origin}/login`,
+      });
 
       if (error) {
+        const emailNotVerified = error.status === 403 || error.code === "EMAIL_NOT_VERIFIED";
         setNotice({
-          kind: "error",
-          message: error.status === 429
+          kind: emailNotVerified ? "info" : "error",
+          message: emailNotVerified
+            ? "E-posta adresiniz henüz doğrulanmadı. Yeni doğrulama bağlantısı e-posta adresinize gönderildi."
+            : error.status === 429
             ? "Çok fazla giriş denemesi yapıldı. Lütfen kısa bir süre sonra tekrar deneyin."
             : "E-posta adresi veya şifre hatalı.",
         });

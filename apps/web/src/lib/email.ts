@@ -6,6 +6,12 @@ type PasswordResetEmail = {
   to: string;
 };
 
+type EmailVerificationEmail = {
+  recipientName: string;
+  verificationUrl: string;
+  to: string;
+};
+
 type SmtpConfiguration = {
   from: string;
   host: string;
@@ -76,8 +82,25 @@ export function buildPasswordResetEmail({ recipientName, resetUrl }: Omit<Passwo
   };
 }
 
-export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise<void> {
-  const configuration = smtpConfiguration();
+export function buildEmailVerificationEmail({ recipientName, verificationUrl }: Omit<EmailVerificationEmail, "to">) {
+  const safeName = escapeHtml(recipientName);
+  const safeUrl = escapeHtml(verificationUrl);
+  return {
+    subject: "Humanum Hukuk e-posta adresinizi doğrulayın",
+    text: [
+      `Merhaba ${recipientName},`,
+      "",
+      "Humanum Hukuk hesabınız bir yönetici tarafından oluşturuldu.",
+      `E-posta adresinizi doğrulamak için bağlantıyı açın: ${verificationUrl}`,
+      "",
+      "Bu bağlantı 30 dakika boyunca kullanılabilir.",
+      "Bu hesabı siz beklemiyorsanız bağlantıyı açmayın ve yöneticinizle iletişime geçin.",
+    ].join("\n"),
+    html: `<!doctype html><html lang="tr"><body style="margin:0;background:#f3f6f8;font-family:Arial,sans-serif;color:#17283c"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;overflow:hidden;border:1px solid #dce4ea;border-radius:14px;background:#fff"><tr><td style="padding:24px 28px;background:#0a2037;color:#fff"><div style="font-family:Georgia,serif;font-size:22px;letter-spacing:.14em">HUMANUM</div><div style="margin-top:5px;color:#d8ad60;font-size:11px;letter-spacing:.18em">HUKUK</div></td></tr><tr><td style="padding:30px 28px"><h1 style="margin:0 0 18px;font-size:22px">E-posta adresinizi doğrulayın</h1><p style="margin:0 0 12px;line-height:1.6">Merhaba ${safeName},</p><p style="margin:0 0 22px;line-height:1.6;color:#52657a">Humanum Hukuk hesabınız bir yönetici tarafından oluşturuldu. Hesabınıza erişmeden önce e-posta adresinin size ait olduğunu doğrulayın.</p><p style="margin:0 0 24px"><a href="${safeUrl}" style="display:inline-block;padding:13px 20px;border-radius:8px;background:#c89139;color:#fff;font-weight:700;text-decoration:none">E-posta adresimi doğrula</a></p><p style="margin:0 0 8px;color:#657587;font-size:13px;line-height:1.6">Bu bağlantı 30 dakika boyunca kullanılabilir.</p><p style="margin:0;color:#8793a0;font-size:12px;line-height:1.6">Bu hesabı siz beklemiyorsanız bağlantıyı açmayın ve yöneticinizle iletişime geçin.</p></td></tr></table></td></tr></table></body></html>`,
+  };
+}
+
+function emailTransporter(configuration: SmtpConfiguration) {
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host: configuration.host,
@@ -92,9 +115,25 @@ export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise
       disableUrlAccess: true,
     });
   }
+  return transporter;
+}
 
+export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise<void> {
+  const configuration = smtpConfiguration();
   const content = buildPasswordResetEmail(input);
-  await transporter.sendMail({
+  await emailTransporter(configuration).sendMail({
+    from: configuration.from,
+    to: input.to,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+  });
+}
+
+export async function sendEmailVerificationEmail(input: EmailVerificationEmail): Promise<void> {
+  const configuration = smtpConfiguration();
+  const content = buildEmailVerificationEmail(input);
+  await emailTransporter(configuration).sendMail({
     from: configuration.from,
     to: input.to,
     subject: content.subject,

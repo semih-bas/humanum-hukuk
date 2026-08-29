@@ -6,7 +6,7 @@ import { admin } from "better-auth/plugins";
 import { adminRole, authAccessControl, userRole } from "./auth-permissions";
 import { tryWriteAuditLog } from "./audit";
 import { prisma } from "./database";
-import { sendPasswordResetEmail } from "./email";
+import { sendEmailVerificationEmail, sendPasswordResetEmail } from "./email";
 import { requireEnvironmentVariable, requireHttpUrl } from "./environment";
 
 const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
@@ -98,9 +98,39 @@ export const auth = betterAuth({
       },
     },
   },
+  emailVerification: {
+    expiresIn: 30 * 60,
+    sendOnSignIn: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendEmailVerificationEmail({
+        to: user.email,
+        recipientName: user.name,
+        verificationUrl: url,
+      }).catch((error: unknown) => {
+        console.error("Failed to send email verification", {
+          error: error instanceof Error ? error.name : "UnknownError",
+        });
+      });
+      await tryWriteAuditLog({
+        actorUserId: user.id,
+        event: "auth.email_verification_requested",
+        targetType: "user",
+        targetId: user.id,
+      });
+    },
+    afterEmailVerification: async (user) => {
+      await tryWriteAuditLog({
+        actorUserId: user.id,
+        event: "auth.email_verified",
+        targetType: "user",
+        targetId: user.id,
+      });
+    },
+  },
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
+    requireEmailVerification: true,
     minPasswordLength: PASSWORD_MIN_LENGTH,
     maxPasswordLength: PASSWORD_MAX_LENGTH,
     resetPasswordTokenExpiresIn: 30 * 60,
@@ -142,6 +172,7 @@ export const auth = betterAuth({
     customRules: {
       "/request-password-reset": { window: 5 * 60, max: 3 },
       "/reset-password": { window: 5 * 60, max: 5 },
+      "/send-verification-email": { window: 5 * 60, max: 3 },
     },
   },
   advanced: {

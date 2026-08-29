@@ -31,6 +31,7 @@ type AppShellProps = {
 type TeamMember = {
   id: string;
   email: string;
+  emailVerified: boolean;
   name: string;
   role?: string | null;
   banned?: boolean | null;
@@ -200,9 +201,10 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     setIsCreatingUser(true);
     setManagementNotice("");
 
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
     const { error } = await authClient.admin.createUser({
       name: String(formData.get("name") ?? "").trim(),
-      email: String(formData.get("email") ?? "").trim().toLowerCase(),
+      email,
       password: String(formData.get("password") ?? ""),
       role: "user",
     });
@@ -215,11 +217,18 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
       return;
     }
 
+    const verification = await authClient.sendVerificationEmail({
+      email,
+      callbackURL: "/login",
+    });
+
     form.reset();
     setCreateUserOpen(false);
     setShowTemporaryPassword(false);
     setTeamOpen(true);
-    setManagementNotice("Kullanıcı güvenli şekilde oluşturuldu.");
+    setManagementNotice(verification.error
+      ? "Kullanıcı oluşturuldu ancak doğrulama e-postası gönderilemedi. Kullanıcı giriş ekranından yeniden isteyebilir."
+      : "Kullanıcı oluşturuldu ve e-posta doğrulama bağlantısı gönderildi.");
     setIsCreatingUser(false);
     await loadTeamMembers();
   }
@@ -310,7 +319,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   <div className={styles.teamMember} key={member.id}>
                     <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
                     <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
-                    <span className={`${styles.memberStatus} ${member.banned ? styles.memberStatusInactive : ""}`}><i />{member.banned ? "Pasif" : "Aktif"}</span>
+                    <span className={`${styles.memberStatus} ${member.banned || !member.emailVerified ? styles.memberStatusInactive : ""}`}><i />{member.banned ? "Pasif" : member.emailVerified ? "Aktif" : "Doğrulama Bekliyor"}</span>
                     {member.id !== session?.user.id && <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
                       {changingUserId === member.id ? "..." : member.banned ? "Tekrar Aktifleştir" : "Pasifleştir"}
                     </button>}
@@ -346,7 +355,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
             <button type="button" aria-label="Kullanıcı ekleme penceresini kapat" onClick={() => { setCreateUserOpen(false); setShowTemporaryPassword(false); }} disabled={isCreatingUser}><Icon name="close" /></button>
           </header>
           <form className={styles.createUserForm} onSubmit={handleCreateUser}>
-            <p id="create-user-description">Yeni kullanıcı bu bilgilerle ilk girişini yapar ve ardından kendi şifresini belirler.</p>
+            <p id="create-user-description">Kullanıcıya e-posta doğrulama bağlantısı gönderilir. Adresini doğruladıktan sonra geçici şifresiyle giriş yapıp kendi şifresini belirler.</p>
             <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" placeholder="Kullanıcının adı ve soyadı" disabled={isCreatingUser} /></label>
             <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" placeholder="ornek@humanum.com" disabled={isCreatingUser} /></label>
             <label><span>Geçici Şifre</span><span className={styles.passwordField}><input name="password" type={showTemporaryPassword ? "text" : "password"} required minLength={10} maxLength={128} autoComplete="new-password" placeholder="En az 10 karakter" disabled={isCreatingUser} /><button type="button" className={styles.passwordToggle} aria-label={showTemporaryPassword ? "Geçici şifreyi gizle" : "Geçici şifreyi göster"} aria-pressed={showTemporaryPassword} onClick={() => setShowTemporaryPassword((visible) => !visible)} disabled={isCreatingUser}><Icon name="eye" /></button></span><small className={styles.passwordHint}>En az 10 karakter kullanın. Bu şifre yalnızca ilk giriş içindir.</small></label>
