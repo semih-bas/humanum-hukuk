@@ -6,6 +6,7 @@ import { admin } from "better-auth/plugins";
 import { adminRole, authAccessControl, userRole } from "./auth-permissions";
 import { tryWriteAuditLog } from "./audit";
 import { prisma } from "./database";
+import { sendPasswordResetEmail } from "./email";
 import { requireEnvironmentVariable, requireHttpUrl } from "./environment";
 
 const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
@@ -102,12 +103,46 @@ export const auth = betterAuth({
     disableSignUp: true,
     minPasswordLength: PASSWORD_MIN_LENGTH,
     maxPasswordLength: PASSWORD_MAX_LENGTH,
+    resetPasswordTokenExpiresIn: 30 * 60,
     revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      void sendPasswordResetEmail({
+        to: user.email,
+        recipientName: user.name,
+        resetUrl: url,
+      }).catch((error: unknown) => {
+        console.error("Failed to send password reset email", {
+          error: error instanceof Error ? error.name : "UnknownError",
+        });
+      });
+      await tryWriteAuditLog({
+        actorUserId: user.id,
+        event: "auth.password_reset_requested",
+        targetType: "user",
+        targetId: user.id,
+      });
+    },
+    onPasswordReset: async ({ user }) => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { mustChangePassword: false },
+      });
+      await tryWriteAuditLog({
+        actorUserId: user.id,
+        event: "auth.password_reset_completed",
+        targetType: "user",
+        targetId: user.id,
+      });
+    },
   },
   rateLimit: {
     enabled: true,
     window: 60,
     max: 60,
+    customRules: {
+      "/request-password-reset": { window: 5 * 60, max: 3 },
+      "/reset-password": { window: 5 * 60, max: 5 },
+    },
   },
   advanced: {
     database: {

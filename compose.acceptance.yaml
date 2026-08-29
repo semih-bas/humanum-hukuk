@@ -1,6 +1,19 @@
 name: humanum-hukuk-acceptance
 
 services:
+  mailpit:
+    image: ghcr.io/axllent/mailpit:v1.30.6
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - humanum-acceptance-mailpit-data:/data
+    security_opt:
+      - no-new-privileges:true
+
   database:
     image: postgres:17.11-alpine3.24
     env_file:
@@ -54,6 +67,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
@@ -68,3 +83,5 @@ volumes:
     name: humanum-acceptance-postgres-data
   humanum-acceptance-documents:
     name: humanum-acceptance-documents
+  humanum-acceptance-mailpit-data:
+    name: humanum-acceptance-mailpit-data

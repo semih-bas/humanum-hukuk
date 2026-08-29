@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
@@ -96,7 +97,7 @@ export default function LoginForm() {
 
           <div className={styles.loginOptions}>
             <label className={styles.rememberMe}><input type="checkbox" name="rememberMe" disabled={isSubmitting} /><span>Beni Hatırla</span></label>
-            <button className={styles.forgotPassword} type="button" onClick={() => setNotice({ kind: "info", message: "Şifre yenileme işlemi için yöneticinizle iletişime geçin." })}>Şifremi Unuttum?</button>
+            <Link className={styles.forgotPassword} href="/sifremi-unuttum">Şifremi Unuttum?</Link>
           </div>
 
           <button className={styles.loginButton} type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>{isSubmitting ? "Giriş yapılıyor..." : "Giriş Yap"}</button>

@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { buildPasswordResetEmail } from "../src/lib/email";
+import { clearSensitiveActionAttempts, consumeSensitiveActionAttempt } from "../src/lib/sensitive-action-rate-limit";
+
+test("şifre yenileme e-postası güvenli bağlantı ve süre bilgisini içerir", () => {
+  const resetUrl = "https://hukuk.example.com/api/auth/reset-password/token?callbackURL=%2Fsifre-sifirla";
+  const email = buildPasswordResetEmail({ recipientName: "Semih Baş", resetUrl });
+
+  assert.match(email.subject, /şifre yenileme/i);
+  assert.match(email.text, /30 dakika/);
+  assert.match(email.text, /yalnızca bir kez/);
+  assert.match(email.text, new RegExp(resetUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("e-posta HTML içeriği kullanıcı adını ve bağlantıyı escape eder", () => {
+  const email = buildPasswordResetEmail({
+    recipientName: "<script>alert('x')</script>",
+    resetUrl: "https://example.com/reset?token=abc&next=<script>",
+  });
+
+  assert.doesNotMatch(email.html, /<script>alert/);
+  assert.match(email.html, /&lt;script&gt;/);
+  assert.match(email.html, /token=abc&amp;next=&lt;script&gt;/);
+});
+
+test("hassas işlem deneme sınırı aşılınca isteği reddeder ve temizlenebilir", () => {
+  const key = `test-${Date.now()}-${Math.random()}`;
+  const options = { max: 2, windowMs: 60_000 };
+
+  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
+  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
+  const blocked = consumeSensitiveActionAttempt(key, options);
+  assert.equal(blocked.allowed, false);
+  assert.ok(blocked.retryAfterSeconds > 0);
+
+  clearSensitiveActionAttempts(key);
+  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
+  clearSensitiveActionAttempts(key);
+});

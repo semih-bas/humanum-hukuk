@@ -15,6 +15,7 @@ type IconName =
   | "close"
   | "folder"
   | "home"
+  | "key"
   | "logout"
   | "menu"
   | "plus"
@@ -53,6 +54,7 @@ function Icon({ name }: { name: IconName }) {
     close: <><path d="m6 6 12 12M18 6 6 18" /></>,
     folder: <path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />,
     home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
+    key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8M15 8l3 3M13 10l3 3" /></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></>,
     menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
@@ -404,6 +406,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
               {openMenu === "profile" && (
                 <div className={`${styles.popover} ${styles.profilePopover}`}>
                   <p><b>{currentUser.fullName}</b><small>{currentUser.email}</small></p>
+                  <Link className={styles.profileAction} href="/sifre-degistir" onClick={() => setOpenMenu(null)}><Icon name="key" /> Şifremi Değiştir</Link>
                   {currentUser.isManager && <button className={styles.profileAction} type="button" onClick={() => {
                     setOpenMenu(null);
                     setSidebarOpen(true);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import styles from "./page.module.css";
 
-export default function ChangePasswordForm() {
+export default function ChangePasswordForm({ requiredChange }: { requiredChange: boolean }) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +42,7 @@ export default function ChangePasswordForm() {
         return;
       }
 
-      router.replace("/dosyalarim");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setNotice("Şifre değiştirilemedi. Lütfen tekrar deneyin.");
@@ -55,12 +55,13 @@ export default function ChangePasswordForm() {
     <main className={styles.page}>
       <form className={styles.card} onSubmit={handleSubmit} noValidate>
         <p className={styles.eyebrow}>Hesap güvenliği</p>
-        <h1>Şifrenizi belirleyin</h1>
-        <p className={styles.description}>İlk girişiniz tamamlanmadan önce kişisel şifrenizi oluşturun.</p>
-        <label><span>Mevcut geçici şifre</span><input name="currentPassword" type="password" autoComplete="current-password" required disabled={isSubmitting} /></label>
+        <h1>{requiredChange ? "Şifrenizi belirleyin" : "Şifrenizi değiştirin"}</h1>
+        <p className={styles.description}>{requiredChange ? "İlk girişiniz tamamlanmadan önce kişisel şifrenizi oluşturun." : "Hesabınızın güvenliği için mevcut şifrenizi doğrulayarak yeni bir şifre belirleyin."}</p>
+        <label><span>{requiredChange ? "Mevcut geçici şifre" : "Mevcut şifre"}</span><input name="currentPassword" type="password" autoComplete="current-password" required disabled={isSubmitting} /></label>
         <label><span>Yeni şifre</span><input name="newPassword" type="password" minLength={10} maxLength={128} autoComplete="new-password" required disabled={isSubmitting} /></label>
         <label><span>Yeni şifre tekrarı</span><input name="newPasswordConfirmation" type="password" minLength={10} maxLength={128} autoComplete="new-password" required disabled={isSubmitting} /></label>
-        <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Kaydediliyor..." : "Şifreyi belirle"}</button>
+        <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Kaydediliyor..." : requiredChange ? "Şifreyi belirle" : "Şifreyi değiştir"}</button>
+        {!requiredChange && <button className={styles.secondaryButton} type="button" disabled={isSubmitting} onClick={() => router.back()}>Vazgeç</button>}
         <p className={styles.notice} role="alert">{notice}</p>
       </form>
     </main>

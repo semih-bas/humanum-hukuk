@@ -17,9 +17,5 @@ export default async function ChangePasswordPage() {
     select: { mustChangePassword: true },
   });
 
-  if (!user?.mustChangePassword) {
-    redirect("/dashboard");
-  }
-
-  return <ChangePasswordForm />;
+  return <ChangePasswordForm requiredChange={user?.mustChangePassword === true} />;
 }
