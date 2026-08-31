@@ -28,6 +28,7 @@ export type DashboardSummary = {
   };
   reminders: Array<{
     id: string;
+    caseFileId: string;
     title: string;
     dueAt: string;
     referenceNumber: string;
@@ -68,13 +69,14 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
           caseFile: { archivedAt: null },
         },
         orderBy: [{ dueAt: "asc" }, { id: "asc" }],
-        take: 3,
+        take: 5,
         select: {
           id: true,
           title: true,
           dueAt: true,
           caseFile: {
             select: {
+              id: true,
               referenceNumber: true,
               vehiclePlate: true,
             },
@@ -103,6 +105,7 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
       },
       reminders: reminders.map((reminder) => ({
         id: reminder.id,
+        caseFileId: reminder.caseFile.id,
         title: reminder.title,
         dueAt: reminder.dueAt.toISOString(),
         referenceNumber: reminder.caseFile.referenceNumber,

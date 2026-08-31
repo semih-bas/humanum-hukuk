@@ -72,6 +72,11 @@
   .financeList { gap: 9px; padding-block: 16px; }
   .financeList div { padding-block: 14px; }
   .financeList span { margin-bottom: 7px; }
+  .taskList { display: grid; min-height: 0; grid-auto-rows: minmax(0, 1fr); gap: 6px; overflow: hidden; padding: 8px 14px; }
+  .task { min-height: 0; margin: 0; padding: 7px 9px; }
+  .calendarIcon { width: 32px; height: 34px; }
+  .task div { min-width: 0; gap: 3px; }
+  .task strong, .task small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .emptyTasks { min-height: 0; height: 100%; margin: 12px 0; padding-block: 24px; }
 }
 

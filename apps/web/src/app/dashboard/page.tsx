@@ -68,9 +68,9 @@ export default async function DashboardPage() {
         </article>
 
         {isManager && <article className={styles.panel}>
-          <header className={styles.panelHeader}><div><h2>Yaklaşan Görevler</h2><p>En yakın üç hatırlatma</p></div><span className={styles.taskCount}>{summary.reminders.length}</span></header>
+          <header className={styles.panelHeader}><div><h2>Yaklaşan Görevler</h2><p>En yakın beş hatırlatma</p></div><span className={styles.taskCount}>{summary.reminders.length}</span></header>
           <div className={styles.taskList}>
-            {summary.reminders.map((reminder) => <Link className={styles.task} href={`/dosyalarim?query=${encodeURIComponent(reminder.referenceNumber)}`} key={reminder.id}>
+            {summary.reminders.map((reminder) => <Link className={styles.task} href={`/dosyalarim?case=${encodeURIComponent(reminder.caseFileId)}`} key={reminder.id}>
               <span className={styles.calendarIcon}><span>{formatDay(reminder.dueAt)}</span></span>
               <div><strong>{reminder.title}</strong><small>{reminder.referenceNumber} · {formatDateTime(reminder.dueAt)}</small></div>
             </Link>)}
