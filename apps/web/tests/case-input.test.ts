@@ -35,6 +35,20 @@ test("geçerli dosya verisini kabul eder ve finansal değerleri sunucuda hesapla
   assert.equal(financials.monthlyInstallmentAmount, null);
 });
 
+test("hatırlatmalar yalnızca e-posta kanalıyla oluşturulur", () => {
+  const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const emailOnly = createCaseSchema.safeParse({ ...validCase, reminder: { title: "Evrak kontrolü", dueAt } });
+  assert.equal(emailOnly.success, true);
+  if (emailOnly.success) {
+    assert.equal(emailOnly.data.reminder?.sendEmail, true);
+    assert.equal(emailOnly.data.reminder?.sendSms, false);
+  }
+  assert.equal(createCaseSchema.safeParse({
+    ...validCase,
+    reminder: { title: "SMS denemesi", dueAt, sendEmail: true, sendSms: true },
+  }).success, false);
+});
+
 test("indirim toplam talep tutarını aşamaz", () => {
   const result = createCaseSchema.safeParse({ ...validCase, discountAmount: "1300.01" });
   assert.equal(result.success, false);

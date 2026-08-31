@@ -50,17 +50,9 @@ export const addCaseReminderSchema = z.object({
   title: requiredText("Hatırlatma başlığı", SHORT_TEXT_MAX_LENGTH),
   dueAt: z.iso.datetime({ offset: true, error: "Hatırlatma tarihi geçerli bir tarih-saat olmalıdır." })
     .transform((value) => new Date(value)),
-  sendEmail: z.boolean(),
-  sendSms: z.boolean(),
+  sendEmail: z.literal(true).optional().default(true),
+  sendSms: z.literal(false).optional().default(false),
 }).strict().superRefine((value, context) => {
-  if (!value.sendEmail && !value.sendSms) {
-    context.addIssue({
-      code: "custom",
-      path: ["sendEmail"],
-      message: "Hatırlatma için e-posta veya SMS seçeneklerinden en az biri seçilmelidir.",
-    });
-  }
-
   if (value.dueAt.getTime() <= Date.now()) {
     context.addIssue({
       code: "custom",
@@ -223,4 +215,3 @@ function currentIstanbulDate(): string {
     day: "2-digit",
   }).format(new Date());
 }
-

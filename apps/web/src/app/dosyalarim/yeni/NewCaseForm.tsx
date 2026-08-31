@@ -18,15 +18,11 @@ type FieldErrors = Record<string, string[] | undefined>;
 type ReminderDraft = {
   title: string;
   dueAt: string;
-  sendEmail: boolean;
-  sendSms: boolean;
 };
 
 const emptyReminder: ReminderDraft = {
   title: "",
   dueAt: "",
-  sendEmail: true,
-  sendSms: true,
 };
 
 function Icon({ name }: { name: "bell" | "check" | "document" | "note" | "x" }) {
@@ -349,8 +345,7 @@ export default function NewCaseForm() {
             </div>
           </>}
         </div>
-        <footer className={operation === "reminder" ? styles.reminderFooter : undefined}>
-          {operation === "reminder" && <div className={styles.channels}><label><input type="checkbox" checked={reminderDraft.sendEmail} onChange={(event) => setReminderDraft({ ...reminderDraft, sendEmail: event.target.checked })} /> E-posta</label><label><input type="checkbox" checked={reminderDraft.sendSms} onChange={(event) => setReminderDraft({ ...reminderDraft, sendSms: event.target.checked })} /> SMS</label></div>}
+        <footer>
           <div className={styles.modalActions}>
             <button type="button" onClick={() => setOperation(null)}>Vazgeç</button>
             <button type="button" onClick={() => {
@@ -369,8 +364,8 @@ export default function NewCaseForm() {
               return;
             }
 
-            if (!reminderDraft.title.trim() || !isCompleteDateTime(reminderDraft.dueAt) || (!reminderDraft.sendEmail && !reminderDraft.sendSms)) {
-              setNotice({ tone: "error", message: "Hatırlatma başlığı, tarihi ve en az bir gönderim kanalı zorunludur." });
+            if (!reminderDraft.title.trim() || !isCompleteDateTime(reminderDraft.dueAt)) {
+              setNotice({ tone: "error", message: "Hatırlatma başlığı ve tarihi zorunludur." });
               return;
             }
 

@@ -40,7 +40,7 @@ type CaseDetail = {
   createdBy: { name: string };
   updatedBy: { name: string };
   notes: Array<{ id: string; content: string; createdAt: string; author: { name: string } }>;
-  reminders: Array<{ id: string; title: string; dueAt: string; sendEmail: boolean; sendSms: boolean; status: string }>;
+  reminders: Array<{ id: string; title: string; dueAt: string; status: string }>;
   documents: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: string }>;
   changes: Array<{ id: string; changeType: string; newVersion: number; changedFields: unknown; createdAt: string; changedBy: { name: string } }>;
 };
@@ -82,8 +82,6 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
   const [reminderOpen, setReminderOpen] = useState(initialMode === "reminder");
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderDueAt, setReminderDueAt] = useState("");
-  const [sendEmail, setSendEmail] = useState(true);
-  const [sendSms, setSendSms] = useState(true);
   const [activitySaving, setActivitySaving] = useState(false);
   const [editActivity, setEditActivity] = useState<"note" | "document" | null>(null);
   const [editNote, setEditNote] = useState("");
@@ -193,8 +191,6 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         body: JSON.stringify({
           title: reminderTitle,
           dueAt: new Date(reminderDueAt).toISOString(),
-          sendEmail,
-          sendSms,
         }),
       });
       const result = await response.json() as { data?: { id: string }; error?: { message?: string } };
@@ -340,7 +336,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
               <label className={styles.activityField}><span>Saat</span><input required type="text" inputMode="numeric" maxLength={5} placeholder="SS:DD" value={timePart(reminderDueAt)} onChange={(event) => setReminderDueAt(combineDateTime(datePart(reminderDueAt), formatTimeInput(event.target.value, timePart(reminderDueAt))))} /></label>
             </div>
             <div className={styles.activityActions}>
-              <p><label><input type="checkbox" checked={sendEmail} onChange={(event) => setSendEmail(event.target.checked)} /> E-posta</label><label><input type="checkbox" checked={sendSms} onChange={(event) => setSendSms(event.target.checked)} /> SMS</label></p>
+              <p>E-posta bildirimi gönderilecek.</p>
               <button type="submit" disabled={activitySaving}>{activitySaving ? "Ekleniyor…" : "Kaydet"}</button>
             </div>
           </form>}

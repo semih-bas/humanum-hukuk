@@ -60,6 +60,7 @@ export default function FilesClient() {
   const searchParams = useSearchParams();
   const createdReference = searchParams.get("created");
   const documentFailed = searchParams.get("document") === "failed";
+  const linkedCaseId = searchParams.get("case")?.slice(0, 200) ?? "";
   const initialQuery = searchParams.get("query")?.slice(0, 200) ?? "";
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim());
@@ -69,7 +70,7 @@ export default function FilesClient() {
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
-  const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(null);
+  const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference
@@ -150,11 +151,12 @@ export default function FilesClient() {
     setCurrentPage(1);
   }
 
-  const searchField = <label className={styles.searchField}>
-    <span className={styles.srOnly}>Dosyalarda ara</span>
-    <input value={query} onChange={(event) => { setQuery(event.target.value.toLocaleUpperCase("tr-TR")); setCurrentPage(1); }} maxLength={20} placeholder="Araç plakası ara..." />
-    <Icon name="search" />
-  </label>;
+  const searchField = <div className={styles.searchField}>
+    <label className={styles.srOnly} htmlFor="case-search">Dosyalarda ara</label>
+    <input id="case-search" value={query} onChange={(event) => { setQuery(event.target.value.toLocaleUpperCase("tr-TR")); setCurrentPage(1); }} maxLength={20} placeholder="Araç plakası ara..." />
+    {query && <button className={styles.clearSearch} type="button" aria-label="Aramayı temizle" onClick={() => { setQuery(""); setCurrentPage(1); }}><Icon name="x" /></button>}
+    <span className={styles.searchIcon}><Icon name="search" /></span>
+  </div>;
 
   return <AppShell headerContent={searchField}>
     <div className={styles.filesPage}>
