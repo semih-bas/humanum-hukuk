@@ -78,6 +78,29 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  fixtures:
+    profiles: ["tools"]
+    build:
+      context: ./apps/web
+      target: acceptance-tools
+    env_file:
+      - path: ./apps/web/.env.acceptance.app
+        required: true
+      - path: ./apps/web/.env.acceptance.database
+        required: true
+      - path: ./apps/web/.env.acceptance.bootstrap
+        required: true
+    environment:
+      ACCEPTANCE_FIXTURE_ALLOWED: "true"
+      ACCEPTANCE_FIXTURE_BATCH: "HH-ACC-20260831-V1"
+    volumes:
+      - humanum-acceptance-documents:/var/lib/humanum/documents
+    depends_on:
+      database:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   humanum-acceptance-postgres-data:
     name: humanum-acceptance-postgres-data

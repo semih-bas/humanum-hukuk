@@ -19,6 +19,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     BETTER_AUTH_SECRET=build-only-placeholder-secret-at-least-32-characters
 RUN npm run db:generate && npm run build
 
+FROM builder AS acceptance-tools
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+CMD ["npm", "run", "db:fixtures:acceptance"]
+
 FROM base AS migrator
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
