@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import styles from "./AppShell.module.css";
@@ -93,6 +93,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamQuery, setTeamQuery] = useState("");
   const [teamState, setTeamState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [managementNotice, setManagementNotice] = useState("");
@@ -107,6 +108,14 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [notificationState, setNotificationState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const menuAreaRef = useRef<HTMLDivElement>(null);
   const teamAreaRef = useRef<HTMLDivElement>(null);
+
+  const visibleTeamMembers = useMemo(() => {
+    const query = teamQuery.trim().toLocaleLowerCase("tr-TR");
+    const statusRank = (member: TeamMember) => member.banned ? 2 : member.emailVerified ? 0 : 1;
+    return teamMembers
+      .filter((member) => !query || member.name.toLocaleLowerCase("tr-TR").includes(query))
+      .sort((left, right) => statusRank(left) - statusRank(right) || left.name.localeCompare(right.name, "tr-TR"));
+  }, [teamMembers, teamQuery]);
 
   const loadNotifications = useCallback(async (signal?: AbortSignal) => {
     setNotificationState("loading");
@@ -311,20 +320,22 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
         <div className={styles.sidebarFooter} ref={teamAreaRef}>
           {currentUser.isManager && teamOpen && (
             <div className={styles.teamPanel}>
-              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>{teamState === "ready" ? `${teamMembers.length} kişi` : "Yönetim"}</span></div>
+              <div className={styles.teamPanelHeader}><strong>Ekip</strong><span>{teamState === "ready" ? `${teamQuery.trim() ? `${visibleTeamMembers.length}/` : ""}${teamMembers.length} kişi` : "Yönetim"}</span></div>
+              <div className={styles.teamSearch}><label className={styles.srOnly} htmlFor="team-search">Ekipte isim ara</label><input id="team-search" value={teamQuery} onChange={(event) => setTeamQuery(event.target.value)} placeholder="İsim ara…" />{teamQuery && <button type="button" aria-label="İsim aramasını temizle" onClick={() => setTeamQuery("")}>×</button>}</div>
               <div className={styles.teamList}>
                 {teamState === "loading" && <p className={styles.managementNotice}>Kullanıcılar yükleniyor...</p>}
                 {teamState === "error" && <button className={styles.retryButton} type="button" onClick={loadTeamMembers}>Tekrar dene</button>}
-                {teamMembers.map((member) => (
-                  <div className={styles.teamMember} key={member.id}>
+                {visibleTeamMembers.map((member) => (
+                  <div className={`${styles.teamMember} ${member.banned ? styles.teamMemberBanned : !member.emailVerified ? styles.teamMemberUnverified : styles.teamMemberActive}`} key={member.id}>
                     <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
                     <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
-                    <span className={`${styles.memberStatus} ${member.banned || !member.emailVerified ? styles.memberStatusInactive : ""}`}><i />{member.banned ? "Pasif" : member.emailVerified ? "Aktif" : "Doğrulama Bekliyor"}</span>
+                    <span className={`${styles.memberStatus} ${member.banned ? styles.memberStatusBanned : !member.emailVerified ? styles.memberStatusUnverified : ""}`}><i />{member.banned ? "Pasif" : member.emailVerified ? "Aktif" : "Doğrulama Bekliyor"}</span>
                     {member.id !== session?.user.id && <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
                       {changingUserId === member.id ? "..." : member.banned ? "Tekrar Aktifleştir" : "Pasifleştir"}
                     </button>}
                   </div>
                 ))}
+                {teamState === "ready" && visibleTeamMembers.length === 0 && <p className={styles.teamEmpty}>Bu isimle eşleşen kullanıcı bulunamadı.</p>}
               </div>
               <button className={styles.addMemberButton} type="button" onClick={() => { setCreateUserOpen(true); setTeamOpen(false); setManagementNotice(""); }}><Icon name="plus" />Yeni kullanıcı ekle</button>
               {managementNotice && <p className={styles.managementNotice} role="status">{managementNotice}</p>}
@@ -398,10 +409,11 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   {notificationState === "loading" && <p><small>Bildirimler yükleniyor...</small></p>}
                   {notificationState === "error" && <p><b>Bildirimler yüklenemedi</b><small>Tekrar denemek için zil simgesine basın.</small></p>}
                   {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
-                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?query=${encodeURIComponent(notification.vehiclePlate)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
+                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?case=${encodeURIComponent(notification.caseFileId)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
                     <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
                     <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
                   </Link>)}
+                  <Link className={styles.allNotificationsLink} href="/hatirlatmalar" onClick={() => setOpenMenu(null)}>Tüm bildirimleri göster <span>→</span></Link>
                 </div>
               )}
             </div>}

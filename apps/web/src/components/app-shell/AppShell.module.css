@@ -87,12 +87,18 @@
 .teamPanel { position: absolute; z-index: 2; right: -398px; bottom: 8px; width: 382px; overflow: hidden; border: 1px solid #d9e2e9; border-radius: 17px; background: #fff; color: #17283c; box-shadow: 0 28px 76px rgb(4 18 34 / 30%); animation: teamPanelIn 180ms ease-out both; }
 .teamPanelHeader { display: flex; min-height: 68px; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e3e9ee; background: linear-gradient(120deg, #fff 0%, #f8fafb 70%, #faf5ec 100%); }
 .teamPanelHeader strong { font-size: 15px; }.teamPanelHeader span { padding: 5px 9px; border-radius: 999px; background: #edf3f7; color: #587087; font-size: 10px; font-weight: 700; }
-.teamList { display: grid; max-height: 354px; gap: 8px; overflow-y: auto; padding: 10px; background: #f4f7f9; scrollbar-color: #aeb9c5 transparent; scrollbar-width: thin; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.teamSearch { position: relative; padding: 10px 10px 0; background: #f4f7f9; }.teamSearch input { width: 100%; height: 36px; padding: 0 38px 0 12px; border: 1px solid #dce4ea; border-radius: 9px; outline: none; background: #fff; color: #1b3046; font: inherit; font-size: 10px; }.teamSearch input:focus { border-color: #d0a45b; box-shadow: 0 0 0 3px rgb(208 164 91 / 11%); }.teamSearch button { position: absolute; top: 14px; right: 15px; display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #758392; cursor: pointer; font-size: 16px; }.teamSearch button:hover { background: #eef2f5; color: #253b52; }
+.teamList { display: grid; max-height: 306px; gap: 8px; overflow-y: auto; padding: 10px; background: #f4f7f9; scrollbar-color: #aeb9c5 transparent; scrollbar-width: thin; }
+.teamEmpty { margin: 0; padding: 34px 16px; color: #7d8997; text-align: center; font-size: 10px; }
 .teamMember { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 70px; padding: 10px 12px; border: 1px solid #e5eaee; border-radius: 12px; background: #fff; box-shadow: 0 3px 10px rgb(21 44 67 / 4%); transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.teamMemberActive { border-color: #d7e9de; background: #f7fcf9; }
+.teamMemberBanned { border-color: #efd4d4; background: #fff7f7; }
+.teamMemberUnverified { border-color: #ecd5aa; background: #fffaf1; }
 .teamMember:hover { border-color: #d8c29a; box-shadow: 0 7px 18px rgb(21 44 67 / 8%); transform: translateY(-1px); }
 .memberAvatar { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: linear-gradient(145deg, #102b45, #1d4668); color: #e2bd72; font-size: 10px; font-weight: 800; }
 .teamMember strong { overflow: hidden; color: #17283c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.teamMember small { color: #8190a0; font-size: 10px; }.memberInfo { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.memberStatus { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; background: #eaf7ef; color: #34754d; font-size: 9px; font-weight: 700; }.memberStatus i { width: 6px; height: 6px; border-radius: 50%; background: #3a9a61; }.memberStatusInactive { background: #f1f2f4; color: #717c88; }.memberStatusInactive i { background: #9ba4ae; }
+.memberStatus { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; background: #e6f6ec; color: #34754d; font-size: 9px; font-weight: 700; }.memberStatus i { width: 6px; height: 6px; border-radius: 50%; background: #3a9a61; }.memberStatusBanned { background: #fbe8e8; color: #a74747; }.memberStatusBanned i { background: #cf5b5b; }.memberStatusUnverified { background: #fff0d7; color: #9b651e; }.memberStatusUnverified i { background: #d88b2d; }
 .statusButton { grid-column: 2 / -1; justify-self: start; margin-top: -4px; padding: 4px 8px; border: 0; border-radius: 999px; background: #fff8ec; color: #93651f; cursor: pointer; font-size: 9px; font-weight: 700; white-space: nowrap; }.statusButton:hover { background: #f3e3c6; color: #17324e; }.statusButton:disabled { cursor: wait; opacity: .55; }
 .addMemberButton { display: flex; width: calc(100% - 20px); min-height: 48px; align-items: center; justify-content: center; gap: 8px; margin: 9px 10px 11px; border: 1px solid #d7b978; border-radius: 10px; background: linear-gradient(135deg, #fffdf8, #fff7e9); color: #865a18; cursor: pointer; font-size: 11px; font-weight: 700; box-shadow: 0 5px 14px rgb(164 112 31 / 7%); }
 .addMemberButton:hover { border-color: #c99b4c; background: #fff5e4; }.addMemberButton .icon { width: 16px; }
@@ -145,6 +151,7 @@
 .popover b { font-size: 13px; }
 .popover small { color: #6e7987; font-size: 11px; }
 .notificationLink { display: flex; flex-direction: column; gap: 5px; padding: 12px 10px; border-bottom: 1px solid #f0f2f5; color: #17283b; text-decoration: none; }.notificationLink:hover { background: #f7f9fb; }.notificationLink:last-child { border-bottom: 0; }
+.allNotificationsLink { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; padding: 11px 10px 5px; border-top: 1px solid #edf0f3; color: #0f5da8; font-size: 11px; font-weight: 700; text-decoration: none; }.allNotificationsLink:hover { color: #083d70; }.allNotificationsLink span { font-size: 15px; }
 .profilePopover { width: 250px; }
 .profilePopover a, .profilePopover button, .profileAction { display: flex; width: 100%; align-items: center; gap: 9px; padding: 11px 10px; border: 0; background: transparent; color: #bf3d42; cursor: pointer; text-decoration: none; font-size: 13px; }
 .profileAction { color: #244a6e; }.profileAction:hover { background: #f5f8fa; }
@@ -182,9 +189,13 @@
   .headerContent { width: min(360px, 48vw); margin-right: 10px; }
   .teamPanel { position: static; width: auto; margin: 0 0 14px; color: #eef3f7; border-color: rgb(255 255 255 / 10%); background: #0b1e32; box-shadow: 0 -14px 35px rgb(0 0 0 / 20%); }
   .teamPanelHeader { border-color: rgb(255 255 255 / 8%); background: transparent; }.teamPanelHeader strong { color: #fff; }.teamPanelHeader span { background: rgb(255 255 255 / 8%); color: #b6c1cc; }
+  .teamSearch { background: rgb(255 255 255 / 2%); }.teamSearch input { border-color: rgb(255 255 255 / 10%); background: rgb(255 255 255 / 6%); color: #fff; }.teamSearch button { color: #b7c1cc; }
   .teamList { background: rgb(255 255 255 / 2%); }
   .teamMember { border-color: rgb(255 255 255 / 8%); background: rgb(255 255 255 / 3%); box-shadow: none; }.teamMember strong { color: #fff; }.teamMember:hover { border-color: rgb(216 174 96 / 25%); background: rgb(255 255 255 / 6%); }.memberInfo small { color: #98a6b5; }
-  .memberStatus { background: rgb(51 148 89 / 18%); color: #9ad8af; }.memberStatusInactive { background: rgb(255 255 255 / 7%); color: #aeb8c2; }
+  .teamMemberActive { border-color: rgb(74 177 113 / 22%); background: rgb(51 148 89 / 8%); }
+  .teamMemberBanned { border-color: rgb(211 91 91 / 25%); background: rgb(190 65 65 / 9%); }
+  .teamMemberUnverified { border-color: rgb(216 139 45 / 27%); background: rgb(216 139 45 / 9%); }
+  .memberStatus { background: rgb(51 148 89 / 18%); color: #9ad8af; }.memberStatusBanned { background: rgb(211 91 91 / 18%); color: #efaaaa; }.memberStatusUnverified { background: rgb(216 139 45 / 18%); color: #efc27e; }
   .statusButton { background: rgb(216 174 96 / 9%); color: #dfba72; }.statusButton:hover { background: rgb(216 174 96 / 16%); color: #fff; }
   .addMemberButton { border-color: rgb(216 174 96 / 35%); background: rgb(216 174 96 / 8%); color: #dfba72; }
   .teamBackdrop { display: none; }
