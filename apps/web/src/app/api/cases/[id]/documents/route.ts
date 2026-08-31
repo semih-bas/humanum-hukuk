@@ -1,16 +1,14 @@
 import { ApiRequestError, assertSameOrigin, requireApiSession } from "@/lib/api-security";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
 import { DocumentValidationError, MAX_MULTIPART_BYTES, storeCaseDocument } from "@/lib/document-storage";
+import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-const idSchema = z.string().min(20).max(40).regex(/^[a-z0-9]+$/i);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     assertSameOrigin(request);
     const session = await requireApiSession(request);
-    const idResult = idSchema.safeParse((await params).id);
+    const idResult = resourceIdSchema.safeParse((await params).id);
     if (!idResult.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı.");
 
     const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";

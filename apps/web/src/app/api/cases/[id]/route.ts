@@ -3,10 +3,9 @@ import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } fr
 import { updateCaseSchema } from "@/lib/cases/create-case-input";
 import { getCaseFile } from "@/lib/cases/get-case";
 import { CaseHasNoChangesError, CaseNotFoundError, CaseVersionConflictError, updateCaseFile } from "@/lib/cases/update-case";
+import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
-const idSchema = z.string().min(20).max(40).regex(/^[a-z0-9]+$/i);
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: RouteContext) {
@@ -44,7 +43,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 async function readId(context: RouteContext): Promise<string> {
-  const result = idSchema.safeParse((await context.params).id);
+  const result = resourceIdSchema.safeParse((await context.params).id);
   if (!result.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı.");
   return result.data;
 }

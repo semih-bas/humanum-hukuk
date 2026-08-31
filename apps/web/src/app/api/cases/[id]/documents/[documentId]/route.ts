@@ -1,17 +1,15 @@
 import { ApiRequestError, requireApiSession } from "@/lib/api-security";
 import { tryWriteAuditLog } from "@/lib/audit";
 import { DocumentNotFoundError, readCaseDocument } from "@/lib/document-storage";
+import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-const idSchema = z.string().min(20).max(40).regex(/^[a-z0-9]+$/i);
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string; documentId: string }> }) {
   try {
     const session = await requireApiSession(request);
     const values = await params;
-    const caseId = idSchema.safeParse(values.id);
-    const documentId = idSchema.safeParse(values.documentId);
+    const caseId = resourceIdSchema.safeParse(values.id);
+    const documentId = resourceIdSchema.safeParse(values.documentId);
     if (!caseId.success || !documentId.success) throw new DocumentNotFoundError();
 
     const document = await readCaseDocument(caseId.data, documentId.data);

@@ -268,7 +268,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
   return <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
     <section className={`${styles.detailModal} ${styles.fullDetailModal}`} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
       <header>
-        <div><p>{detail?.referenceNumber ?? "Dosya ayrıntısı"}</p><h2 id="detail-title">{detail?.vehiclePlate ?? "Yükleniyor…"}</h2></div>
+        <div><p>{detail?.referenceNumber ?? "Dosya ayrıntısı"}</p><h2 id="detail-title">{detail?.vehiclePlate ?? (loading ? "Yükleniyor…" : "Dosya açılamadı")}</h2></div>
         <button type="button" aria-label="Detay penceresini kapat" onClick={onClose}>×</button>
       </header>
 

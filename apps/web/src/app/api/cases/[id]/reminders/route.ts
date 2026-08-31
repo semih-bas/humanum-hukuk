@@ -2,16 +2,14 @@ import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } fr
 import { addCaseReminder } from "@/lib/cases/add-case-activity";
 import { addCaseReminderSchema } from "@/lib/cases/create-case-input";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
+import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-const idSchema = z.string().min(20).max(40).regex(/^[a-z0-9]+$/i);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     assertSameOrigin(request);
     const session = await requireApiSession(request);
-    const idResult = idSchema.safeParse((await params).id);
+    const idResult = resourceIdSchema.safeParse((await params).id);
     if (!idResult.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı.");
     const validation = addCaseReminderSchema.safeParse(await readJsonBody(request));
     if (!validation.success) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: "Hatırlatma bilgileri geçerli değil.", fields: validation.error.flatten().fieldErrors } }, 400);
