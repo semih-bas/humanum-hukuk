@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import AppShell from "@/components/app-shell/AppShell";
 import { listAdminReminderTasks } from "@/lib/admin-notifications";
+import { resourceIdSchema } from "@/lib/resource-id";
 import { requireSession } from "@/lib/session";
 
 import styles from "./page.module.css";
@@ -13,9 +14,11 @@ const statusLabels: Record<string, string> = {
   FAILED: "E-posta gönderilemedi",
 };
 
-export default async function RemindersPage() {
+export default async function RemindersPage({ searchParams }: { searchParams: Promise<{ reminder?: string }> }) {
   const session = await requireSession();
   if (session.user.role !== "admin") redirect("/dashboard");
+  const selectedReminder = resourceIdSchema.safeParse((await searchParams).reminder);
+  const selectedReminderId = selectedReminder.success ? selectedReminder.data : "";
   const reminders = await listAdminReminderTasks();
 
   return <AppShell>
@@ -26,7 +29,7 @@ export default async function RemindersPage() {
         <div className={styles.tableViewport}><table>
           <thead><tr><th>Hatırlatma</th><th>Bağlı Dosya</th><th>Tarih</th><th>E-posta Durumu</th><th>Ekleyen</th><th>İşlem</th></tr></thead>
           <tbody>
-            {reminders.items.map((reminder) => <tr key={reminder.id}>
+            {reminders.items.map((reminder) => <tr id={`reminder-${reminder.id}`} className={reminder.id === selectedReminderId ? styles.highlightedReminder : undefined} key={reminder.id}>
               <td><strong>{reminder.title}</strong></td>
               <td><span className={styles.caseReference}>{reminder.caseFile.referenceNumber}<small>{reminder.caseFile.vehiclePlate}</small></span></td>
               <td>{formatDateTime(reminder.dueAt)}{reminder.overdue && <small className={styles.overdue}>Gecikmiş</small>}</td>

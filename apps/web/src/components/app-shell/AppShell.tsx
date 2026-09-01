@@ -409,10 +409,13 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
                   {notificationState === "loading" && <p><small>Bildirimler yükleniyor...</small></p>}
                   {notificationState === "error" && <p><b>Bildirimler yüklenemedi</b><small>Tekrar denemek için zil simgesine basın.</small></p>}
                   {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
-                  {notifications.map((notification) => <Link className={styles.notificationLink} href={`/dosyalarim?case=${encodeURIComponent(notification.caseFileId)}`} onClick={() => setOpenMenu(null)} key={notification.id}>
+                  {notifications.map((notification) => {
+                    const reminderTarget = encodeURIComponent(notification.id);
+                    return <Link className={styles.notificationLink} href={`/hatirlatmalar?reminder=${reminderTarget}#reminder-${reminderTarget}`} onClick={() => setOpenMenu(null)} key={notification.id}>
                     <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
                     <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
-                  </Link>)}
+                    </Link>;
+                  })}
                   <Link className={styles.allNotificationsLink} href="/hatirlatmalar" onClick={() => setOpenMenu(null)}>Tüm bildirimleri göster <span>→</span></Link>
                 </div>
               )}
