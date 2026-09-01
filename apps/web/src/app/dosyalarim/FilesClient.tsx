@@ -33,6 +33,19 @@ type Pagination = {
 };
 
 type SortField = "createdAt" | "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorName" | "enforcementOffice" | "status";
+type StatusFilter = "ALL" | CaseStatus;
+
+const sortOptions = {
+  newest: { label: "Son eklenenler", field: "createdAt", direction: "desc" },
+  oldest: { label: "İlk eklenenler", field: "createdAt", direction: "asc" },
+  accidentNewest: { label: "Kaza tarihi: en yeni", field: "accidentDate", direction: "desc" },
+  accidentOldest: { label: "Kaza tarihi: en eski", field: "accidentDate", direction: "asc" },
+  status: { label: "Dosya durumuna göre", field: "status", direction: "asc" },
+  holder: { label: "Ruhsat sahibi: A-Z", field: "licenseHolder", direction: "asc" },
+  plate: { label: "Plaka: A-Z", field: "vehiclePlate", direction: "asc" },
+} as const satisfies Record<string, { label: string; field: SortField; direction: "asc" | "desc" }>;
+
+type SortOption = keyof typeof sortOptions;
 
 const statusLabels: Record<CaseStatus, string> = {
   OPEN: "Devam Ediyor",
@@ -42,13 +55,12 @@ const statusLabels: Record<CaseStatus, string> = {
   CLOSED: "Sonuçlandı",
 };
 
-function Icon({ name }: { name: "eye" | "more" | "plus" | "search" | "sort" | "x" }) {
+function Icon({ name }: { name: "eye" | "more" | "plus" | "search" | "x" }) {
   const paths = {
     eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
     more: <><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
-    sort: <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" />,
     x: <><path d="m6 6 12 12M18 6 6 18" /></>,
   };
 
@@ -62,13 +74,14 @@ export default function FilesClient() {
   const documentFailed = searchParams.get("document") === "failed";
   const linkedCaseId = searchParams.get("case")?.slice(0, 200) ?? "";
   const initialQuery = searchParams.get("query")?.slice(0, 200) ?? "";
+  const initialStatus = parseStatusFilter(searchParams.get("status"));
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim());
   const [records, setRecords] = useState<CaseRecord[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortBy, setSortBy] = useState<SortField>("createdAt");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
@@ -92,12 +105,14 @@ export default function FilesClient() {
       setError("");
 
       try {
+        const selectedSort = sortOptions[sortOption];
         const parameters = new URLSearchParams({
           query: debouncedQuery,
+          status: statusFilter,
           page: String(currentPage),
           pageSize: String(rowsPerPage),
-          sortBy,
-          sortDirection,
+          sortBy: selectedSort.field,
+          sortDirection: selectedSort.direction,
         });
         const response = await fetch(`/api/cases?${parameters}`, {
           credentials: "same-origin",
@@ -141,15 +156,18 @@ export default function FilesClient() {
 
     void loadCases();
     return () => controller.abort();
-  }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router, sortBy, sortDirection]);
+  }, [debouncedQuery, currentPage, rowsPerPage, refreshKey, router, sortOption, statusFilter]);
 
   const visiblePages = useMemo(() => getVisiblePages(pagination.page, pagination.pageCount), [pagination]);
 
-  function changeSort(field: SortField) {
-    if (sortBy === field) setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
-    else { setSortBy(field); setSortDirection("asc"); }
+  function clearListControls() {
+    setQuery("");
+    setStatusFilter("ALL");
+    setSortOption("newest");
     setCurrentPage(1);
   }
+
+  const controlsActive = query.trim() !== "" || statusFilter !== "ALL" || sortOption !== "newest";
 
   const searchField = <div className={styles.searchField}>
     <label className={styles.srOnly} htmlFor="case-search">Dosyalarda ara</label>
@@ -167,7 +185,7 @@ export default function FilesClient() {
           <p className={styles.pageDescription}>Tüm dosyaları görüntüleyin, arayın ve işlemleri tek ekrandan yönetin.</p>
           <p className={styles.breadcrumb}><Link href="/dashboard">Ana Sayfa</Link><span>›</span>Dosyalarım</p>
         </div>
-        <div className={styles.recordSummary}><strong>{pagination.totalCount}</strong><span>Toplam dosya</span></div>
+        <div className={styles.recordSummary}><strong>{pagination.totalCount}</strong><span>{query.trim() || statusFilter !== "ALL" ? "Eşleşen dosya" : "Toplam dosya"}</span></div>
         <div className={styles.mobileSearch}>{searchField}</div>
       </header>
 
@@ -175,6 +193,11 @@ export default function FilesClient() {
         <header className={styles.tableToolbar}>
           <div><h2>Dosya Listesi</h2><span>{pagination.totalCount} kayıt</span></div>
           <div className={styles.toolbarActions}>
+            <div className={styles.listControls}>
+              <label><span>Durum</span><select value={statusFilter} disabled={isLoading} onChange={(event) => { setStatusFilter(event.target.value as StatusFilter); setCurrentPage(1); }}><option value="ALL">Tüm durumlar</option>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+              <label><span>Sırala</span><select value={sortOption} disabled={isLoading} onChange={(event) => { setSortOption(event.target.value as SortOption); setCurrentPage(1); }}>{Object.entries(sortOptions).map(([value, option]) => <option value={value} key={value}>{option.label}</option>)}</select></label>
+              {controlsActive && <button className={styles.clearControls} type="button" onClick={clearListControls}>Temizle</button>}
+            </div>
             <Link className={styles.newFileButton} href="/dosyalarim/yeni"><Icon name="plus" />Yeni Dosya<span>⌄</span></Link>
           </div>
         </header>
@@ -185,12 +208,12 @@ export default function FilesClient() {
         <div className={styles.tableViewport}>
           <table>
             <thead><tr>
-              <SortableHeader label="Ruhsat Sahibi" field="licenseHolder" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
-              <SortableHeader label="Araç Plakası" field="vehiclePlate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
-              <SortableHeader label="Kaza Tarihi" field="accidentDate" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
-              <SortableHeader label="Borçlu Taraf" field="debtorName" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
-              <SortableHeader label="İcra Dairesi / No" field="enforcementOffice" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
-              <SortableHeader label="Dosya Durumu" field="status" activeField={sortBy} direction={sortDirection} onSort={changeSort} />
+              <th>Ruhsat Sahibi</th>
+              <th>Araç Plakası</th>
+              <th>Kaza Tarihi</th>
+              <th>Borçlu Taraf</th>
+              <th>İcra Dairesi / No</th>
+              <th>Dosya Durumu</th>
               <th>İşlemler</th>
             </tr></thead>
             <tbody>
@@ -213,7 +236,7 @@ export default function FilesClient() {
                 </tr>;
               })}
               {isLoading && <tr><td className={styles.emptyState} colSpan={7}>Dosyalar yükleniyor…</td></tr>}
-              {!isLoading && !error && records.length === 0 && <tr><td className={styles.emptyState} colSpan={7}>{debouncedQuery ? "Aramanızla eşleşen dosya bulunamadı." : "Henüz kayıtlı dosya bulunmuyor."}</td></tr>}
+              {!isLoading && !error && records.length === 0 && <tr><td className={styles.emptyState} colSpan={7}>{debouncedQuery || statusFilter !== "ALL" ? "Seçilen arama ve filtrelerle eşleşen dosya bulunamadı." : "Henüz kayıtlı dosya bulunmuyor."}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -250,7 +273,6 @@ function getVisiblePages(currentPage: number, pageCount: number): number[] {
   return [...pages].filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right);
 }
 
-function SortableHeader({ label, field, activeField, direction, onSort }: { label: string; field: SortField; activeField: SortField; direction: "asc" | "desc"; onSort: (field: SortField) => void }) {
-  const active = field === activeField;
-  return <th aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}><button className={`${styles.sortButton} ${active ? styles.sortActive : ""}`} type="button" onClick={() => onSort(field)} aria-label={`${label} sütununu sırala`}>{label}<Icon name="sort" /></button></th>;
+function parseStatusFilter(value: string | null): StatusFilter {
+  return value && Object.hasOwn(statusLabels, value) ? value as CaseStatus : "ALL";
 }

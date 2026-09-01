@@ -4,6 +4,7 @@ import { prisma } from "../database";
 
 export type CaseListQuery = {
   query: string;
+  status: "ALL" | "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
   page: number;
   pageSize: number;
   sortBy: "createdAt" | "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorName" | "enforcementOffice" | "status";
@@ -40,6 +41,7 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
   const where: Prisma.CaseFileWhereInput = {
     archivedAt: null,
     ...(normalizedQuery ? { vehiclePlate: { contains: normalizedQuery, mode: "insensitive" } } : {}),
+    ...(input.status !== "ALL" ? { status: input.status } : {}),
   };
 
   return prisma.$transaction(async (transaction) => {
