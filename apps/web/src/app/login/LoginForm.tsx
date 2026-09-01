@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { getLoginErrorNotice } from "@/lib/login-error";
 import styles from "./page.module.css";
 
 type Notice = {
@@ -45,15 +46,7 @@ export default function LoginForm() {
       });
 
       if (error) {
-        const emailNotVerified = error.status === 403 || error.code === "EMAIL_NOT_VERIFIED";
-        setNotice({
-          kind: emailNotVerified ? "info" : "error",
-          message: emailNotVerified
-            ? "E-posta adresiniz henüz doğrulanmadı. Yeni doğrulama bağlantısı e-posta adresinize gönderildi."
-            : error.status === 429
-            ? "Çok fazla giriş denemesi yapıldı. Lütfen kısa bir süre sonra tekrar deneyin."
-            : "E-posta adresi veya şifre hatalı.",
-        });
+        setNotice(getLoginErrorNotice(error));
         return;
       }
 
