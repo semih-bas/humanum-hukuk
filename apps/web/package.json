@@ -12,6 +12,7 @@
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:check": "tsx scripts/check-database.ts",
+    "db:check:email-security": "tsx scripts/check-email-security.ts",
     "db:check:case-domain": "tsx scripts/check-case-domain.ts",
     "db:check:case-create": "tsx scripts/check-case-create.ts",
     "db:check:case-update": "tsx scripts/check-case-update.ts",

@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
 
+import { releaseFailedTransactionalEmail, reserveTransactionalEmail, type TransactionalEmailCategory } from "./email-rate-limit";
+
 type PasswordResetEmail = {
   recipientName: string;
   resetUrl: string;
@@ -23,6 +25,10 @@ type SmtpConfiguration = {
 };
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+export type EmailDeliveryResult =
+  | { status: "sent" }
+  | { status: "suppressed"; retryAfterSeconds: number };
 
 function requiredEmailEnvironment(name: string): string {
   const value = process.env[name]?.trim();
@@ -118,26 +124,46 @@ function emailTransporter(configuration: SmtpConfiguration) {
   return transporter;
 }
 
-export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise<void> {
+async function sendTransactionalEmail(category: TransactionalEmailCategory, input: { to: string }, content: { subject: string; text: string; html: string }): Promise<EmailDeliveryResult> {
   const configuration = smtpConfiguration();
-  const content = buildPasswordResetEmail(input);
-  await emailTransporter(configuration).sendMail({
-    from: configuration.from,
-    to: input.to,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-  });
+  const reservation = await reserveTransactionalEmail(category, input.to);
+  if (!reservation.allowed) return { status: "suppressed", retryAfterSeconds: reservation.retryAfterSeconds };
+
+  try {
+    await emailTransporter(configuration).sendMail({
+      from: configuration.from,
+      to: input.to,
+      subject: content.subject,
+      text: content.text,
+      html: content.html,
+    });
+    return { status: "sent" };
+  } catch (error) {
+    if (isDefiniteEmailRejection(error)) {
+      await releaseFailedTransactionalEmail(reservation.releaseOnFailureKeys ?? []).catch((releaseError: unknown) => {
+        console.error("Failed to release unsuccessful email quota reservation", {
+          error: releaseError instanceof Error ? releaseError.name : "UnknownError",
+        });
+      });
+    }
+    throw error;
+  }
 }
 
-export async function sendEmailVerificationEmail(input: EmailVerificationEmail): Promise<void> {
-  const configuration = smtpConfiguration();
-  const content = buildEmailVerificationEmail(input);
-  await emailTransporter(configuration).sendMail({
-    from: configuration.from,
-    to: input.to,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-  });
+export function isDefiniteEmailRejection(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const smtpError = error as { code?: string; command?: string; responseCode?: number };
+  // A timeout after DATA may mean the provider accepted the message. Keep its
+  // quota reservation instead of treating an ambiguous delivery as unsent.
+  return ["EDNS", "ECONNECTION", "EAUTH", "EENVELOPE"].includes(smtpError.code ?? "") ||
+    ["CONN", "EHLO", "HELO", "STARTTLS", "AUTH", "MAIL FROM", "RCPT TO"].includes(smtpError.command ?? "") ||
+    (typeof smtpError.responseCode === "number" && smtpError.responseCode >= 400 && smtpError.responseCode < 600);
+}
+
+export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise<EmailDeliveryResult> {
+  return sendTransactionalEmail("password-reset", input, buildPasswordResetEmail(input));
+}
+
+export async function sendEmailVerificationEmail(input: EmailVerificationEmail): Promise<EmailDeliveryResult> {
+  return sendTransactionalEmail("verification", input, buildEmailVerificationEmail(input));
 }

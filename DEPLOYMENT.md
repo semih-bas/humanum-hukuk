@@ -36,6 +36,26 @@ Gerçek `.env.production.*` dosyaları Git tarafından yok sayılır. Bu dosyala
 - SMTP bağlantısı production ortamında TLS ve kimlik doğrulama kullanmalıdır.
 - Güncellemeler önce yedek alınarak ve test ortamında doğrulanarak uygulanmalıdır.
 
+## E-posta kötüye kullanım koruması
+
+Doğrulama ve şifre yenileme istekleri IP/yol bazında veritabanında sınırlandırılır; uygulamayı yeniden başlatmak sayaçları temizlemez. Aynı adres ve işlem türü için ayrıca 60 saniye bekleme, 15 dakikada 3 ve 24 saatlik pencerede 10 istek sınırı vardır. Kayıtlı olmayan adreslere e-posta gönderilmez; tekrar istekleri de aynı genel başarı yanıtını alır.
+
+SMTP gönderim noktasında adres/işlem türü başına dakikada 1 ve saatte 3 deneme, tüm sistemde saatte 50 deneme sınırı uygulanır. Adres/işlem türü başına günlük kabul edilen gönderim sınırı 5'tir. Tüm sistemin günlük sınırı `EMAIL_DAILY_LIMIT` ile ayarlanır (varsayılan 300); değer sağlayıcının kotasından düşük tutulmalıdır. Pencereler son izin verilen işlemden itibaren ölçülür, takvim gece yarısında sıfırlanmaz.
+
+Bütün katmanların rezervasyonu tek veritabanı işlemiyle yapılır: herhangi biri reddedilirse diğer sayaçlar ilerlemez. Kesin olarak kabul edilmeyen SMTP gönderimleri günlük rezervasyonu geri bırakır, kısa süreli deneme sınırı ise kalır. DATA sonrasında sonucu belirsiz bir bağlantı kesilmesi günlük kotadan düşülmez ve otomatik tekrar gönderilmez. SMTP'nin kabul etmesi, alıcının gelen kutusuna teslim edildiği anlamına gelmez.
+
+Gönderildi, sınır nedeniyle bastırıldı ve başarısız oldu sonuçları güvenlik kayıtlarına yazılır; e-posta içeriği, bağlantıdaki token ve SMTP parolası kaydedilmez. Ters proxy, istemcinin gönderdiği IP başlıklarını güvenilir bağlantı bilgisiyle değiştirmelidir; production proxy/IP kontrolü ayrıca yapılmalıdır.
+
+Veritabanı eşzamanlılık ve SMTP hata kontrolü yalnızca kabul ortamında çalıştırılır. Önce kabul uygulamasını durdurun, ardından:
+
+```sh
+docker compose -f compose.acceptance.yaml stop app
+docker compose -f compose.acceptance.yaml run --rm -e EMAIL_SECURITY_CHECK_ALLOWED=true fixtures npm run db:check:email-security
+docker compose -f compose.acceptance.yaml up -d app
+```
+
+Kontrol, kendi geçici hız sınırı kayıtlarını temizler ve ortak sayaçların önceki değerlerini geri yükler. Gerçek kişilere e-posta göndermez. Hatırlatma gönderim işçisi bu korumalardan bağımsız olarak henüz devreye alınmamıştır; alıcı kuralı ve kalıcı tekrar önleme doğrulanmadan gerçek SMTP'ye bağlanmamalıdır.
+
 ## Olası dış maliyetler
 
 Kod herhangi bir sağlayıcıya otomatik faturalandırma başlatmaz. Sunucu, alan adı, yedekleme alanı, SMS gönderimi ve seçilirse harici e-posta sağlayıcısı müşteri tarafından ayrıca temin edilir ve maliyetleri sağlayıcıya bağlıdır.

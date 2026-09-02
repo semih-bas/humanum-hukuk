@@ -1,4 +1,5 @@
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
@@ -7,11 +8,60 @@ import { adminRole, authAccessControl, userRole } from "./auth-permissions";
 import { tryWriteAuditLog } from "./audit";
 import { prisma } from "./database";
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from "./email";
+import { consumeAuthEmailRequest, type TransactionalEmailCategory } from "./email-rate-limit";
 import { requireEnvironmentVariable, requireHttpUrl } from "./environment";
 
 const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
 export const PASSWORD_MIN_LENGTH = 10;
 export const PASSWORD_MAX_LENGTH = 128;
+
+function dispatchAuthenticationEmail(options: {
+  category: TransactionalEmailCategory;
+  eventPrefix: string;
+  send: () => ReturnType<typeof sendEmailVerificationEmail>;
+  userId: string;
+}): void {
+  void options.send().then(async (result) => {
+    await tryWriteAuditLog({
+      actorUserId: null,
+      event: result.status === "sent" ? `${options.eventPrefix}_sent` : `${options.eventPrefix}_suppressed`,
+      targetType: "user",
+      targetId: options.userId,
+      context: result.status === "suppressed" ? { category: options.category, retryAfterSeconds: result.retryAfterSeconds } : { category: options.category },
+    });
+  }).catch(async (error: unknown) => {
+    console.error("Failed to deliver authentication email", {
+      category: options.category,
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+    await tryWriteAuditLog({
+      actorUserId: null,
+      event: `${options.eventPrefix}_failed`,
+      targetType: "user",
+      targetId: options.userId,
+      context: { category: options.category, error: error instanceof Error ? error.name : "UnknownError" },
+    });
+  });
+}
+
+const authEmailRequestGuard = createAuthMiddleware(async (context) => {
+  const category = context.path === "/request-password-reset"
+    ? "password-reset"
+    : context.path === "/send-verification-email"
+      ? "verification"
+      : null;
+  if (!category) return;
+
+  const email = typeof context.body?.email === "string" ? context.body.email.trim().toLowerCase() : "";
+  if (!email) return;
+
+  const decision = await consumeAuthEmailRequest(category, email);
+  if (!decision.allowed) {
+    return category === "password-reset"
+      ? context.json({ status: true, message: "If this email exists in our system, check your email for the reset link" })
+      : context.json({ status: true });
+  }
+});
 
 export const auth = betterAuth({
   appName: "Humanum Hukuk",
@@ -102,14 +152,15 @@ export const auth = betterAuth({
     expiresIn: 30 * 60,
     sendOnSignIn: true,
     sendVerificationEmail: async ({ user, url }) => {
-      void sendEmailVerificationEmail({
-        to: user.email,
-        recipientName: user.name,
-        verificationUrl: url,
-      }).catch((error: unknown) => {
-        console.error("Failed to send email verification", {
-          error: error instanceof Error ? error.name : "UnknownError",
-        });
+      dispatchAuthenticationEmail({
+        category: "verification",
+        eventPrefix: "auth.email_verification_delivery",
+        userId: user.id,
+        send: () => sendEmailVerificationEmail({
+          to: user.email,
+          recipientName: user.name,
+          verificationUrl: url,
+        }),
       });
       await tryWriteAuditLog({
         actorUserId: user.id,
@@ -136,14 +187,15 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 30 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      void sendPasswordResetEmail({
-        to: user.email,
-        recipientName: user.name,
-        resetUrl: url,
-      }).catch((error: unknown) => {
-        console.error("Failed to send password reset email", {
-          error: error instanceof Error ? error.name : "UnknownError",
-        });
+      dispatchAuthenticationEmail({
+        category: "password-reset",
+        eventPrefix: "auth.password_reset_delivery",
+        userId: user.id,
+        send: () => sendPasswordResetEmail({
+          to: user.email,
+          recipientName: user.name,
+          resetUrl: url,
+        }),
       });
       await tryWriteAuditLog({
         actorUserId: user.id,
@@ -167,6 +219,7 @@ export const auth = betterAuth({
   },
   rateLimit: {
     enabled: true,
+    storage: "database",
     window: 60,
     max: 60,
     customRules: {
@@ -174,6 +227,9 @@ export const auth = betterAuth({
       "/reset-password": { window: 5 * 60, max: 5 },
       "/send-verification-email": { window: 5 * 60, max: 3 },
     },
+  },
+  hooks: {
+    before: authEmailRequestGuard,
   },
   advanced: {
     database: {

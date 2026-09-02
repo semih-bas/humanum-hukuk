@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildEmailVerificationEmail, buildPasswordResetEmail } from "../src/lib/email";
+import { buildEmailVerificationEmail, buildPasswordResetEmail, isDefiniteEmailRejection } from "../src/lib/email";
+import { emailRateLimitKey } from "../src/lib/email-rate-limit-key";
 import { clearSensitiveActionAttempts, consumeSensitiveActionAttempt } from "../src/lib/sensitive-action-rate-limit";
 
 test("şifre yenileme e-postası güvenli bağlantı ve süre bilgisini içerir", () => {
@@ -48,4 +49,22 @@ test("hassas işlem deneme sınırı aşılınca isteği reddeder ve temizlenebi
   clearSensitiveActionAttempts(key);
   assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
   clearSensitiveActionAttempts(key);
+});
+
+test("e-posta hız sınırı anahtarı adresi açık metin olarak saklamaz", () => {
+  process.env.BETTER_AUTH_SECRET ??= "test-only-secret-at-least-32-characters";
+  const first = emailRateLimitKey("request", "password-reset", "User@Example.com", "daily");
+  const normalized = emailRateLimitKey("request", "password-reset", " user@example.com ", "daily");
+  const otherPurpose = emailRateLimitKey("request", "verification", "user@example.com", "daily");
+
+  assert.equal(first, normalized);
+  assert.notEqual(first, otherPurpose);
+  assert.doesNotMatch(first, /user@example\.com/i);
+});
+
+test("belirsiz SMTP sonuçları günlük kotadan düşülmez", () => {
+  assert.equal(isDefiniteEmailRejection({ code: "ESOCKET", command: "CONN" }), true);
+  assert.equal(isDefiniteEmailRejection({ responseCode: 550, command: "DATA" }), true);
+  assert.equal(isDefiniteEmailRejection({ code: "ETIMEDOUT", command: "DATA" }), false);
+  assert.equal(isDefiniteEmailRejection(new Error("Unknown provider failure")), false);
 });
