@@ -60,6 +60,10 @@ function smtpConfiguration(): SmtpConfiguration {
   };
 }
 
+export function validateEmailConfiguration(): void {
+  smtpConfiguration();
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",
@@ -166,4 +170,29 @@ export async function sendPasswordResetEmail(input: PasswordResetEmail): Promise
 
 export async function sendEmailVerificationEmail(input: EmailVerificationEmail): Promise<EmailDeliveryResult> {
   return sendTransactionalEmail("verification", input, buildEmailVerificationEmail(input));
+}
+
+export type ReminderEmail = {
+  to: string;
+  recipientName: string;
+  reminderId: string;
+  title: string;
+  referenceNumber: string;
+  dueAt: Date;
+};
+
+export function buildReminderEmail(input: ReminderEmail) {
+  const origin = new URL(requiredEmailEnvironment("BETTER_AUTH_URL"));
+  if (!["http:", "https:"].includes(origin.protocol)) throw new Error("Invalid application URL");
+  const link = new URL(`/hatirlatmalar?reminder=${encodeURIComponent(input.reminderId)}#reminder-${encodeURIComponent(input.reminderId)}`, origin).href;
+  const date = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "medium", timeStyle: "short" }).format(input.dueAt);
+  return {
+    subject: "Humanum Hukuk — Dosya hatırlatması",
+    text: `Merhaba ${input.recipientName},\n\n${input.title}\nDosya: ${input.referenceNumber}\nTarih: ${date}\n\nHatırlatmayı görüntüleyin: ${link}\n\nBu bildirim yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.`,
+    html: `<!doctype html><html lang="tr"><body style="font-family:Arial,sans-serif;background:#f3f6f8;color:#17283c;padding:24px"><div style="max-width:560px;margin:auto;border:1px solid #dce4ea;border-radius:14px;overflow:hidden;background:white"><header style="padding:24px;background:#0a2037;color:#d8ad60">HUMANUM HUKUK</header><main style="padding:24px"><h1 style="font-size:22px">Dosya hatırlatması</h1><p>Merhaba ${escapeHtml(input.recipientName)},</p><p>${escapeHtml(input.title)}</p><p>Dosya: ${escapeHtml(input.referenceNumber)}<br>Tarih: ${escapeHtml(date)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 18px;background:#c89139;color:white;border-radius:8px;text-decoration:none">Hatırlatmayı görüntüle</a></p><small>Bu bildirim yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.</small></main></div></body></html>`,
+  };
+}
+
+export async function sendReminderEmail(input: ReminderEmail): Promise<EmailDeliveryResult> {
+  return sendTransactionalEmail("reminder", input, buildReminderEmail(input));
 }

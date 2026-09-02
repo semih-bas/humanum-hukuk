@@ -2,6 +2,7 @@ import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } fr
 import { addCaseReminder } from "@/lib/cases/add-case-activity";
 import { addCaseReminderSchema } from "@/lib/cases/create-case-input";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
+import { ReminderCreationError } from "@/lib/cases/reminder-creation-limit";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
 
@@ -15,6 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!validation.success) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: "Hatırlatma bilgileri geçerli değil.", fields: validation.error.flatten().fieldErrors } }, 400);
     return jsonResponse({ data: await addCaseReminder(idResult.data, validation.data, session.user.id) }, 201);
   } catch (error) {
+    if (error instanceof ReminderCreationError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof ApiRequestError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof CaseNotFoundError) return jsonResponse({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı." } }, 404);
     console.error("Failed to add case reminder", { error: error instanceof Error ? error.name : "UnknownError" });

@@ -336,7 +336,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
               <label className={styles.activityField}><span>Saat</span><input required type="text" inputMode="numeric" maxLength={5} placeholder="SS:DD" value={timePart(reminderDueAt)} onChange={(event) => setReminderDueAt(combineDateTime(datePart(reminderDueAt), formatTimeInput(event.target.value, timePart(reminderDueAt))))} /></label>
             </div>
             <div className={styles.activityActions}>
-              <p>E-posta bildirimi gönderilecek.</p>
+              <p>Belirlenen saatte aktif, e-postası doğrulanmış yöneticilere gönderilir.</p>
               <button type="submit" disabled={activitySaving}>{activitySaving ? "Ekleniyor…" : "Kaydet"}</button>
             </div>
           </form>}

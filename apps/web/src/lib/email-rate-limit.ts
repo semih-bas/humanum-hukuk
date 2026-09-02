@@ -126,14 +126,21 @@ export async function consumeAuthEmailRequest(category: TransactionalEmailCatego
 }
 
 export async function reserveTransactionalEmail(category: TransactionalEmailCategory, recipient: string): Promise<EmailRateLimitDecision> {
-  const recipientAttemptRules = deliveryRecipientRules.map((rule) => ({
+  const reminder = category === "reminder";
+  const recipientRules = reminder ? [
+    { name: "cooldown", max: 1, windowMs: 60_000 },
+    { name: "hourly", max: 20, windowMs: 60 * 60_000 },
+  ] : deliveryRecipientRules;
+  const successfulRule = reminder ? { ...recipientSuccessfulDeliveryRule, max: 100 } : recipientSuccessfulDeliveryRule;
+  const recipientAttemptRules = recipientRules.map((rule) => ({
     key: emailRateLimitKey("delivery", category, recipient, rule.name),
     rule,
   }));
   const globalRuleDefinition = globalDeliveryRule();
+  if (reminder && globalRuleDefinition.max < 2) return { allowed: false, retryAfterSeconds: 86_400 };
   const successRules: RateLimitItem[] = [{
-    key: emailRateLimitKey("delivery", category, recipient, recipientSuccessfulDeliveryRule.name),
-    rule: recipientSuccessfulDeliveryRule,
+    key: emailRateLimitKey("delivery", category, recipient, successfulRule.name),
+    rule: successfulRule,
     releaseOnFailure: true,
   }, {
     key: `email:delivery:global:${globalRuleDefinition.name}`,
@@ -142,6 +149,9 @@ export async function reserveTransactionalEmail(category: TransactionalEmailCate
   }];
   return consumeRules([
     ...recipientAttemptRules,
+    // Leave capacity for verification and password recovery, even under a reminder flood.
+    ...(reminder ? [{ key: "email:delivery:reminder:attempt-hourly", rule: { ...globalAttemptRule, max: 40 } },
+      { key: "email:delivery:reminder:daily", rule: { ...globalRuleDefinition, max: Math.max(1, Math.floor(globalRuleDefinition.max * 0.8)) }, releaseOnFailure: true }] : []),
     { key: `email:delivery:global:${globalAttemptRule.name}`, rule: globalAttemptRule },
     ...successRules,
   ]);

@@ -338,6 +338,7 @@ export default function NewCaseForm() {
             <label className={styles.field}><span>Evrak Adı</span><div className={styles.documentNameInput}><input required disabled={!documentFile} maxLength={240} value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder={documentFile ? "Evrak adını yazın" : "Önce evrak seçin"} />{documentFile && <b>.{documentExtension(documentFile)}</b>}</div></label>
           </>}
           {operation === "reminder" && <>
+            <small>Belirlediğiniz tarih ve saatte aktif, e-postası doğrulanmış yöneticilere e-posta gönderilir.</small>
             <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={500} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
             <div className={styles.reminderDateTime}>
               <label className={styles.field}><span>Tarih</span><input required type="date" max="9999-12-31" value={datePart(reminderDraft.dueAt)} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: combineDateTime(limitDateYear(event.target.value, datePart(reminderDraft.dueAt)), timePart(reminderDraft.dueAt)) })} /></label>

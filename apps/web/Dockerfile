@@ -32,6 +32,17 @@ COPY prisma ./prisma
 COPY src/lib/database-url.ts src/lib/environment.ts ./src/lib/
 CMD ["npx", "prisma", "migrate", "deploy"]
 
+FROM base AS reminder-worker
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=builder /app/src/generated ./src/generated
+COPY src/lib ./src/lib
+COPY scripts/send-reminders.ts ./scripts/send-reminders.ts
+COPY package.json tsconfig.json ./
+USER node
+CMD ["node", "--import", "tsx", "scripts/send-reminders.ts"]
+
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000

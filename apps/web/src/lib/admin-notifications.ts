@@ -69,7 +69,7 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
 export async function listAdminReminderTasks() {
   const now = new Date();
   const where: Prisma.CaseReminderWhereInput = {
-    status: { in: ["PENDING", "PARTIALLY_SENT", "FAILED"] },
+    status: { not: "CANCELLED" },
     caseFile: { archivedAt: null },
   };
   const [totalCount, reminders] = await prisma.$transaction([
@@ -85,6 +85,7 @@ export async function listAdminReminderTasks() {
         status: true,
         caseFile: { select: { id: true, referenceNumber: true, vehiclePlate: true } },
         createdBy: { select: { name: true } },
+        deliveries: { select: { status: true, failureCode: true } },
       },
     }),
   ]);

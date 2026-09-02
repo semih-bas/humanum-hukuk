@@ -3,6 +3,7 @@ import { prisma } from "../database";
 import type { z } from "zod";
 import type { addCaseNoteSchema, addCaseReminderSchema } from "./create-case-input";
 import { CaseNotFoundError } from "./update-case";
+import { checkReminderCreationLimit, lockReminderCreation } from "./reminder-creation-limit";
 
 type NoteInput = z.infer<typeof addCaseNoteSchema>;
 type ReminderInput = z.infer<typeof addCaseReminderSchema>;
@@ -28,12 +29,19 @@ export async function addCaseNote(caseFileId: string, input: NoteInput, actorUse
 
 export async function addCaseReminder(caseFileId: string, input: ReminderInput, actorUserId: string) {
   return prisma.$transaction(async (transaction) => {
+    await lockReminderCreation(transaction, actorUserId);
     const caseFile = await transaction.caseFile.findFirst({
       where: { id: caseFileId, archivedAt: null },
       select: { id: true, referenceNumber: true },
     });
     if (!caseFile) throw new CaseNotFoundError();
 
+    const existing = await transaction.caseReminder.findFirst({
+      where: { caseFileId, title: input.title, dueAt: input.dueAt, status: { not: "CANCELLED" } },
+      select: { id: true, dueAt: true, status: true },
+    });
+    if (existing) return { id: existing.id, dueAt: existing.dueAt.toISOString(), status: existing.status };
+    await checkReminderCreationLimit(transaction, actorUserId);
     const reminder = await transaction.caseReminder.create({
       data: {
         caseFileId,

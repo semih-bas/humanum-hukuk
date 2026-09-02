@@ -59,6 +59,23 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  reminder-worker:
+    profiles: ["notifications"]
+    build:
+      context: ./apps/web
+      target: reminder-worker
+    restart: unless-stopped
+    env_file:
+      - path: ./apps/web/.env.production.app
+        required: true
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   humanum_postgres_data:
   humanum_documents:

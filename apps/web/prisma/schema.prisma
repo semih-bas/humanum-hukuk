@@ -30,6 +30,7 @@ model User {
   caseNotes     CaseNote[]
   caseDocuments CaseDocument[]
   caseReminders CaseReminder[]
+  reminderDeliveries ReminderDelivery[]
 
   @@unique([email])
   @@index([role])
@@ -256,9 +257,12 @@ model CaseReminder {
   title       String
   dueAt       DateTime
   sendEmail   Boolean        @default(true)
-  sendSms     Boolean        @default(true)
+  sendSms     Boolean        @default(false)
   status      ReminderStatus @default(PENDING)
   sentAt      DateTime?
+  deliveryPreparedAt DateTime?
+  nextPreparationAt DateTime @default(now())
+  deliveries ReminderDelivery[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   caseFile    CaseFile       @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
@@ -267,5 +271,37 @@ model CaseReminder {
   @@index([status, dueAt])
   @@index([caseFileId, dueAt])
   @@index([createdById, createdAt])
+  @@index([deliveryPreparedAt, nextPreparationAt])
   @@map("case_reminder")
+}
+
+enum ReminderDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  UNCERTAIN
+  CANCELLED
+}
+
+model ReminderDelivery {
+  id String @id @default(cuid())
+  reminderId String
+  recipientId String
+  recipientEmail String
+  status ReminderDeliveryStatus @default(PENDING)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  startedAt DateTime?
+  sentAt DateTime?
+  failureCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reminder CaseReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, recipientId])
+  @@index([status, nextAttemptAt])
+  @@index([status, startedAt])
+  @@map("reminder_delivery")
 }

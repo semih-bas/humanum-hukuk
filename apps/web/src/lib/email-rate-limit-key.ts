@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { requireEnvironmentVariable } from "./environment";
 
-export type TransactionalEmailCategory = "password-reset" | "verification";
+export type TransactionalEmailCategory = "password-reset" | "verification" | "reminder";
 
 function subjectHash(subject: string): string {
   return createHmac("sha256", requireEnvironmentVariable("BETTER_AUTH_SECRET"))

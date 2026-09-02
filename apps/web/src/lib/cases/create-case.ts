@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "../database";
+import { checkReminderCreationLimit, lockReminderCreation } from "./reminder-creation-limit";
 import {
   calculateCaseFinancials,
   type CreateCaseInput,
@@ -33,6 +34,10 @@ export async function createCaseFileInTransaction(
   actorUserId: string,
 ): Promise<CreatedCase> {
   const input = normalizeCreateCaseInput(rawInput);
+  if (input.reminder) {
+    await lockReminderCreation(transaction, actorUserId);
+    await checkReminderCreationLimit(transaction, actorUserId);
+  }
   const financials = calculateCaseFinancials(input);
   const accidentDate = parseDateOnly(input.accidentDate);
 

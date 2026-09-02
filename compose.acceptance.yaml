@@ -78,6 +78,35 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  reminder-worker:
+    profiles: ["notifications"]
+    build:
+      context: ./apps/web
+      target: reminder-worker
+    env_file:
+      - path: ./apps/web/.env.acceptance.app
+        required: true
+    environment:
+      REMINDER_EMAIL_ENABLED: "true"
+      MIGRATION_DATABASE_URL: ""
+      SHADOW_DATABASE_URL: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_REQUIRE_TLS: "false"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   fixtures:
     profiles: ["tools"]
     build:

@@ -3,6 +3,7 @@ import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } fr
 import { createCaseFile } from "@/lib/cases/create-case";
 import { createCaseSchema } from "@/lib/cases/create-case-input";
 import { listCaseFiles } from "@/lib/cases/list-cases";
+import { ReminderCreationError } from "@/lib/cases/reminder-creation-limit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 
     return jsonResponse({ data: createdCase }, 201);
   } catch (error) {
+    if (error instanceof ReminderCreationError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof ApiRequestError) {
       return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     }
