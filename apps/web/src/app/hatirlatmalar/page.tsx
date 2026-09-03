@@ -5,6 +5,7 @@ import AppShell from "@/components/app-shell/AppShell";
 import { listAdminReminderTasks } from "@/lib/admin-notifications";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { requireSession } from "@/lib/session";
+import { formatIstanbulDateTime as formatDateTime } from "@/lib/case-presentation";
 
 import styles from "./page.module.css";
 
@@ -49,8 +50,4 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
       </section>
     </div>
   </AppShell>;
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(value));
 }

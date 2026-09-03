@@ -2,12 +2,11 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { centsToMoneyString, formatMoneyInput, formatTimeInput, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
-import { INSTALLMENT_OPTIONS } from "@/lib/form-input";
+import { centsToMoneyString, formatMoneyInput, formatTimeInput, INSTALLMENT_OPTIONS, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
+import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, formatIstanbulDateTime as formatDateTime, formatMoneyAmount as formatMoney, type CaseStatus } from "@/lib/case-presentation";
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import styles from "./page.module.css";
 
-type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
 type DebtorType = "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY";
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -51,11 +50,6 @@ type Draft = Pick<CaseDetail,
   "enforcementOffice" | "enforcementFileNumber" | "vehicleLien" | "bankLien" |
   "titleDeedLien" | "installmentCount" | "status" | "version"
 >;
-
-const statusLabels: Record<CaseStatus, string> = {
-  OPEN: "Devam Ediyor", ENFORCEMENT: "İcra Takibinde", INSTALLMENT: "Taksitli Ödeme",
-  PENDING: "Beklemede", CLOSED: "Sonuçlandı",
-};
 
 const fieldLabels: Record<string, string> = {
   referenceNumber: "Dosya numarası",
@@ -380,7 +374,6 @@ function InstallmentPreview({ draft }: { draft: Draft }) {
 function Detail({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
 function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
-function formatMoney(value: string) { const cents = parseMoneyToCents(value); return cents === null ? "0,00" : centsToMoneyString(cents); }
 function calculateDraftInstallment(draft: Draft) {
   const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);
   const discount = parseMoneyToCents(draft.discountAmount) ?? 0n;
@@ -390,8 +383,6 @@ function calculateDraftInstallment(draft: Draft) {
   return { monthly: centsToMoneyString(monthly) };
 }
 function changedFieldText(value: unknown) { return Array.isArray(value) && value.length ? value.map((field) => fieldLabels[String(field)] ?? String(field)).join(", ") : "İlk kayıt"; }
-function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`)); }
-function formatDateTime(value: string) { return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(value)); }
 function formatBytes(value: number) { return value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`; }
 function documentExtension(file: File) { return file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg"; }
 function reminderStatusLabel(value: string) { return ({ PENDING: "Bekliyor", SENT: "Gönderildi", FAILED: "Gönderilemedi" } as Record<string, string>)[value] ?? value; }

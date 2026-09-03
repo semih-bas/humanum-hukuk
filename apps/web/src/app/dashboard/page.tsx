@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { centsToMoneyString, parseMoneyToCents } from "@/lib/form-input";
+import { formatMoneyAmount } from "@/lib/case-presentation";
 import { getDashboardSummary } from "@/lib/dashboard-summary";
 import { requireSession } from "@/lib/session";
 
@@ -84,8 +84,7 @@ export default async function DashboardPage() {
 }
 
 function formatMoney(value: string): string {
-  const cents = parseMoneyToCents(value);
-  return `${cents === null ? "0,00" : centsToMoneyString(cents)} TL`;
+  return `${formatMoneyAmount(value)} TL`;
 }
 
 function formatPercentage(value: number): string {

@@ -5,10 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
+import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, type CaseStatus } from "@/lib/case-presentation";
 import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
-
-type CaseStatus = "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
 
 type CaseRecord = {
   id: string;
@@ -46,14 +45,6 @@ const sortOptions = {
 } as const satisfies Record<string, { label: string; field: SortField; direction: "asc" | "desc" }>;
 
 type SortOption = keyof typeof sortOptions;
-
-const statusLabels: Record<CaseStatus, string> = {
-  OPEN: "Devam Ediyor",
-  ENFORCEMENT: "İcra Takibinde",
-  INSTALLMENT: "Taksitli Ödeme",
-  PENDING: "Beklemede",
-  CLOSED: "Sonuçlandı",
-};
 
 function Icon({ name }: { name: "eye" | "more" | "plus" | "search" | "x" }) {
   const paths = {
@@ -262,10 +253,6 @@ export default function FilesClient() {
       onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
     />}
   </AppShell>;
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
 }
 
 function getVisiblePages(currentPage: number, pageCount: number): number[] {
