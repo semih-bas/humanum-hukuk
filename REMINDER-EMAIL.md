@@ -55,7 +55,7 @@ Production worker deployment is opt-in (`notifications` profile). Configure `REM
 
 Before enabling real delivery, use a separate controlled test environment and only an explicitly authorized recipient. Confirm verification, reset and reminder receipt, sender name, links, spam placement, expiry/single-use, limits and SMTP failure behavior. Account creation, sender credentials and production approval are not automated by this feature. Secrets must remain outside Git. Dedicated sender setup and real-recipient acceptance are not marked complete by a Mailpit test.
 
-Keep the synthetic fixture set until this gate is passed. Then follow the existing cleanup and security-review roadmap.
+The synthetic fixture batch was removed after this gate passed. It remains reproducible with the guarded acceptance fixture command when a future isolated test run is needed.
 
 ### Local real-recipient authentication test
 
@@ -106,6 +106,7 @@ verification flag or elevate their role merely to make an email test pass.
   more slowly and retains a visible highlight; reduced-motion users get a static highlight.
 - The explicitly approved temporary administrator role was restored to `user`,
   with an audit entry and readback. The account remains verified and active.
-- The bulk acceptance worker remains stopped pending test cleanup; real bulk
-  delivery has not been enabled. Existing fixtures/documents have not been deleted.
-  Production deployment and the full security review remain separate, unfinished gates.
+- The marked `HH-ACC-20260831-V1` fixture batch and its physical documents were
+  removed and verified on 2026-09-03. The notification worker remains stopped and
+  real bulk delivery has not been enabled. Production deployment and the full
+  security review remain separate, unfinished gates.

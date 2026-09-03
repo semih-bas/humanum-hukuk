@@ -98,6 +98,20 @@ The generated Prisma Client is excluded from Git and must be regenerated after
 installing dependencies. `db:check` connects with the restricted
 `humanum_app` role and also verifies that it cannot create database tables.
 
+Acceptance fixtures are identified by `ACCEPTANCE_FIXTURE_BATCH`. Cleanup is a
+dry run unless both the exact batch confirmation and `--apply` are supplied:
+
+```powershell
+docker-compose -f compose.acceptance.yaml --profile tools run --rm --no-deps fixtures npm run db:fixtures:cleanup
+docker-compose -f compose.acceptance.yaml --profile tools run --rm --no-deps -e ACCEPTANCE_FIXTURE_CLEANUP_CONFIRM=HH-ACC-20260831-V1 fixtures npm run db:fixtures:cleanup -- --apply
+```
+
+Always inspect the preview first. The command refuses non-acceptance targets,
+preserves an active verified administrator, rejects references that cross the
+selected batch boundary, quarantines document files before the database
+transaction, and verifies protected record counts before purging quarantine.
+It does not remove unrelated users, cases, audit history or local editor files.
+
 Prisma is pinned to the stable `7.10.0` release. The `deepmerge-ts` dependency
 is overridden to the patched `8.0.0` release because versions below 8 are
 affected by `GHSA-ggr8-5vv4-36mx`. Do not remove the override unless Prisma
