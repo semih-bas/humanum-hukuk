@@ -56,3 +56,56 @@ Production worker deployment is opt-in (`notifications` profile). Configure `REM
 Before enabling real delivery, use a separate controlled test environment and only an explicitly authorized recipient. Confirm verification, reset and reminder receipt, sender name, links, spam placement, expiry/single-use, limits and SMTP failure behavior. Account creation, sender credentials and production approval are not automated by this feature. Secrets must remain outside Git. Dedicated sender setup and real-recipient acceptance are not marked complete by a Mailpit test.
 
 Keep the synthetic fixture set until this gate is passed. Then follow the existing cleanup and security-review roadmap.
+
+### Local real-recipient authentication test
+
+An explicit override can route only approved bare email addresses to the dedicated
+Gmail sender while keeping every other recipient in Mailpit. The default compose
+file and production behavior do not enable this route.
+
+1. Store the dedicated sender settings in the ignored `apps/web/.env.real-email`
+   file (`SMTP_HOST=smtp.gmail.com`, port 465, secure/TLS true, username, app password
+   and From). Never commit this file or print its contents.
+2. Set `REAL_EMAIL_TEST_RECIPIENTS` in the invoking shell to the explicitly approved
+   address. An empty list sends everything to Mailpit. Aliases need separate approval.
+3. Run `docker-compose -f compose.acceptance.yaml -f compose.real-email-test.yaml up -d --build app`.
+4. Exercise the actual application flows with that registered account. The normal
+   persistent authentication/delivery quotas and audit records still apply.
+
+The private settings are mounted read-only at runtime, not copied into the image.
+The route requires a localhost application URL and Mailpit as the default transport;
+reserved synthetic domains never route to Gmail, even if accidentally allowlisted.
+The reminder worker deliberately has no real-email settings in this override.
+Do not claim reminder acceptance based on an authentication email or a direct SMTP test.
+
+To return to local-only mail, run the base compose command without the override:
+`docker-compose -f compose.acceptance.yaml up -d app`.
+Restart the app after changing sender credentials. Do not reset an existing user's
+verification flag or elevate their role merely to make an email test pass.
+
+### Local acceptance progress — 2026-09-03
+
+- Dedicated sender authentication and one real-recipient delivery were verified;
+  the recipient confirmed receipt.
+- Application password reset delivery, reset completion and subsequent sign-in
+  were tested; the recipient reported the requested checks succeeded.
+- With explicit owner approval, the acceptance account was temporarily marked
+  unverified. A fresh verification email was sent through the application;
+  `auth.email_verified` and a subsequent successful sign-in were read back.
+- A scoped real reminder was sent only to the approved active, verified test
+  administrator. A second pass processed/sent zero deliveries. The recipient
+  confirmed receipt by supplying a screenshot.
+- A separate `REAL-EMAIL-20260903-V2` reminder was sent once after improving the
+  email layout. The earlier delivery was not reset or replayed. A second pass
+  again processed/sent zero deliveries.
+- Requests for an unregistered reserved-domain address returned generic responses,
+  created no account and created zero delivery quota reservations for both reset
+  and verification categories.
+- The recipient tested the reminder link, requested a stronger orange target-row
+  highlight, and accepted the revised behavior. The row now pulses three times
+  more slowly and retains a visible highlight; reduced-motion users get a static highlight.
+- The explicitly approved temporary administrator role was restored to `user`,
+  with an audit entry and readback. The account remains verified and active.
+- The bulk acceptance worker remains stopped pending test cleanup; real bulk
+  delivery has not been enabled. Existing fixtures/documents have not been deleted.
+  Production deployment and the full security review remain separate, unfinished gates.
