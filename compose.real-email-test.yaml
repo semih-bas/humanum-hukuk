@@ -1,0 +1,21 @@
+# Explicit local-only override. No credentials or recipient addresses belong in Git.
+# REAL_EMAIL_TEST_RECIPIENTS must be supplied by the operator; empty means Mailpit only.
+services:
+  app:
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_REQUIRE_TLS: "false"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM: "Humanum Hukuk <no-reply@humanum.local>"
+      REAL_EMAIL_TEST_CONFIG: /run/secrets/real-email
+      REAL_EMAIL_TEST_RECIPIENTS: ${REAL_EMAIL_TEST_RECIPIENTS:-}
+    volumes:
+      - type: bind
+        source: ./apps/web/.env.real-email
+        target: /run/secrets/real-email
+        read_only: true
+        bind:
+          create_host_path: false

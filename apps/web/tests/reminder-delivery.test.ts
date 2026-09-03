@@ -62,5 +62,10 @@ test("reminder email escapes user content and links to the exact reminder", () =
     assert.ok(content.html.includes("/hatirlatmalar?reminder=safe-id#reminder-safe-id"));
     assert.ok(content.text.includes("12:00"));
     assert.ok(content.text.includes("yöneticilere"));
+    assert.ok(!/<(?:main|header)\b/i.test(content.html));
+    assert.match(content.html, /<td style="padding:24px;word-break:break-word/);
+    assert.match(content.html, /<td style="padding:22px 24px;background:#0a2037/);
+    assert.ok(content.html.includes('role="presentation"'));
+    assert.ok(content.html.includes('name="viewport"'));
   } finally { if (saved === undefined) delete process.env.BETTER_AUTH_URL; else process.env.BETTER_AUTH_URL = saved; }
 });

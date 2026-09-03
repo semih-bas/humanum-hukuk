@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import { readFileSync } from "node:fs";
+import { parse } from "dotenv";
+import { shouldRouteRealTestEmail } from "./email-test-routing";
 
 import { releaseFailedTransactionalEmail, reserveTransactionalEmail, type TransactionalEmailCategory } from "./email-rate-limit";
 
@@ -25,6 +28,18 @@ type SmtpConfiguration = {
 };
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+let realTestTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function realEmailTestConfiguration(): SmtpConfiguration {
+  const config = parse(readFileSync(requiredEmailEnvironment("REAL_EMAIL_TEST_CONFIG")));
+  if (config.SMTP_HOST !== "smtp.gmail.com" || config.SMTP_PORT !== "465" ||
+      config.SMTP_SECURE !== "true" || config.SMTP_REQUIRE_TLS !== "true" ||
+      !config.SMTP_USERNAME || !config.SMTP_PASSWORD || !config.SMTP_FROM) {
+    throw new Error("Invalid private real email test configuration.");
+  }
+  return { host: config.SMTP_HOST, port: 465, secure: true, requireTls: true,
+    username: config.SMTP_USERNAME, password: config.SMTP_PASSWORD, from: config.SMTP_FROM };
+}
 
 export type EmailDeliveryResult =
   | { status: "sent" }
@@ -110,9 +125,10 @@ export function buildEmailVerificationEmail({ recipientName, verificationUrl }: 
   };
 }
 
-function emailTransporter(configuration: SmtpConfiguration) {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
+function emailTransporter(configuration: SmtpConfiguration, realTest = false) {
+  let selected = realTest ? realTestTransporter : transporter;
+  if (!selected) {
+    selected = nodemailer.createTransport({
       host: configuration.host,
       port: configuration.port,
       secure: configuration.secure,
@@ -124,17 +140,20 @@ function emailTransporter(configuration: SmtpConfiguration) {
       disableFileAccess: true,
       disableUrlAccess: true,
     });
+    if (realTest) realTestTransporter = selected;
+    else transporter = selected;
   }
-  return transporter;
+  return selected;
 }
 
 async function sendTransactionalEmail(category: TransactionalEmailCategory, input: { to: string }, content: { subject: string; text: string; html: string }): Promise<EmailDeliveryResult> {
-  const configuration = smtpConfiguration();
+  const realTest = shouldRouteRealTestEmail(input.to);
+  const configuration = realTest ? realEmailTestConfiguration() : smtpConfiguration();
   const reservation = await reserveTransactionalEmail(category, input.to);
   if (!reservation.allowed) return { status: "suppressed", retryAfterSeconds: reservation.retryAfterSeconds };
 
   try {
-    await emailTransporter(configuration).sendMail({
+    await emailTransporter(configuration, realTest).sendMail({
       from: configuration.from,
       to: input.to,
       subject: content.subject,
@@ -189,7 +208,32 @@ export function buildReminderEmail(input: ReminderEmail) {
   return {
     subject: "Humanum Hukuk — Dosya hatırlatması",
     text: `Merhaba ${input.recipientName},\n\n${input.title}\nDosya: ${input.referenceNumber}\nTarih: ${date}\n\nHatırlatmayı görüntüleyin: ${link}\n\nBu bildirim yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.`,
-    html: `<!doctype html><html lang="tr"><body style="font-family:Arial,sans-serif;background:#f3f6f8;color:#17283c;padding:24px"><div style="max-width:560px;margin:auto;border:1px solid #dce4ea;border-radius:14px;overflow:hidden;background:white"><header style="padding:24px;background:#0a2037;color:#d8ad60">HUMANUM HUKUK</header><main style="padding:24px"><h1 style="font-size:22px">Dosya hatırlatması</h1><p>Merhaba ${escapeHtml(input.recipientName)},</p><p>${escapeHtml(input.title)}</p><p>Dosya: ${escapeHtml(input.referenceNumber)}<br>Tarih: ${escapeHtml(date)}</p><p><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 18px;background:#c89139;color:white;border-radius:8px;text-decoration:none">Hatırlatmayı görüntüle</a></p><small>Bu bildirim yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.</small></main></div></body></html>`,
+    html: `<!doctype html>
+<html lang="tr"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f6f8;font-family:Arial,sans-serif;color:#17283c">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f6f8"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;table-layout:fixed;border:1px solid #dce4ea;border-radius:14px;background:#ffffff">
+  <tr><td style="padding:22px 24px;background:#0a2037;border-radius:13px 13px 0 0">
+    <p style="margin:0;color:#ffffff;font-family:Georgia,serif;font-size:22px;line-height:28px;letter-spacing:3px">HUMANUM</p>
+    <p style="margin:4px 0 0;color:#d8ad60;font-size:11px;line-height:16px;letter-spacing:4px">HUKUK</p>
+  </td></tr>
+  <tr><td style="padding:24px;word-break:break-word;overflow-wrap:anywhere">
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:30px;color:#17283c">Dosya hatırlatması</h1>
+    <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#52657a">Merhaba ${escapeHtml(input.recipientName)},</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="table-layout:fixed;background:#f6f8fa;border:1px solid #e5ebf0;border-radius:8px"><tr><td style="padding:16px;border-left:3px solid #c89139;word-break:break-word;overflow-wrap:anywhere">
+      <p style="margin:0 0 14px;font-size:15px;line-height:23px;font-weight:700;color:#17283c">${escapeHtml(input.title)}</p>
+      <p style="margin:0 0 4px;font-size:13px;line-height:21px;color:#52657a"><strong style="color:#17283c">Dosya:</strong> ${escapeHtml(input.referenceNumber)}</p>
+      <p style="margin:0;font-size:13px;line-height:21px;color:#52657a"><strong style="color:#17283c">Tarih:</strong> ${escapeHtml(date)}</p>
+    </td></tr></table>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:22px 0 0">
+      <a href="${escapeHtml(link)}" style="display:inline-block;padding:13px 20px;background:#c89139;border:1px solid #c89139;color:#ffffff;border-radius:8px;font-size:14px;line-height:20px;font-weight:700;text-decoration:none">Hatırlatmayı görüntüle</a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 24px;border-top:1px solid #e5ebf0;background:#fafbfc;border-radius:0 0 13px 13px">
+    <p style="margin:0;color:#657587;font-size:12px;line-height:19px">Bu bildirim yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.</p>
+  </td></tr>
+</table></td></tr></table>
+</body></html>`,
   };
 }
 
