@@ -1,5 +1,5 @@
 import { prismaAdapter } from "@better-auth/prisma-adapter";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
@@ -10,6 +10,7 @@ import { prisma } from "./database";
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from "./email";
 import { consumeAuthEmailRequest, type TransactionalEmailCategory } from "./email-rate-limit";
 import { requireEnvironmentVariable, requireHttpUrl } from "./environment";
+import { adminUserCreationContainsPassword } from "./new-user-enrollment";
 
 const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
 export const PASSWORD_MIN_LENGTH = 10;
@@ -45,6 +46,13 @@ function dispatchAuthenticationEmail(options: {
 }
 
 const authEmailRequestGuard = createAuthMiddleware(async (context) => {
+  if (context.path === "/admin/create-user" && adminUserCreationContainsPassword(context.body)) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ADMIN_PASSWORD_PROVISIONING_DISABLED",
+      message: "Administrators cannot choose user passwords.",
+    });
+  }
+
   const category = context.path === "/request-password-reset"
     ? "password-reset"
     : context.path === "/send-verification-email"
@@ -90,22 +98,6 @@ export const auth = betterAuth({
         },
       },
       update: {
-        before: async (user, context) => {
-          if (user.banned !== true || !user.id || !context?.context.session) return;
-
-          const target = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { role: true, banned: true },
-          });
-          if (target?.role !== "admin" || target.banned) return;
-
-          const activeAdminCount = await prisma.user.count({
-            where: { role: "admin", banned: false },
-          });
-          if (activeAdminCount <= 1) {
-            throw new Error("The last active administrator cannot be deactivated.");
-          }
-        },
         after: async (user, context) => {
           if (context?.path === "/admin/ban-user" || context?.path === "/admin/unban-user") {
             await tryWriteAuditLog({
@@ -163,7 +155,7 @@ export const auth = betterAuth({
         }),
       });
       await tryWriteAuditLog({
-        actorUserId: user.id,
+        actorUserId: null,
         event: "auth.email_verification_requested",
         targetType: "user",
         targetId: user.id,
@@ -171,7 +163,7 @@ export const auth = betterAuth({
     },
     afterEmailVerification: async (user) => {
       await tryWriteAuditLog({
-        actorUserId: user.id,
+        actorUserId: null,
         event: "auth.email_verified",
         targetType: "user",
         targetId: user.id,
@@ -198,7 +190,7 @@ export const auth = betterAuth({
         }),
       });
       await tryWriteAuditLog({
-        actorUserId: user.id,
+        actorUserId: null,
         event: "auth.password_reset_requested",
         targetType: "user",
         targetId: user.id,
@@ -210,7 +202,7 @@ export const auth = betterAuth({
         data: { mustChangePassword: false },
       });
       await tryWriteAuditLog({
-        actorUserId: user.id,
+        actorUserId: null,
         event: "auth.password_reset_completed",
         targetType: "user",
         targetId: user.id,

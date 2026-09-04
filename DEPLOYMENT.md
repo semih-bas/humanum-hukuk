@@ -15,13 +15,14 @@ Bu yapı uygulamayı müşteri sunucusunda Docker ile çalıştırmak içindir. 
 
 1. `apps/web/.env.production.app.example` dosyasını `.env.production.app` adıyla kopyalayın.
 2. `apps/web/.env.production.database.example` dosyasını `.env.production.database` adıyla kopyalayın.
-3. Örnek parolaların tamamını birbirinden farklı, güçlü ve rastgele değerlerle değiştirin.
-4. İki dosyadaki uygulama veritabanı parolasının aynı olduğundan emin olun.
-5. `BETTER_AUTH_URL` değerini gerçek HTTPS adresiyle değiştirin.
-6. `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` ve `SMTP_FROM` değerlerini e-posta sağlayıcısına göre doldurun.
-7. Gönderici alan adında SPF, DKIM ve DMARC kayıtlarını e-posta sağlayıcısının talimatlarına göre tamamlayın.
-8. Sunucunun ters proxy ayarında HTTPS adresini `127.0.0.1:3000` hedefine yönlendirin.
-9. Depo kökünde `docker compose -f compose.production.yaml up -d --build` çalıştırın.
+3. `apps/web/.env.production.migration.example` dosyasını `.env.production.migration` adıyla kopyalayın; bu dosyada yalnızca migrasyon ve gölge veritabanı bağlantıları bulunmalıdır.
+4. Örnek parolaların tamamını birbirinden farklı, güçlü ve rastgele değerlerle değiştirin.
+5. Uygulama, migrasyon ve veritabanı yönetici parolalarının birbirinden farklı olduğundan emin olun.
+6. `BETTER_AUTH_URL` değerini gerçek HTTPS adresiyle değiştirin.
+7. `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` ve `SMTP_FROM` değerlerini e-posta sağlayıcısına göre doldurun.
+8. Gönderici alan adında SPF, DKIM ve DMARC kayıtlarını e-posta sağlayıcısının talimatlarına göre tamamlayın.
+9. Sunucunun ters proxy ayarında HTTPS adresini `127.0.0.1:3000` hedefine yönlendirin.
+10. Depo kökünde `docker compose -f compose.production.yaml up -d --build` çalıştırın.
 
 Yeni kullanıcılar e-posta adreslerini doğrulamadan oturum açamaz. Kurulumdan sonra gerçek bir kullanıcıyla hem doğrulama hem şifre yenileme e-postasının teslim edildiğini test edin.
 

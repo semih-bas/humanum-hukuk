@@ -8,7 +8,7 @@ const statement = {
 export const authAccessControl = createAccessControl(statement);
 
 export const adminRole = authAccessControl.newRole({
-  user: ["create", "list", "set-role", "ban", "get", "update"],
+  user: ["create", "list", "get"],
   session: ["list", "revoke", "delete"],
 });
 

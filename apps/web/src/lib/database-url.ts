@@ -1,4 +1,4 @@
-import { requireEnvironmentVariable } from "./environment";
+import { isLoopbackHostname, requireEnvironmentVariable } from "./environment";
 
 type DatabaseRole = "app" | "migration" | "shadow";
 
@@ -38,6 +38,22 @@ export function buildDatabaseUrl(role: DatabaseRole): string {
 
     if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
       throw new Error(`Unsupported database protocol in environment variable: ${variables.url}`);
+    }
+
+    const forbiddenConnectionOverrides = ["host", "hostname", "hostaddr", "port", "user", "password", "database", "ssl"];
+    const presentOverride = forbiddenConnectionOverrides.find((parameter) => url.searchParams.has(parameter));
+    if (presentOverride) {
+      throw new Error(`${variables.url} must not override connection identity or TLS through the ${presentOverride} query parameter.`);
+    }
+
+    const sslModes = url.searchParams.getAll("sslmode");
+    if (sslModes.length > 1) {
+      throw new Error(`${variables.url} must contain at most one sslmode parameter.`);
+    }
+
+    const localService = url.hostname.toLowerCase() === "database" || isLoopbackHostname(url.hostname);
+    if (process.env.NODE_ENV === "production" && !localService && sslModes[0] !== "verify-full") {
+      throw new Error(`${variables.url} must use sslmode=verify-full for an external production database.`);
     }
 
     return url.toString();

@@ -15,6 +15,11 @@ export type EmailRateLimitDecision = {
   retryAfterSeconds: number;
 };
 
+export type DurableRateLimitOptions = {
+  max: number;
+  windowMs: number;
+};
+
 type RateLimitItem = {
   key: string;
   releaseOnFailure?: boolean;
@@ -102,6 +107,18 @@ async function consumeRules(items: RateLimitItem[]): Promise<EmailRateLimitDecis
     }
     throw error;
   }
+}
+
+export async function consumeDurableRateLimit(key: string, options: DurableRateLimitOptions): Promise<EmailRateLimitDecision> {
+  if (!key || !Number.isInteger(options.max) || options.max < 1 || !Number.isInteger(options.windowMs) || options.windowMs < 1) {
+    throw new Error("Invalid durable rate-limit configuration.");
+  }
+  return consumeRules([{ key, rule: { name: "custom", ...options } }]);
+}
+
+export async function clearDurableRateLimit(key: string): Promise<void> {
+  const { prisma } = await import("./database");
+  await prisma.emailRateLimit.deleteMany({ where: { key } });
 }
 
 async function pruneExpiredRows(): Promise<void> {

@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { shouldRouteRealTestEmail } from "./email-test-routing";
+import { isLoopbackHostname } from "./environment";
 
 import { releaseFailedTransactionalEmail, reserveTransactionalEmail, type TransactionalEmailCategory } from "./email-rate-limit";
 
@@ -64,7 +65,7 @@ function smtpConfiguration(): SmtpConfiguration {
     throw new Error("SMTP_USERNAME and SMTP_PASSWORD must be configured together.");
   }
 
-  return {
+  const configuration = {
     from: requiredEmailEnvironment("SMTP_FROM"),
     host: requiredEmailEnvironment("SMTP_HOST"),
     port,
@@ -73,6 +74,14 @@ function smtpConfiguration(): SmtpConfiguration {
     username,
     password,
   };
+  const localTestTransport = configuration.host.toLowerCase() === "mailpit" || isLoopbackHostname(configuration.host);
+  if (process.env.NODE_ENV === "production" && !localTestTransport && !configuration.secure && !configuration.requireTls) {
+    throw new Error("Production SMTP must require TLS.");
+  }
+  if (process.env.NODE_ENV === "production" && !localTestTransport && (!configuration.username || !configuration.password)) {
+    throw new Error("Production SMTP must use authentication for external delivery.");
+  }
+  return configuration;
 }
 
 export function validateEmailConfiguration(): void {
@@ -118,10 +127,11 @@ export function buildEmailVerificationEmail({ recipientName, verificationUrl }: 
       "Humanum Hukuk hesabınız bir yönetici tarafından oluşturuldu.",
       `E-posta adresinizi doğrulamak için bağlantıyı açın: ${verificationUrl}`,
       "",
+      "Doğrulama tamamlandığında ilk şifrenizi yalnızca kendi e-posta adresinize gönderilen yenileme bağlantısıyla belirleyebilirsiniz.",
       "Bu bağlantı 30 dakika boyunca kullanılabilir.",
       "Bu hesabı siz beklemiyorsanız bağlantıyı açmayın ve yöneticinizle iletişime geçin.",
     ].join("\n"),
-    html: `<!doctype html><html lang="tr"><body style="margin:0;background:#f3f6f8;font-family:Arial,sans-serif;color:#17283c"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;overflow:hidden;border:1px solid #dce4ea;border-radius:14px;background:#fff"><tr><td style="padding:24px 28px;background:#0a2037;color:#fff"><div style="font-family:Georgia,serif;font-size:22px;letter-spacing:.14em">HUMANUM</div><div style="margin-top:5px;color:#d8ad60;font-size:11px;letter-spacing:.18em">HUKUK</div></td></tr><tr><td style="padding:30px 28px"><h1 style="margin:0 0 18px;font-size:22px">E-posta adresinizi doğrulayın</h1><p style="margin:0 0 12px;line-height:1.6">Merhaba ${safeName},</p><p style="margin:0 0 22px;line-height:1.6;color:#52657a">Humanum Hukuk hesabınız bir yönetici tarafından oluşturuldu. Hesabınıza erişmeden önce e-posta adresinin size ait olduğunu doğrulayın.</p><p style="margin:0 0 24px"><a href="${safeUrl}" style="display:inline-block;padding:13px 20px;border-radius:8px;background:#c89139;color:#fff;font-weight:700;text-decoration:none">E-posta adresimi doğrula</a></p><p style="margin:0 0 8px;color:#657587;font-size:13px;line-height:1.6">Bu bağlantı 30 dakika boyunca kullanılabilir.</p><p style="margin:0;color:#8793a0;font-size:12px;line-height:1.6">Bu hesabı siz beklemiyorsanız bağlantıyı açmayın ve yöneticinizle iletişime geçin.</p></td></tr></table></td></tr></table></body></html>`,
+    html: `<!doctype html><html lang="tr"><body style="margin:0;background:#f3f6f8;font-family:Arial,sans-serif;color:#17283c"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;overflow:hidden;border:1px solid #dce4ea;border-radius:14px;background:#fff"><tr><td style="padding:24px 28px;background:#0a2037;color:#fff"><div style="font-family:Georgia,serif;font-size:22px;letter-spacing:.14em">HUMANUM</div><div style="margin-top:5px;color:#d8ad60;font-size:11px;letter-spacing:.18em">HUKUK</div></td></tr><tr><td style="padding:30px 28px"><h1 style="margin:0 0 18px;font-size:22px">E-posta adresinizi doğrulayın</h1><p style="margin:0 0 12px;line-height:1.6">Merhaba ${safeName},</p><p style="margin:0 0 22px;line-height:1.6;color:#52657a">Humanum Hukuk hesabınız bir yönetici tarafından oluşturuldu. Hesabınıza erişmeden önce e-posta adresinin size ait olduğunu doğrulayın.</p><p style="margin:0 0 24px"><a href="${safeUrl}" style="display:inline-block;padding:13px 20px;border-radius:8px;background:#c89139;color:#fff;font-weight:700;text-decoration:none">E-posta adresimi doğrula</a></p><p style="margin:0 0 8px;color:#657587;font-size:13px;line-height:1.6">Doğrulama tamamlandığında ilk şifrenizi yalnızca kendi e-posta adresinize gönderilen yenileme bağlantısıyla belirleyebilirsiniz.</p><p style="margin:0 0 8px;color:#657587;font-size:13px;line-height:1.6">Bu bağlantı 30 dakika boyunca kullanılabilir.</p><p style="margin:0;color:#8793a0;font-size:12px;line-height:1.6">Bu hesabı siz beklemiyorsanız bağlantıyı açmayın ve yöneticinizle iletişime geçin.</p></td></tr></table></td></tr></table></body></html>`,
   };
 }
 

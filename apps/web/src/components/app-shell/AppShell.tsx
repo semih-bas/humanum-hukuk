@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { buildNewUserEnrollment } from "@/lib/new-user-enrollment";
 import styles from "./AppShell.module.css";
 
 type IconName =
@@ -19,7 +20,6 @@ type IconName =
   | "logout"
   | "menu"
   | "plus"
-  | "eye"
   | "users";
 
 type AppShellProps = {
@@ -59,7 +59,6 @@ function Icon({ name }: { name: IconName }) {
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></>,
     menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
-    eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
   };
 
@@ -98,7 +97,6 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [managementNotice, setManagementNotice] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [changingUserId, setChangingUserId] = useState<string | null>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<TeamMember | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -211,12 +209,8 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     setManagementNotice("");
 
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
-    const { error } = await authClient.admin.createUser({
-      name: String(formData.get("name") ?? "").trim(),
-      email,
-      password: String(formData.get("password") ?? ""),
-      role: "user",
-    });
+    const enrollment = buildNewUserEnrollment({ name: String(formData.get("name") ?? ""), email });
+    const { error } = await authClient.admin.createUser(enrollment.account);
 
     if (error) {
       setManagementNotice(error.status === 422 || error.status === 400
@@ -226,14 +220,10 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
       return;
     }
 
-    const verification = await authClient.sendVerificationEmail({
-      email,
-      callbackURL: "/login",
-    });
+    const verification = await authClient.sendVerificationEmail(enrollment.verification);
 
     form.reset();
     setCreateUserOpen(false);
-    setShowTemporaryPassword(false);
     setTeamOpen(true);
     setManagementNotice(verification.error
       ? "Kullanıcı oluşturuldu ancak doğrulama e-postası gönderilemedi. Kullanıcı giriş ekranından yeniden isteyebilir."
@@ -358,19 +348,18 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
       {currentUser.isManager && teamOpen && <button className={styles.teamBackdrop} type="button" aria-label="Ekip panelini kapat" onClick={() => setTeamOpen(false)} />}
       {sidebarOpen && <button className={styles.backdrop} type="button" aria-label="Menüyü kapat" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }} />}
 
-      {createUserOpen && <div className={styles.userModalBackdrop} role="presentation" onMouseDown={() => { if (!isCreatingUser) { setCreateUserOpen(false); setShowTemporaryPassword(false); } }}>
+      {createUserOpen && <div className={styles.userModalBackdrop} role="presentation" onMouseDown={() => { if (!isCreatingUser) setCreateUserOpen(false); }}>
         <section className={styles.userModal} role="dialog" aria-modal="true" aria-labelledby="create-user-title" aria-describedby="create-user-description" onMouseDown={(event) => event.stopPropagation()}>
           <header className={styles.userModalHeader}>
             <span className={styles.userModalIcon}><Icon name="users" /></span>
             <span><small>Ekip yönetimi</small><h2 id="create-user-title">Yeni kullanıcı ekle</h2></span>
-            <button type="button" aria-label="Kullanıcı ekleme penceresini kapat" onClick={() => { setCreateUserOpen(false); setShowTemporaryPassword(false); }} disabled={isCreatingUser}><Icon name="close" /></button>
+            <button type="button" aria-label="Kullanıcı ekleme penceresini kapat" onClick={() => setCreateUserOpen(false)} disabled={isCreatingUser}><Icon name="close" /></button>
           </header>
           <form className={styles.createUserForm} onSubmit={handleCreateUser}>
-            <p id="create-user-description">Kullanıcıya e-posta doğrulama bağlantısı gönderilir. Adresini doğruladıktan sonra geçici şifresiyle giriş yapıp kendi şifresini belirler.</p>
+            <p id="create-user-description">Kullanıcıya e-posta doğrulama bağlantısı gönderilir. Adresini doğruladıktan sonra yalnızca kendi e-postasına gelen yenileme bağlantısıyla ilk şifresini belirler.</p>
             <label><span>Ad Soyad</span><input name="name" required minLength={2} maxLength={80} autoComplete="off" placeholder="Kullanıcının adı ve soyadı" disabled={isCreatingUser} /></label>
             <label><span>E-posta</span><input name="email" type="email" required autoComplete="off" placeholder="ornek@humanum.com" disabled={isCreatingUser} /></label>
-            <label><span>Geçici Şifre</span><span className={styles.passwordField}><input name="password" type={showTemporaryPassword ? "text" : "password"} required minLength={10} maxLength={128} autoComplete="new-password" placeholder="En az 10 karakter" disabled={isCreatingUser} /><button type="button" className={styles.passwordToggle} aria-label={showTemporaryPassword ? "Geçici şifreyi gizle" : "Geçici şifreyi göster"} aria-pressed={showTemporaryPassword} onClick={() => setShowTemporaryPassword((visible) => !visible)} disabled={isCreatingUser}><Icon name="eye" /></button></span><small className={styles.passwordHint}>En az 10 karakter kullanın. Bu şifre yalnızca ilk giriş içindir.</small></label>
-            <div className={styles.createUserActions}><button type="button" onClick={() => { setCreateUserOpen(false); setShowTemporaryPassword(false); }} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
+            <div className={styles.createUserActions}><button type="button" onClick={() => setCreateUserOpen(false)} disabled={isCreatingUser}>Vazgeç</button><button type="submit" disabled={isCreatingUser}>{isCreatingUser ? "Ekleniyor..." : "Kullanıcıyı Ekle"}</button></div>
           </form>
         </section>
       </div>}

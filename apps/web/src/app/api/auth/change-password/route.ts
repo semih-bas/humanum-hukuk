@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       throw new ApiRequestError(401, "UNAUTHORIZED", "Bu işlem için giriş yapmalısınız.");
     }
     const attemptKey = `change-password:${session.user.id}`;
-    const attempt = consumeSensitiveActionAttempt(attemptKey, { max: 5, windowMs: 15 * 60 * 1_000 });
+    const attempt = await consumeSensitiveActionAttempt(attemptKey, { max: 5, windowMs: 15 * 60 * 1_000 });
     if (!attempt.allowed) {
       return NextResponse.json(
         { error: { code: "RATE_LIMITED", message: "Çok fazla şifre değiştirme denemesi yapıldı. Lütfen daha sonra tekrar deneyin." } },
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       where: { id: session.user.id },
       data: { mustChangePassword: false },
     });
-    clearSensitiveActionAttempts(attemptKey);
+    await clearSensitiveActionAttempts(attemptKey);
     await tryWriteAuditLog({
       actorUserId: session.user.id,
       event: "auth.password_changed",

@@ -24,7 +24,7 @@ services:
       context: ./apps/web
       target: migrator
     env_file:
-      - path: ./apps/web/.env.production.database
+      - path: ./apps/web/.env.production.migration
         required: true
     depends_on:
       database:

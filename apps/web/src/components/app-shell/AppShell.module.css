@@ -115,12 +115,6 @@
 .createUserForm label { display: grid; gap: 7px; color: #3f5368; font-size: 11px; font-weight: 700; }
 .createUserForm input { width: 100%; height: 48px; border: 1px solid #d5dee6; border-radius: 9px; outline: none; padding: 0 13px; background: #fff; color: #17283c; font-size: 12px; }
 .createUserForm input:focus { border-color: #c99b4c; box-shadow: 0 0 0 3px rgb(201 155 76 / 12%); }
-.passwordField { position: relative; display: block; }
-.passwordField input { padding-right: 48px; }
-.passwordToggle { position: absolute; top: 0; right: 0; display: grid; width: 48px; height: 48px; place-items: center; padding: 0 !important; border: 0 !important; background: transparent !important; color: #8998a8 !important; }
-.passwordToggle:hover { color: #d7ac5c !important; }
-.passwordToggle .icon { width: 17px; }
-.passwordHint { color: #8492a0; font-size: 9px; font-weight: 500; line-height: 1.45; }
 .createUserActions { display: flex; gap: 9px; justify-content: flex-end; margin: 5px -24px -24px; padding: 17px 24px; border-top: 1px solid #e8edf1; background: #fff; }
 .createUserForm button { min-height: 40px; border: 1px solid #d5dee6; border-radius: 8px; padding: 0 16px; background: #fff; color: #46596d; cursor: pointer; font-size: 11px; font-weight: 700; }
 .createUserForm button:hover { background: #f5f7f9; }.createUserForm button:disabled { cursor: wait; opacity: .58; }

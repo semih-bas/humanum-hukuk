@@ -36,19 +36,21 @@ test("e-posta doğrulama iletisi güvenli bağlantı ve süre bilgisini içerir"
   assert.match(email.html, /token=abc&amp;callbackURL/);
 });
 
-test("hassas işlem deneme sınırı aşılınca isteği reddeder ve temizlenebilir", () => {
+test("hassas işlem deneme sınırı kalıcı depo için ayrılmış anahtar kullanır", async () => {
   const key = `test-${Date.now()}-${Math.random()}`;
   const options = { max: 2, windowMs: 60_000 };
+  const consumed: string[] = [];
+  const cleared: string[] = [];
+  const fakeConsume = async (receivedKey: string) => {
+    consumed.push(receivedKey);
+    return { allowed: true, retryAfterSeconds: 0 };
+  };
+  const fakeClear = async (receivedKey: string) => { cleared.push(receivedKey); };
 
-  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
-  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
-  const blocked = consumeSensitiveActionAttempt(key, options);
-  assert.equal(blocked.allowed, false);
-  assert.ok(blocked.retryAfterSeconds > 0);
-
-  clearSensitiveActionAttempts(key);
-  assert.equal(consumeSensitiveActionAttempt(key, options).allowed, true);
-  clearSensitiveActionAttempts(key);
+  assert.equal((await consumeSensitiveActionAttempt(key, options, fakeConsume)).allowed, true);
+  await clearSensitiveActionAttempts(key, fakeClear);
+  assert.deepEqual(consumed, [`sensitive-action:${key}`]);
+  assert.deepEqual(cleared, [`sensitive-action:${key}`]);
 });
 
 test("e-posta hız sınırı anahtarı adresi açık metin olarak saklamaz", () => {

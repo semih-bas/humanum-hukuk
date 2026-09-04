@@ -22,5 +22,14 @@ export function requireHttpUrl(name: string): string {
     throw new Error(`Unsupported URL protocol in environment variable: ${name}`);
   }
 
+  if (process.env.NODE_ENV === "production" && url.protocol !== "https:" && !isLoopbackHostname(url.hostname)) {
+    throw new Error(`${name} must use HTTPS in production.`);
+  }
+
   return url.origin;
+}
+
+export function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
 }
