@@ -46,10 +46,12 @@ const sortOptions = {
 
 type SortOption = keyof typeof sortOptions;
 
-function Icon({ name }: { name: "eye" | "more" | "plus" | "search" | "x" }) {
+function Icon({ name }: { name: "eye" | "payment" | "bell" | "edit" | "plus" | "search" | "x" }) {
   const paths = {
     eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
-    more: <><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></>,
+    payment: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
+    edit: <><path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
     x: <><path d="m6 6 12 12M18 6 6 18" /></>,
@@ -75,7 +77,6 @@ export default function FilesClient() {
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
-  const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference
     ? `${createdReference} numaralı dosya başarıyla oluşturuldu.${documentFailed ? " Seçilen evrak yüklenemedi; dosya ayrıntısından tekrar ekleyebilirsiniz." : ""}`
@@ -126,7 +127,6 @@ export default function FilesClient() {
 
         setRecords(result.data.items);
         setPagination(result.data.pagination);
-        setActionMenu(null);
 
         if (result.data.pagination.page !== currentPage) {
           setCurrentPage(result.data.pagination.page);
@@ -218,11 +218,10 @@ export default function FilesClient() {
                   <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
                   <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
                   <td><div className={styles.rowActions}>
-                    <button type="button" aria-label={`${record.vehiclePlate} dosyasını görüntüle`} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
-                    <div className={styles.actionWrapper}>
-                      <button type="button" aria-label={`${record.vehiclePlate} işlem menüsü`} aria-expanded={actionMenu === record.id} onClick={() => setActionMenu((id) => id === record.id ? null : record.id)}><Icon name="more" /></button>
-                      {actionMenu === record.id && <div className={styles.actionMenu}><button type="button" onClick={() => { setDetailRequest({ id: record.id, mode: "edit" }); setActionMenu(null); }}>Düzenle</button><button type="button" onClick={() => { setDetailRequest({ id: record.id, mode: "reminder" }); setActionMenu(null); }}>Hatırlatma Ekle</button></div>}
-                    </div>
+                    <button className={styles.paymentAction} type="button" title="Ödeme" aria-label={record.vehiclePlate + " ödeme"} aria-disabled="true"><Icon name="payment" /></button>
+                    <button className={styles.reminderAction} type="button" title="Hatırlatma Ekle" aria-label={record.vehiclePlate + " hatırlatma ekle"} onClick={() => setDetailRequest({ id: record.id, mode: "reminder" })}><Icon name="bell" /></button>
+                    <button className={styles.viewAction} type="button" title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
+                    <button className={styles.editAction} type="button" title="Düzenle" aria-label={record.vehiclePlate + " dosyasını düzenle"} onClick={() => setDetailRequest({ id: record.id, mode: "edit" })}><Icon name="edit" /></button>
                   </div></td>
                 </tr>;
               })}
