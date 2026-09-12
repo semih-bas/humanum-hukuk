@@ -297,14 +297,15 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
           <Link className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navItemActive : ""}`} href="/dashboard" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
             <Icon name="home" /><span>Dashboard</span>
           </Link>
-          <div className={`${styles.navGroup} ${pathname.startsWith("/dosyalarim") ? styles.navGroupActive : ""}`}>
-            <Link className={`${styles.navItem} ${pathname === "/dosyalarim" ? styles.navItemActive : ""}`} href="/dosyalarim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
-              <Icon name="folder" /><span>Dosyalarım</span>
-            </Link>
-            <Link className={`${styles.subNavItem} ${pathname === "/dosyalarim/yeni" ? styles.subNavItemActive : ""}`} href="/dosyalarim/yeni" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
-              <span className={styles.subNavMarker}><Icon name="plus" /></span><span>Yeni Dosya Ekle</span>
-            </Link>
-          </div>
+          <Link className={styles.navItem + " " + (pathname.startsWith("/sigorta-ve-tahkim") ? styles.navItemActive : "")} href="/sigorta-ve-tahkim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
+            <Icon name="briefcase" /><span>Sigorta ve Tahkim</span>
+          </Link>
+          <Link className={styles.navItem + " " + (pathname.startsWith("/dosyalarim") ? styles.navItemActive : "")} href="/dosyalarim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
+            <Icon name="folder" /><span>İcra</span>
+          </Link>
+          <Link className={styles.navItem + " " + (pathname.startsWith("/genel-dava-ve-arabuluculuk") ? styles.navItemActive : "")} href="/genel-dava-ve-arabuluculuk" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
+            <Icon name="users" /><span>Genel Dava ve Arabuluculuk</span>
+          </Link>
         </nav>
 
         <div className={styles.sidebarFooter} ref={teamAreaRef}>

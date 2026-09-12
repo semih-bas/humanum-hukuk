@@ -172,9 +172,9 @@ export default function FilesClient() {
       <header className={styles.pageHeader}>
         <div className={styles.pageIntro}>
           <span className={styles.eyebrow}>DOSYA YÖNETİMİ</span>
-          <h1>Dosyalarım</h1>
+          <h1>İcra</h1>
           <p className={styles.pageDescription}>Tüm dosyaları görüntüleyin, arayın ve işlemleri tek ekrandan yönetin.</p>
-          <p className={styles.breadcrumb}><Link href="/dashboard">Ana Sayfa</Link><span>›</span>Dosyalarım</p>
+          <p className={styles.breadcrumb}><Link href="/dashboard">Ana Sayfa</Link><span>›</span>İcra</p>
         </div>
         <div className={styles.recordSummary}><strong>{pagination.totalCount}</strong><span>{query.trim() || statusFilter !== "ALL" ? "Eşleşen dosya" : "Toplam dosya"}</span></div>
         <div className={styles.mobileSearch}>{searchField}</div>

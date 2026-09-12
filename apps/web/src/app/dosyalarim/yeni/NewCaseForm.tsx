@@ -230,7 +230,7 @@ export default function NewCaseForm() {
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <h1>Yeni Dosya Ekle</h1>
-          <p><Link href="/dashboard">Ana Sayfa</Link><span>›</span><Link href="/dosyalarim">Dosyalarım</Link><span>›</span><b>Yeni Dosya Ekle</b></p>
+          <p><Link href="/dashboard">Ana Sayfa</Link><span>›</span><Link href="/dosyalarim">İcra</Link><span>›</span><b>Yeni Dosya Ekle</b></p>
         </div>
         <p className={styles.pageDescription}>Dosya bilgilerini eksiksiz girerek kaydediniz.</p>
         <div className={styles.pageActions}>

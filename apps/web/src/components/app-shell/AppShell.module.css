@@ -209,3 +209,6 @@
   .createUserForm { gap: 14px; padding: 18px 16px; }
   .createUserActions { margin: 3px -16px -18px; padding: 15px 16px; }
 }
+
+.navItem { white-space: normal; padding-top: 12px; padding-bottom: 12px; line-height: 1.4; }
+.navItem > span { min-width: 0; }
