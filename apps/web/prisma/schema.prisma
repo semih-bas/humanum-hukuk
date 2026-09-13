@@ -32,6 +32,9 @@ model User {
   caseReminders CaseReminder[]
   createdCaseTransactions CaseTransaction[] @relation("CaseTransactionCreatedBy")
   deletedCaseTransactions CaseTransaction[] @relation("CaseTransactionDeletedBy")
+  createdInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseCreatedBy")
+  updatedInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseUpdatedBy")
+  insuranceDocuments InsuranceArbitrationDocument[]
   reminderDeliveries ReminderDelivery[]
 
   @@unique([email])
@@ -291,6 +294,90 @@ model CaseDocument {
   @@index([uploadedById, createdAt])
   @@index([transactionId])
   @@map("case_document")
+}
+
+enum InsuranceCaseType {
+  DEPRECIATION
+  DEPRECIATION_DIFFERENCE
+  DAMAGE_DIFFERENCE
+  ZERO_DAMAGE
+}
+
+enum InsuranceArbitrationStatus {
+  INSURANCE_APPLICATION
+  SETTLEMENT_REVIEW
+  ARBITRATION_APPLICATION
+  ARBITRATION
+  EXPERT_REVIEW
+  PAYMENT_PENDING
+  INSURANCE_PAYMENT_RECEIVED
+  ENFORCEMENT
+  LITIGATION
+  COMPLETED
+  CLOSED
+}
+
+model InsuranceArbitrationCase {
+  id                         String                     @id @default(cuid())
+  referenceNumber            String                     @unique
+  arbitrationApplicationNo   String?                    @unique
+  opposingInsuranceCompany   String
+  opposingPolicyNumber       String?
+  policyExpiryDate           DateTime?                  @db.Date
+  opposingVehicleOwner       String?
+  opposingIdentityNumber     String?
+  vehicleOwner               String
+  identityNumber             String?
+  vehiclePlate               String
+  accidentDate               DateTime                   @db.Date
+  postalDeliveryDate         DateTime?                  @db.Date
+  caseTypes                  InsuranceCaseType[]        @map("caseType")
+  insuranceApplicationDate   DateTime?                  @db.Date
+  insuranceSettlementOffer   Decimal                    @default(0) @db.Decimal(18,2)
+  arbitrationApplicationDate DateTime?                  @db.Date
+  hasArbitration             Boolean                    @default(false)
+  arbitrationCaseNumber      String?
+  status                     InsuranceArbitrationStatus @default(INSURANCE_APPLICATION)
+  postageExpense             Decimal                    @default(0) @db.Decimal(18,2)
+  enforcementExpense         Decimal                    @default(0) @db.Decimal(18,2)
+  arbitrationApplicationFee  Decimal                    @default(0) @db.Decimal(18,2)
+  expertFee                  Decimal                    @default(0) @db.Decimal(18,2)
+  postalAmount               Decimal                    @default(0) @db.Decimal(18,2)
+  actualDepreciationAmount   Decimal                    @default(0) @db.Decimal(18,2)
+  description                String?
+  version                    Int                        @default(1)
+  createdById                String
+  updatedById                String
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  createdBy                  User                       @relation("InsuranceArbitrationCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy                  User                       @relation("InsuranceArbitrationCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  documents                  InsuranceArbitrationDocument[]
+
+  @@index([vehiclePlate])
+  @@index([opposingInsuranceCompany])
+  @@index([accidentDate])
+  @@index([status])
+  @@index([updatedAt])
+  @@map("insurance_arbitration_case")
+}
+
+model InsuranceArbitrationDocument {
+  id            String                   @id @default(cuid())
+  caseId        String
+  uploadedById  String
+  originalName  String                   @db.VarChar(255)
+  storageKey    String                   @unique
+  mimeType      String                   @db.VarChar(100)
+  sizeBytes     Int
+  sha256        String                   @db.Char(64)
+  createdAt     DateTime                 @default(now())
+  case          InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy    User                     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+  @@index([uploadedById, createdAt])
+  @@map("insurance_arbitration_document")
 }
 
 model CaseTransaction {
