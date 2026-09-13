@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/database";
-import type { CreateTransactionInput } from "./transaction-input";
+import type { CreateTransactionInput, UpdateTransactionInput } from "./transaction-input";
 import { CaseNotFoundError } from "./update-case";
 
 export class CaseTransactionNotFoundError extends Error {}
@@ -67,6 +67,26 @@ export async function deleteCaseTransaction(caseFileId: string, id: string, acto
     await transaction.auditLog.create({ data: { actorUserId, event: "case.transaction_deleted", targetType: "case_transaction", targetId: id, context: { caseFileId } } });
     return { id };
   });
+}
+
+export async function updateCaseTransaction(caseFileId: string, id: string, input: UpdateTransactionInput, actorUserId: string) {
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.caseTransaction.updateMany({
+      where: { id, caseFileId, deletedAt: null, caseFile: { archivedAt: null } },
+      data: { type: input.type, category: input.category, transactionDate: new Date(`${input.transactionDate}T00:00:00.000Z`), amount: input.amount, description: input.description.trim() },
+    });
+    if (result.count !== 1) throw new CaseTransactionNotFoundError();
+
+    const note = input.caseNote?.trim();
+    if (note) {
+      const latest = await transaction.caseNote.findFirst({ where: { caseFileId }, orderBy: { createdAt: "desc" }, select: { id: true, content: true } });
+      if (!latest) await transaction.caseNote.create({ data: { caseFileId, authorId: actorUserId, content: note } });
+      else if (latest.content !== note) await transaction.caseNote.update({ where: { id: latest.id }, data: { content: note, authorId: actorUserId } });
+    }
+
+    await transaction.auditLog.create({ data: { actorUserId, event: "case.transaction_updated", targetType: "case_transaction", targetId: id, context: { caseFileId, type: input.type, category: input.category, amount: input.amount.toFixed(2) } } });
+  });
+  return listCaseTransactions(caseFileId);
 }
 
 function present(transactions: Array<{ id: string; type: "INCOME" | "EXPENSE"; category: string; transactionDate: Date; amount: Prisma.Decimal; description: string; createdAt: Date; documents: Array<{ id: string; originalName: string }> }>, caseNote: string) {
