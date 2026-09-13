@@ -4,30 +4,29 @@ import type { InsuranceCaseInput } from "./input";
 import { parseDate } from "./input";
 import type { InsuranceStatus } from "./presentation";
 
-export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; insuranceCompany: string; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
+export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "INSURANCE_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
+type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true } } } }>;
 
 export async function listInsuranceCases(input: InsuranceListInput) {
   const query = input.query.trim();
   const where: Prisma.InsuranceArbitrationCaseWhereInput = {
-    ...(query ? { OR: [{ arbitrationApplicationNo: { contains: query, mode: "insensitive" } }, { arbitrationCaseNumber: { contains: query, mode: "insensitive" } }, { vehiclePlate: { contains: query, mode: "insensitive" } }, { vehicleOwner: { contains: query, mode: "insensitive" } }, { identityNumber: { contains: query, mode: "insensitive" } }, { opposingInsuranceCompany: { contains: query, mode: "insensitive" } }] } : {}),
-    ...(input.status === "ARBITRATION_GROUP" ? { status: { in: ["ARBITRATION_APPLICATION", "ARBITRATION", "EXPERT_REVIEW"] } } : input.status === "COMPLETED_GROUP" ? { status: { in: ["COMPLETED", "CLOSED"] } } : input.status !== "ALL" ? { status: input.status } : {}),
-    ...(input.insuranceCompany ? { opposingInsuranceCompany: { equals: input.insuranceCompany, mode: "insensitive" } } : {}),
+    ...(query ? { OR: [{ arbitrationApplicationNo: { contains: query, mode: "insensitive" } }, { opposingPolicyNumber: { contains: query, mode: "insensitive" } }, { vehiclePlate: { contains: query, mode: "insensitive" } }, { vehicleOwner: { contains: query, mode: "insensitive" } }, { identityNumber: { contains: query, mode: "insensitive" } }, { opposingIdentityNumber: { contains: query, mode: "insensitive" } }] } : {}),
+    ...(input.status === "ARBITRATION_GROUP" ? { status: { in: ["ARBITRATION_APPLICATION", "ARBITRATION", "EXPERT_REVIEW"] } } : input.status === "INSURANCE_GROUP" ? { status: { in: ["INSURANCE_APPLICATION", "SETTLEMENT_REVIEW", "INSURANCE_PAYMENT_RECEIVED"] } } : input.status === "COMPLETED_GROUP" ? { status: { in: ["COMPLETED", "CLOSED"] } } : input.status !== "ALL" ? { status: input.status } : {}),
     ...(input.arbitration !== "ALL" ? { hasArbitration: input.arbitration === "YES" } : {}),
     ...(input.dateFrom || input.dateTo ? { accidentDate: { ...(input.dateFrom ? { gte: parseDate(input.dateFrom)! } : {}), ...(input.dateTo ? { lte: parseDate(input.dateTo)! } : {}) } } : {}),
   };
   return prisma.$transaction(async (transaction) => {
-    const [totalCount, statusGroups, companies] = await Promise.all([
+    const [totalCount, statusGroups] = await Promise.all([
       transaction.insuranceArbitrationCase.count({ where }),
       transaction.insuranceArbitrationCase.groupBy({ by: ["status"], _count: { _all: true } }),
-      transaction.insuranceArbitrationCase.findMany({ distinct: ["opposingInsuranceCompany"], orderBy: { opposingInsuranceCompany: "asc" }, select: { opposingInsuranceCompany: true } }),
     ]);
     const pageCount = Math.max(1, Math.ceil(totalCount / input.pageSize)); const page = Math.min(input.page, pageCount);
     const records = await transaction.insuranceArbitrationCase.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], skip: (page - 1) * input.pageSize, take: input.pageSize });
     const counts = Object.fromEntries(statusGroups.map((group) => [group.status, group._count._all])); const allCount = statusGroups.reduce((sum, group) => sum + group._count._all, 0);
     return {
       items: records.map((record) => ({ ...record, accidentDate: dateString(record.accidentDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), updatedAt: record.updatedAt.toISOString() })),
-      pagination: { page, pageSize: input.pageSize, pageCount, totalCount }, companies: companies.map((item) => item.opposingInsuranceCompany),
-      summary: { total: allCount, arbitration: (counts.ARBITRATION ?? 0) + (counts.ARBITRATION_APPLICATION ?? 0) + (counts.EXPERT_REVIEW ?? 0), paymentPending: counts.PAYMENT_PENDING ?? 0, enforcement: counts.ENFORCEMENT ?? 0, completed: (counts.COMPLETED ?? 0) + (counts.CLOSED ?? 0) },
+      pagination: { page, pageSize: input.pageSize, pageCount, totalCount },
+      summary: { total: allCount, arbitration: (counts.ARBITRATION ?? 0) + (counts.ARBITRATION_APPLICATION ?? 0) + (counts.EXPERT_REVIEW ?? 0), insurance: (counts.INSURANCE_APPLICATION ?? 0) + (counts.SETTLEMENT_REVIEW ?? 0) + (counts.INSURANCE_PAYMENT_RECEIVED ?? 0), completed: (counts.COMPLETED ?? 0) + (counts.CLOSED ?? 0) },
     };
   });
 }
@@ -42,5 +41,28 @@ export async function createInsuranceCase(input: InsuranceCaseInput, actorUserId
     await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.created", targetType: "insurance_arbitration_case", targetId: record.id, context: { referenceNumber } } });
     return record;
   });
+}
+
+export class InsuranceCaseNotFoundError extends Error {}
+
+export async function getInsuranceCase(id: string) {
+  const record = await prisma.insuranceArbitrationCase.findUnique({ where: { id }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } } } });
+  if (!record) throw new InsuranceCaseNotFoundError();
+  return presentCase(record);
+}
+
+export async function updateInsuranceCase(id: string, input: InsuranceCaseInput, actorUserId: string) {
+  await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findUnique({ where: { id }, select: { id: true, referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const { payments, ...caseInput } = input;
+    await transaction.insuranceArbitrationCase.update({ where: { id }, data: { ...caseInput, accidentDate: parseDate(input.accidentDate)!, policyExpiryDate: parseDate(input.policyExpiryDate), postalDeliveryDate: parseDate(input.postalDeliveryDate), insuranceApplicationDate: parseDate(input.insuranceApplicationDate), arbitrationApplicationDate: input.hasArbitration ? parseDate(input.arbitrationApplicationDate) : null, arbitrationApplicationNo: input.hasArbitration ? input.arbitrationApplicationNo : null, arbitrationCaseNumber: input.hasArbitration ? input.arbitrationCaseNumber : null, updatedById: actorUserId, payments: { deleteMany: {}, create: payments.map((payment) => ({ type: payment.type, paymentDate: parseDate(payment.paymentDate)!, amount: payment.amount, commission: payment.commission, clientAmount: payment.amount.minus(payment.commission), description: payment.description })) } } });
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.updated", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber } } });
+  });
+  return getInsuranceCase(id);
+}
+
+function presentCase(record: InsuranceCaseRecord) {
+  return { ...record, accidentDate: dateString(record.accidentDate), policyExpiryDate: dateString(record.policyExpiryDate), postalDeliveryDate: dateString(record.postalDeliveryDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), insuranceSettlementOffer: record.insuranceSettlementOffer.toFixed(2), postageExpense: record.postageExpense.toFixed(2), enforcementExpense: record.enforcementExpense.toFixed(2), arbitrationApplicationFee: record.arbitrationApplicationFee.toFixed(2), expertFee: record.expertFee.toFixed(2), postalAmount: record.postalAmount.toFixed(2), actualDepreciationAmount: record.actualDepreciationAmount.toFixed(2), payments: record.payments.map((payment) => ({ ...payment, paymentDate: dateString(payment.paymentDate), amount: payment.amount.toFixed(2), commission: payment.commission.toFixed(2), clientAmount: payment.clientAmount.toFixed(2) })), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() };
 }
 function dateString(value: Date | null) { return value?.toISOString().slice(0, 10) ?? null; }
