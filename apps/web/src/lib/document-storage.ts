@@ -21,7 +21,7 @@ export class DocumentNotFoundError extends Error {}
 
 const DOCUMENT_STORAGE_LOCK_ID = 4_452_631_117;
 
-export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string) {
+export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string, transactionId?: string) {
   const inspected = await inspectDocumentUpload(file, requestedName);
   const { buffer, originalName } = inspected;
 
@@ -35,6 +35,10 @@ export async function storeCaseDocument(caseFileId: string, file: File, actorUse
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${DOCUMENT_STORAGE_LOCK_ID})`;
       const activeCase = await transaction.caseFile.findFirst({ where: { id: caseFileId, archivedAt: null }, select: { id: true, referenceNumber: true } });
       if (!activeCase) throw new CaseNotFoundError();
+      if (transactionId) {
+        const activeTransaction = await transaction.caseTransaction.findFirst({ where: { id: transactionId, caseFileId, deletedAt: null }, select: { id: true } });
+        if (!activeTransaction) throw new CaseNotFoundError();
+      }
       const root = storageRoot();
       await mkdir(root, { recursive: true });
       const [caseDocumentCount, storageUsage] = await Promise.all([
@@ -66,6 +70,7 @@ export async function storeCaseDocument(caseFileId: string, file: File, actorUse
           mimeType: inspected.mimeType,
           sizeBytes: buffer.byteLength,
           sha256: inspected.sha256,
+          transactionId,
         },
         select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
       });

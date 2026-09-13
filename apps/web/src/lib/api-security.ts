@@ -18,8 +18,16 @@ export class ApiRequestError extends Error {
 export function assertSameOrigin(request: Request): void {
   const origin = request.headers.get("origin");
   const expectedOrigin = requireHttpUrl("BETTER_AUTH_URL");
+  const allowedOrigins = new Set([expectedOrigin]);
 
-  if (!origin || origin !== expectedOrigin) {
+  if (process.env.NODE_ENV === "development") {
+    const configured = new URL(expectedOrigin);
+    const port = configured.port ? `:${configured.port}` : "";
+    allowedOrigins.add(`http://localhost${port}`);
+    allowedOrigins.add(`http://127.0.0.1${port}`);
+  }
+
+  if (!origin || !allowedOrigins.has(origin)) {
     throw new ApiRequestError(403, "INVALID_ORIGIN", "İstek kaynağı doğrulanamadı.");
   }
 }
