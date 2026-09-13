@@ -13,12 +13,19 @@ const validCase = {
   damageAmount: "1000.00",
   depreciationAmount: "250.00",
   profitLossAmount: "50.00",
+  hasDamageClaim: true,
+  hasDepreciationClaim: true,
+  hasProfitLossClaim: true,
+  profitLossDays: 2,
+  dailyRentalAmount: "25.00",
+  judgmentStatus: "WITHOUT_JUDGMENT",
   discountAmount: "100.00",
   enforcementOffice: "İstanbul 1. İcra Dairesi",
   enforcementFileNumber: "2026/123",
   vehicleLien: false,
   bankLien: false,
   titleDeedLien: false,
+  salaryLien: false,
   installmentCount: null,
   status: "OPEN",
   note: null,
@@ -56,6 +63,35 @@ test("indirim toplam talep tutarını aşamaz", () => {
   assert.ok(result.error.flatten().fieldErrors.discountAmount?.length);
 });
 
+test("dosya türleri bağımsız seçilebilir ve en az biri zorunludur", () => {
+  assert.equal(createCaseSchema.safeParse({
+    ...validCase,
+    hasDamageClaim: true,
+    hasDepreciationClaim: false,
+    hasProfitLossClaim: false,
+    depreciationAmount: "0",
+    profitLossAmount: "0",
+    profitLossDays: null,
+    dailyRentalAmount: null,
+  }).success, true);
+  assert.equal(createCaseSchema.safeParse({
+    ...validCase,
+    hasDamageClaim: false,
+    hasDepreciationClaim: false,
+    hasProfitLossClaim: false,
+    damageAmount: "0",
+    depreciationAmount: "0",
+    profitLossAmount: "0",
+    profitLossDays: null,
+    dailyRentalAmount: null,
+  }).success, false);
+});
+
+test("kazanç kaybı gün ile günlük kira bedelinin çarpımına eşittir", () => {
+  assert.equal(createCaseSchema.safeParse({ ...validCase, profitLossDays: 2, dailyRentalAmount: "25", profitLossAmount: "50" }).success, true);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, profitLossDays: 2, dailyRentalAmount: "25", profitLossAmount: "49" }).success, false);
+});
+
 test("icra dairesi ve dosya numarası birlikte girilir", () => {
   const result = createCaseSchema.safeParse({ ...validCase, enforcementFileNumber: null });
   assert.equal(result.success, false);
@@ -85,7 +121,8 @@ test("beklenmeyen alanların API modeline girmesine izin vermez", () => {
 });
 
 test("düzenleme sürümü zorunlu ve pozitif tam sayıdır", () => {
-  const editableCase = Object.fromEntries(Object.entries(validCase).filter(([key]) => key !== "note" && key !== "reminder"));
+  const createOnlyFields = new Set(["note", "reminder", "hasDamageClaim", "hasDepreciationClaim", "hasProfitLossClaim", "profitLossDays", "dailyRentalAmount", "judgmentStatus", "salaryLien"]);
+  const editableCase = Object.fromEntries(Object.entries(validCase).filter(([key]) => !createOnlyFields.has(key)));
   assert.equal(updateCaseSchema.safeParse({ ...editableCase, version: 1 }).success, true);
   assert.equal(updateCaseSchema.safeParse(editableCase).success, false);
   assert.equal(updateCaseSchema.safeParse({ ...editableCase, version: 0 }).success, false);
@@ -160,7 +197,7 @@ test("taksit hesabı bölünmeyen kuruşu son taksite ekler", () => {
   assert.equal(financials.monthlyInstallmentAmount?.toFixed(2), "200.00");
   assert.equal(financials.finalInstallmentAmount?.toFixed(2), "200.00");
 
-  const uneven = createCaseSchema.safeParse({ ...validCase, damageAmount: "1000.01", depreciationAmount: "0", profitLossAmount: "0", discountAmount: "0", installmentCount: 6 });
+  const uneven = createCaseSchema.safeParse({ ...validCase, damageAmount: "1000.01", depreciationAmount: "0", profitLossAmount: "0", discountAmount: "0", hasDepreciationClaim: false, hasProfitLossClaim: false, profitLossDays: null, dailyRentalAmount: null, installmentCount: 6 });
   assert.equal(uneven.success, true);
   if (uneven.success) {
     const unevenFinancials = calculateCaseFinancials(uneven.data);

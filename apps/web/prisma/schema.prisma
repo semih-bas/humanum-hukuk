@@ -141,6 +141,11 @@ enum DebtorType {
   COMPANY
 }
 
+enum JudgmentStatus {
+  WITHOUT_JUDGMENT
+  WITH_JUDGMENT
+}
+
 enum CaseFileChangeType {
   CREATED
   UPDATED
@@ -166,12 +171,19 @@ model CaseFile {
   damageAmount          Decimal          @default(0) @db.Decimal(18, 2)
   depreciationAmount    Decimal          @default(0) @db.Decimal(18, 2)
   profitLossAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  hasDamageClaim        Boolean          @default(false)
+  hasDepreciationClaim  Boolean          @default(false)
+  hasProfitLossClaim    Boolean          @default(false)
+  profitLossDays        Int?
+  dailyRentalAmount     Decimal?         @db.Decimal(18, 2)
+  judgmentStatus        JudgmentStatus   @default(WITHOUT_JUDGMENT)
   discountAmount        Decimal          @default(0) @db.Decimal(18, 2)
   enforcementOffice     String?
   enforcementFileNumber String?
   vehicleLien           Boolean          @default(false)
   bankLien              Boolean          @default(false)
   titleDeedLien         Boolean          @default(false)
+  salaryLien            Boolean          @default(false)
   installmentCount      Int?
   status                CaseFileStatus   @default(OPEN)
   version               Int              @default(1)

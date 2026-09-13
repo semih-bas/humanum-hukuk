@@ -46,6 +46,8 @@ const money = z
   })
   .refine((value) => value.lte(MAX_MONEY), "Tutar izin verilen üst sınırı aşıyor.");
 
+const optionalMoney = z.union([money, z.null()]).optional().transform((value) => value ?? null);
+
 export const addCaseReminderSchema = z.object({
   title: requiredText("Hatırlatma başlığı", SHORT_TEXT_MAX_LENGTH),
   dueAt: z.iso.datetime({ offset: true, error: "Hatırlatma tarihi geçerli bir tarih-saat olmalıdır." })
@@ -90,6 +92,13 @@ const rawCaseCoreSchema = z.object({
 });
 
 const rawCreateCaseSchema = rawCaseCoreSchema.extend({
+  hasDamageClaim: z.boolean(),
+  hasDepreciationClaim: z.boolean(),
+  hasProfitLossClaim: z.boolean(),
+  profitLossDays: z.number().int().min(1).max(36_500).nullable(),
+  dailyRentalAmount: optionalMoney,
+  judgmentStatus: z.enum(["WITHOUT_JUDGMENT", "WITH_JUDGMENT"]),
+  salaryLien: z.boolean(),
   note: optionalText("Not", NOTE_MAX_LENGTH),
   reminder: addCaseReminderSchema.nullable().optional().transform((value) => value ?? null),
 }).strict();
@@ -147,7 +156,37 @@ function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
   }
 }
 
-export const createCaseSchema = rawCreateCaseSchema.superRefine(validateCaseRules);
+export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context) => {
+  validateCaseRules(value, context);
+
+  if (!value.hasDamageClaim && !value.hasDepreciationClaim && !value.hasProfitLossClaim) {
+    context.addIssue({ code: "custom", path: ["hasDamageClaim"], message: "En az bir dosya türü seçilmelidir." });
+  }
+
+  if (!value.hasDamageClaim && !value.damageAmount.isZero()) {
+    context.addIssue({ code: "custom", path: ["damageAmount"], message: "Hasar bedeli seçili değilken tutar sıfır olmalıdır." });
+  }
+  if (!value.hasDepreciationClaim && !value.depreciationAmount.isZero()) {
+    context.addIssue({ code: "custom", path: ["depreciationAmount"], message: "Değer kaybı seçili değilken tutar sıfır olmalıdır." });
+  }
+
+  if (value.hasProfitLossClaim) {
+    if (!value.profitLossDays) {
+      context.addIssue({ code: "custom", path: ["profitLossDays"], message: "Kazanç kaybı için gün sayısı zorunludur." });
+    }
+    if (!value.dailyRentalAmount || value.dailyRentalAmount.isZero()) {
+      context.addIssue({ code: "custom", path: ["dailyRentalAmount"], message: "Kazanç kaybı için günlük kira bedeli zorunludur." });
+    }
+    if (value.profitLossDays && value.dailyRentalAmount) {
+      const expected = value.dailyRentalAmount.mul(value.profitLossDays);
+      if (!value.profitLossAmount.equals(expected)) {
+        context.addIssue({ code: "custom", path: ["profitLossAmount"], message: "Kazanç kaybı gün sayısı ile günlük kira bedelinin çarpımına eşit olmalıdır." });
+      }
+    }
+  } else if (!value.profitLossAmount.isZero() || value.profitLossDays || value.dailyRentalAmount) {
+    context.addIssue({ code: "custom", path: ["profitLossAmount"], message: "Kazanç kaybı seçili değilken hesaplama alanları boş olmalıdır." });
+  }
+});
 export const updateCaseSchema = rawCaseCoreSchema.extend({
   version: z.number({ error: "Dosya sürümü sayı olmalıdır." }).int().min(1).max(2_147_483_647),
 }).strict().superRefine(validateCaseRules);

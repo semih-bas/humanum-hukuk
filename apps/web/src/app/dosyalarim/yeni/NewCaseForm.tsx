@@ -82,15 +82,21 @@ export default function NewCaseForm() {
   const [accidentDate, setAccidentDate] = useState("");
   const [debtorType, setDebtorType] = useState("");
   const [debtorName, setDebtorName] = useState("");
+  const [hasDamageClaim, setHasDamageClaim] = useState(false);
+  const [hasDepreciationClaim, setHasDepreciationClaim] = useState(false);
+  const [hasProfitLossClaim, setHasProfitLossClaim] = useState(false);
+  const [judgmentStatus, setJudgmentStatus] = useState<"WITHOUT_JUDGMENT" | "WITH_JUDGMENT">("WITHOUT_JUDGMENT");
   const [damage, setDamage] = useState("");
   const [depreciation, setDepreciation] = useState("");
-  const [profitLoss, setProfitLoss] = useState("");
+  const [profitLossDays, setProfitLossDays] = useState("");
+  const [dailyRental, setDailyRental] = useState("");
   const [discount, setDiscount] = useState("");
   const [enforcementOffice, setEnforcementOffice] = useState("");
   const [enforcementFileNumber, setEnforcementFileNumber] = useState("");
   const [vehicleLien, setVehicleLien] = useState(false);
   const [bankLien, setBankLien] = useState(false);
   const [titleDeedLien, setTitleDeedLien] = useState(false);
+  const [salaryLien, setSalaryLien] = useState(false);
   const [installmentEnabled, setInstallmentEnabled] = useState(false);
   const [installmentCount, setInstallmentCount] = useState<InstallmentCount>(3);
   const [status, setStatus] = useState("");
@@ -105,10 +111,14 @@ export default function NewCaseForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const profitLoss = hasProfitLossClaim && profitLossDays
+    ? centsToInput(BigInt(profitLossDays) * toCents(dailyRental))
+    : "";
+
   const financials = useMemo(() => {
     const total = toCents(damage) + toCents(depreciation) + toCents(profitLoss);
     const net = total > toCents(discount) ? total - toCents(discount) : 0n;
-    const monthly = installmentEnabled ? divideCents(net, BigInt(installmentCount)) : 0n;
+    const monthly = installmentEnabled ? net / BigInt(installmentCount) : 0n;
     const remainder = installmentEnabled ? net % BigInt(installmentCount) : 0n;
 
     return {
@@ -165,15 +175,22 @@ export default function NewCaseForm() {
           accidentDate,
           debtorType,
           debtorName: debtorName || null,
-          damageAmount: normalizeMoney(damage),
-          depreciationAmount: normalizeMoney(depreciation),
+          hasDamageClaim,
+          hasDepreciationClaim,
+          hasProfitLossClaim,
+          judgmentStatus,
+          damageAmount: hasDamageClaim ? normalizeMoney(damage) : "0",
+          depreciationAmount: hasDepreciationClaim ? normalizeMoney(depreciation) : "0",
           profitLossAmount: normalizeMoney(profitLoss),
+          profitLossDays: hasProfitLossClaim ? Number(profitLossDays) : null,
+          dailyRentalAmount: hasProfitLossClaim ? normalizeMoney(dailyRental) : null,
           discountAmount: normalizeMoney(discount),
           enforcementOffice: enforcementOffice || null,
           enforcementFileNumber: enforcementFileNumber || null,
           vehicleLien,
           bankLien,
           titleDeedLien,
+          salaryLien,
           installmentCount: installmentEnabled ? installmentCount : null,
           status,
           note: note || null,
@@ -229,12 +246,11 @@ export default function NewCaseForm() {
     <form className={styles.newCasePage} onSubmit={handleSubmit} noValidate={false}>
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <h1>Yeni Dosya Ekle</h1>
-          <p><Link href="/dashboard">Ana Sayfa</Link><span>›</span><Link href="/dosyalarim">İcra</Link><span>›</span><b>Yeni Dosya Ekle</b></p>
+          <h1>Yeni Dosya Kaydı</h1>
+          <p>Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
-        <p className={styles.pageDescription}>Dosya bilgilerini eksiksiz girerek kaydediniz.</p>
         <div className={styles.pageActions}>
-          <Link href="/dosyalarim"><Icon name="x" />Vazgeç</Link>
+          <Link href="/dosyalarim">İptal</Link>
           <button type="submit" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : "Kaydet"}</button>
         </div>
       </header>
@@ -256,59 +272,82 @@ export default function NewCaseForm() {
       </section>
 
       <section className={styles.sectionCard}>
-        <h2><span>2</span>Hesaplanan Tutarlar</h2>
-        <div className={styles.fourColumns}>
-          <AmountInput label="Hesaplanan Hasar Bedeli Tutarı" value={damage} onChange={setDamage} error={fieldErrors.damageAmount?.[0]} />
-          <AmountInput label="Hesaplanan Değer Kaybı Tutarı" value={depreciation} onChange={setDepreciation} error={fieldErrors.depreciationAmount?.[0]} />
-          <AmountInput label="Hesaplanan Kazanç Kaybı Tutarı" value={profitLoss} onChange={setProfitLoss} error={fieldErrors.profitLossAmount?.[0]} />
+        <h2><span>2</span>Dosya Bilgileri</h2>
+        <div className={styles.caseInfoGrid}>
+          <fieldset className={styles.choiceGroup}>
+            <legend>Dosya Türü</legend>
+            <div className={styles.choicePanel}>
+              <label><input type="checkbox" checked={hasDamageClaim} onChange={(event) => setHasDamageClaim(event.target.checked)} />Hasar Bedeli</label>
+              <label><input type="checkbox" checked={hasDepreciationClaim} onChange={(event) => setHasDepreciationClaim(event.target.checked)} />Değer Kaybı</label>
+              <label><input type="checkbox" checked={hasProfitLossClaim} onChange={(event) => setHasProfitLossClaim(event.target.checked)} />Kazanç Kaybı</label>
+            </div>
+            <FieldError errors={fieldErrors} name="hasDamageClaim" />
+          </fieldset>
+          <fieldset className={styles.choiceGroup}>
+            <legend>İlam Durumu</legend>
+            <div className={styles.radioRow}>
+              <label><input type="radio" name="judgmentStatus" checked={judgmentStatus === "WITHOUT_JUDGMENT"} onChange={() => setJudgmentStatus("WITHOUT_JUDGMENT")} />İlamsız</label>
+              <label><input type="radio" name="judgmentStatus" checked={judgmentStatus === "WITH_JUDGMENT"} onChange={() => setJudgmentStatus("WITH_JUDGMENT")} />İlamlı</label>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+
+      <section className={styles.sectionCard}>
+        <h2><span>3</span>Tutar ve Finansal Bilgiler</h2>
+        <div className={styles.financialGrid}>
+          <AmountInput label="Hesaplanan Hasar Bedeli Tutarı" value={hasDamageClaim ? damage : ""} onChange={setDamage} readOnly={!hasDamageClaim} error={fieldErrors.damageAmount?.[0]} />
+          <AmountInput label="Hesaplanan Değer Kaybı Tutarı" value={hasDepreciationClaim ? depreciation : ""} onChange={setDepreciation} readOnly={!hasDepreciationClaim} error={fieldErrors.depreciationAmount?.[0]} />
+          <div className={styles.profitLossBlock}>
+            <span>Hesaplanan Kazanç Kaybı Tutarı</span>
+            <div className={styles.profitFormula}>
+              <label className={styles.compactNumber}><span>Gün</span><input disabled={!hasProfitLossClaim} type="number" min="1" max="36500" value={profitLossDays} onChange={(event) => setProfitLossDays(event.target.value.replace(/\D/g, ""))} placeholder="0" /></label>
+              <b>×</b>
+              <AmountInput label="Günlük Kira Bedeli" value={hasProfitLossClaim ? dailyRental : ""} onChange={setDailyRental} readOnly={!hasProfitLossClaim} error={fieldErrors.dailyRentalAmount?.[0]} />
+              <b>=</b>
+              <AmountInput label="Toplam Kazanç Kaybı" value={profitLoss} readOnly error={fieldErrors.profitLossAmount?.[0]} />
+            </div>
+            <FieldError errors={fieldErrors} name="profitLossDays" />
+          </div>
           <AmountInput label="Talep Edilen Toplam Tutar" value={financials.total} readOnly />
+          <AmountInput label="İndirim Tutarı" value={discount} onChange={setDiscount} error={fieldErrors.discountAmount?.[0]} />
+          <AmountInput label="Net Talep Tutarı" value={financials.net} readOnly />
         </div>
       </section>
 
       <div className={styles.splitGrid}>
         <section className={styles.sectionCard}>
-          <h2><span>3</span>İcra Bilgileri</h2>
-          <div className={styles.threeColumns}>
+          <h2><span>4</span>İcra Bilgileri</h2>
+          <div className={styles.twoColumns}>
             <label className={styles.field}><span>İcra Dairesi</span><input maxLength={150} value={enforcementOffice} onChange={(event) => setEnforcementOffice(event.target.value)} placeholder="İstanbul 12. İcra Dairesi" /><FieldError errors={fieldErrors} name="enforcementOffice" /></label>
             <label className={styles.field}><span>İcra Dosya Numarası</span><input maxLength={50} value={enforcementFileNumber} onChange={(event) => setEnforcementFileNumber(event.target.value)} placeholder="2026/12345" /><FieldError errors={fieldErrors} name="enforcementFileNumber" /></label>
-            <AmountInput label="Toplam Dosya Hesabı" value={financials.total} readOnly />
           </div>
         </section>
-        <section className={styles.sectionCard}>
-          <h2><span>4</span>Finansal Bilgiler</h2>
-          <div className={styles.twoColumns}>
-            <AmountInput label="İndirim Tutarı" value={discount} onChange={setDiscount} error={fieldErrors.discountAmount?.[0]} />
-            <AmountInput label="Net Talep Tutarı" value={financials.net} readOnly />
-          </div>
-        </section>
-      </div>
-
-      <div className={styles.splitGrid}>
         <section className={styles.sectionCard}>
           <h2><span>5</span>Haciz Bilgileri</h2>
-          <div className={styles.toggleGrid}>
+          <div className={styles.fourToggleGrid}>
             <Toggle label="Araç Haczi" checked={vehicleLien} onChange={setVehicleLien} />
             <Toggle label="Banka Haczi" checked={bankLien} onChange={setBankLien} />
             <Toggle label="Tapu Haczi" checked={titleDeedLien} onChange={setTitleDeedLien} />
-          </div>
-        </section>
-        <section className={styles.sectionCard}>
-          <h2><span>6</span>Taksit Bilgileri</h2>
-          <div className={styles.threeColumns}>
-            <label className={styles.field}><span>Taksit Var mı?</span><select value={installmentEnabled ? "yes" : "no"} onChange={(event) => changeInstallment(event.target.value === "yes")}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
-            {installmentEnabled && <>
-              <label className={styles.field}><span>Taksit Sayısı</span><select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select><FieldError errors={fieldErrors} name="installmentCount" /></label>
-              <AmountInput label="Aylık Taksit Tutarı" value={financials.monthly} readOnly />
-            </>}
+            <Toggle label="Maaş Haczi" checked={salaryLien} onChange={setSalaryLien} />
           </div>
         </section>
       </div>
 
-      <div className={styles.splitGrid}>
+      <div className={styles.bottomGrid}>
         <section className={styles.sectionCard}>
-          <h2><span>7</span>Dosya Durumu</h2>
+          <h2><span>6</span>Dosya Durumu</h2>
           <label className={styles.field}><span>Dosya Durumu</span><select required value={status} onChange={(event) => changeStatus(event.target.value)}><option value="" disabled>Dosya durumunu seçiniz</option><option value="OPEN">Devam Ediyor</option><option value="ENFORCEMENT">İcra Takibinde</option><option value="INSTALLMENT">Taksitli Ödeme</option><option value="PENDING">Beklemede</option><option value="CLOSED">Sonuçlandı</option></select><FieldError errors={fieldErrors} name="status" /></label>
-          <p className={styles.hint}>Dosya durumunu doğru seçmek, süreç takibi açısından önemlidir.</p>
+        </section>
+        <section className={styles.sectionCard}>
+          <h2><span>7</span>Taksit Bilgileri</h2>
+          <div className={styles.installmentGrid}>
+            <label className={styles.field}><span>Taksit Var mı?</span><select value={installmentEnabled ? "yes" : "no"} onChange={(event) => changeInstallment(event.target.value === "yes")}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
+            {installmentEnabled && <>
+              <label className={styles.field}><span>Toplam Taksit Sayısı</span><select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select><FieldError errors={fieldErrors} name="installmentCount" /></label>
+              <AmountInput label="Taksit Tutarı" value={financials.monthly} readOnly />
+            </>}
+          </div>
         </section>
         <section className={styles.sectionCard}>
           <h2><span>8</span>Dosya İşlemleri</h2>
@@ -389,10 +428,6 @@ function normalizeMoney(value: string): string {
 
 function toCents(value: string): bigint {
   return parseMoneyToCents(value) ?? 0n;
-}
-
-function divideCents(value: bigint, divisor: bigint): bigint {
-  return (value + divisor / 2n) / divisor;
 }
 
 function centsToInput(value: bigint): string {
