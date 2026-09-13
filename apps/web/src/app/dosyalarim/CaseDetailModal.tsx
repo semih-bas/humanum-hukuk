@@ -8,6 +8,7 @@ import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import styles from "./page.module.css";
 
 type DebtorType = "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY";
+type JudgmentStatus = "WITHOUT_JUDGMENT" | "WITH_JUDGMENT";
 type FieldErrors = Record<string, string[] | undefined>;
 
 type CaseDetail = {
@@ -21,6 +22,12 @@ type CaseDetail = {
   damageAmount: string;
   depreciationAmount: string;
   profitLossAmount: string;
+  hasDamageClaim: boolean;
+  hasDepreciationClaim: boolean;
+  hasProfitLossClaim: boolean;
+  profitLossDays: number | null;
+  dailyRentalAmount: string | null;
+  judgmentStatus: JudgmentStatus;
   discountAmount: string;
   totalClaimAmount: string;
   netClaimAmount: string;
@@ -31,6 +38,7 @@ type CaseDetail = {
   vehicleLien: boolean;
   bankLien: boolean;
   titleDeedLien: boolean;
+  salaryLien: boolean;
   installmentCount: InstallmentCount | null;
   status: CaseStatus;
   version: number;
@@ -334,16 +342,43 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
               <button type="submit" disabled={activitySaving}>{activitySaving ? "Ekleniyor…" : "Kaydet"}</button>
             </div>
           </form>}
-          <dl>
-            <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} /><Detail label="Borçlu Taraf" value={detail.debtorName ?? "—"} />
-            <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} /><Detail label="Dosya Durumu" value={statusLabels[detail.status]} />
-            <Detail label="Toplam Talep" value={`${formatMoney(detail.totalClaimAmount)} TL`} /><Detail label="Net Talep" value={`${formatMoney(detail.netClaimAmount)} TL`} />
-            <Detail label="Taksit Bilgisi" value={detail.installmentCount ? `${detail.installmentCount} ay · ${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay` : "Taksit yok"} />
-            <Detail label="İcra Dairesi / No" value={[detail.enforcementOffice, detail.enforcementFileNumber].filter(Boolean).join(" · ") || "—"} />
-            <Detail label="Hacizler" value={[detail.vehicleLien && "Araç", detail.bankLien && "Banka", detail.titleDeedLien && "Tapu"].filter(Boolean).join(", ") || "Yok"} />
-            <Detail label="Oluşturan" value={`${detail.createdBy.name} · ${formatDateTime(detail.createdAt)}`} />
-            <Detail label="Son Güncelleyen" value={`${detail.updatedBy.name} · ${formatDateTime(detail.updatedAt)}`} />
-          </dl>
+          <section className={styles.overviewGroup}>
+            <h3>Araç ve Taraf Bilgileri</h3>
+            <dl>
+              <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} />
+              <Detail label="Borçlu Taraf" value={`${debtorTypeLabel(detail.debtorType)}${detail.debtorName ? ` · ${detail.debtorName}` : ""}`} />
+              <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} />
+              <Detail label="İlam Durumu" value={detail.judgmentStatus === "WITH_JUDGMENT" ? "İlamlı" : "İlamsız"} />
+            </dl>
+          </section>
+          <section className={styles.overviewGroup}>
+            <h3>Dosya ve Tutar Bilgileri</h3>
+            <dl>
+              <Detail label="Dosya Türleri" value={claimTypeText(detail)} />
+              <Detail label="Hasar Bedeli" value={`${formatMoney(detail.damageAmount)} TL`} />
+              <Detail label="Değer Kaybı" value={`${formatMoney(detail.depreciationAmount)} TL`} />
+              <Detail label="Kazanç Kaybı" value={profitLossText(detail)} />
+              <Detail label="Toplam Talep" value={`${formatMoney(detail.totalClaimAmount)} TL`} />
+              <Detail label="İndirim" value={`${formatMoney(detail.discountAmount)} TL`} />
+              <Detail label="Net Talep" value={`${formatMoney(detail.netClaimAmount)} TL`} emphasis />
+            </dl>
+          </section>
+          <section className={styles.overviewGroup}>
+            <h3>İcra ve Süreç Bilgileri</h3>
+            <dl>
+              <Detail label="Dosya Durumu" value={statusLabels[detail.status]} />
+              <Detail label="İcra Dairesi / No" value={[detail.enforcementOffice, detail.enforcementFileNumber].filter(Boolean).join(" · ") || "—"} />
+              <Detail label="Hacizler" value={[detail.vehicleLien && "Araç", detail.bankLien && "Banka", detail.titleDeedLien && "Tapu", detail.salaryLien && "Maaş"].filter(Boolean).join(", ") || "Yok"} />
+              <Detail label="Taksit Bilgisi" value={installmentText(detail)} />
+            </dl>
+          </section>
+          <section className={`${styles.overviewGroup} ${styles.auditGroup}`}>
+            <h3>Kayıt Bilgileri</h3>
+            <dl>
+              <Detail label="Oluşturan" value={`${detail.createdBy.name} · ${formatDateTime(detail.createdAt)}`} />
+              <Detail label="Son Güncelleyen" value={`${detail.updatedBy.name} · ${formatDateTime(detail.updatedAt)}`} />
+            </dl>
+          </section>
           <section className={`${styles.detailSection} ${styles.historySection}`}><h3>Düzenleme Geçmişi</h3>{detail.changes.map((change) => <article key={change.id}><b>Değişiklik {change.newVersion}</b><span>{change.changedBy.name} · {formatDateTime(change.createdAt)}</span><small>{changedFieldText(change.changedFields)}</small></article>)}</section>
           <section className={styles.detailSection}><h3>Notlar ({detail.notes.length})</h3>{detail.notes.length ? detail.notes.map((note) => <article key={note.id}><b>{note.author.name}</b><span>{formatDateTime(note.createdAt)}</span><small>{note.content}</small></article>) : <p>Henüz not yok.</p>}</section>
           <section className={styles.detailSection}><h3>Hatırlatmalar ({detail.reminders.length})</h3>{detail.reminders.length ? detail.reminders.map((reminder) => <article key={reminder.id}><b>{reminder.title}</b><span>{formatDateTime(reminder.dueAt)} · {reminderStatusLabel(reminder.status)}</span></article>) : <p>Henüz hatırlatma yok.</p>}</section>
@@ -371,7 +406,11 @@ function InstallmentPreview({ draft }: { draft: Draft }) {
   const installment = calculateDraftInstallment(draft);
   return <label><span>Aylık Taksit</span><div className={styles.editMoneyInput}><input readOnly value={formatMoney(installment.monthly)} /><b>TL</b></div></label>;
 }
-function Detail({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
+function Detail({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) { return <div className={emphasis ? styles.emphasisDetail : undefined}><dt>{label}</dt><dd>{value}</dd></div>; }
+function debtorTypeLabel(value: DebtorType) { return ({ INSURANCE_COMPANY: "Sigorta şirketi", INDIVIDUAL: "Şahıs", COMPANY: "Şirket" } as const)[value]; }
+function claimTypeText(detail: CaseDetail) { return [detail.hasDamageClaim && "Hasar Bedeli", detail.hasDepreciationClaim && "Değer Kaybı", detail.hasProfitLossClaim && "Kazanç Kaybı"].filter(Boolean).join(", ") || "—"; }
+function profitLossText(detail: CaseDetail) { const amount = `${formatMoney(detail.profitLossAmount)} TL`; return detail.hasProfitLossClaim && detail.profitLossDays && detail.dailyRentalAmount ? `${detail.profitLossDays} gün × ${formatMoney(detail.dailyRentalAmount)} TL = ${amount}` : amount; }
+function installmentText(detail: CaseDetail) { if (!detail.installmentCount) return "Taksit yok"; const monthly = `${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay`; const final = detail.finalInstallmentAmount && detail.finalInstallmentAmount !== detail.monthlyInstallmentAmount ? ` · Son taksit ${formatMoney(detail.finalInstallmentAmount)} TL` : ""; return `${detail.installmentCount} ay · ${monthly}${final}`; }
 function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
 function calculateDraftInstallment(draft: Draft) {
