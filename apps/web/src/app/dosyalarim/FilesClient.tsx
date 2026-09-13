@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell/AppShell";
 import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, type CaseStatus } from "@/lib/case-presentation";
 import CaseDetailModal from "./CaseDetailModal";
+import PaymentModal from "./PaymentModal";
 import styles from "./page.module.css";
 
 type CaseRecord = {
@@ -77,6 +78,7 @@ export default function FilesClient() {
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
+  const [paymentCaseId, setPaymentCaseId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference
     ? `${createdReference} numaralı dosya başarıyla oluşturuldu.${documentFailed ? " Seçilen evrak yüklenemedi; dosya ayrıntısından tekrar ekleyebilirsiniz." : ""}`
@@ -218,7 +220,7 @@ export default function FilesClient() {
                   <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
                   <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
                   <td><div className={styles.rowActions}>
-                    <button className={styles.paymentAction} type="button" title="Ödeme" aria-label={record.vehiclePlate + " ödeme"} aria-disabled="true"><Icon name="payment" /></button>
+                    <button className={styles.paymentAction} type="button" title="Ödeme" aria-label={record.vehiclePlate + " ödeme"} onClick={() => setPaymentCaseId(record.id)}><Icon name="payment" /></button>
                     <button className={styles.reminderAction} type="button" title="Hatırlatma Ekle" aria-label={record.vehiclePlate + " hatırlatma ekle"} onClick={() => setDetailRequest({ id: record.id, mode: "reminder" })}><Icon name="bell" /></button>
                     <button className={styles.viewAction} type="button" title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
                     <button className={styles.editAction} type="button" title="Düzenle" aria-label={record.vehiclePlate + " dosyasını düzenle"} onClick={() => setDetailRequest({ id: record.id, mode: "edit" })}><Icon name="edit" /></button>
@@ -251,6 +253,7 @@ export default function FilesClient() {
       onClose={() => setDetailRequest(null)}
       onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
     />}
+    {paymentCaseId && <PaymentModal caseId={paymentCaseId} onClose={() => setPaymentCaseId(null)} />}
   </AppShell>;
 }
 

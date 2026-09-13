@@ -112,8 +112,8 @@
 
 .rowActions { flex-wrap: nowrap; gap: 9px; }
 .rowActions > button { flex: 0 0 34px; }
-.rowActions > .paymentAction { background: #e8f5ec; border-color: #cce6d4; color: #397b50; cursor: default; }
-.rowActions > .paymentAction:hover { background: #e8f5ec; border-color: #cce6d4; color: #397b50; transform: none; }
+.rowActions > .paymentAction { background: #e8f5ec; border-color: #cce6d4; color: #397b50; }
+.rowActions > .paymentAction:hover { background: #dff0e4; border-color: #a8d2b5; color: #28643d; }
 .rowActions > .reminderAction { background: #fff6d9; border-color: #efdfa8; color: #9b781b; }
 .rowActions > .reminderAction:hover { background: #ffefbc; border-color: #d9bb60; color: #7d5f10; }
 .rowActions > button:focus-visible { outline: 2px solid #315e87; outline-offset: 3px; }
