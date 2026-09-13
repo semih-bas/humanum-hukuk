@@ -55,8 +55,10 @@ type CaseDetail = {
 type Draft = Pick<CaseDetail,
   "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorType" | "debtorName" |
   "damageAmount" | "depreciationAmount" | "profitLossAmount" | "discountAmount" |
+  "hasDamageClaim" | "hasDepreciationClaim" | "hasProfitLossClaim" | "profitLossDays" |
+  "dailyRentalAmount" | "judgmentStatus" |
   "enforcementOffice" | "enforcementFileNumber" | "vehicleLien" | "bankLien" |
-  "titleDeedLien" | "installmentCount" | "status" | "version"
+  "titleDeedLien" | "salaryLien" | "installmentCount" | "status" | "version"
 >;
 
 const fieldLabels: Record<string, string> = {
@@ -64,8 +66,11 @@ const fieldLabels: Record<string, string> = {
   licenseHolder: "Ruhsat sahibi", vehiclePlate: "Araç plakası", accidentDate: "Kaza tarihi",
   debtorType: "Borçlu türü", debtorName: "Borçlu taraf", damageAmount: "Hasar bedeli",
   depreciationAmount: "Değer kaybı", profitLossAmount: "Kazanç kaybı", discountAmount: "İndirim",
+  hasDamageClaim: "Hasar bedeli dosya türü", hasDepreciationClaim: "Değer kaybı dosya türü",
+  hasProfitLossClaim: "Kazanç kaybı dosya türü", profitLossDays: "Kazanç kaybı gün sayısı",
+  dailyRentalAmount: "Günlük kira bedeli", judgmentStatus: "İlam durumu",
   enforcementOffice: "İcra dairesi", enforcementFileNumber: "İcra dosya numarası",
-  vehicleLien: "Araç haczi", bankLien: "Banka haczi", titleDeedLien: "Tapu haczi",
+  vehicleLien: "Araç haczi", bankLien: "Banka haczi", titleDeedLien: "Tapu haczi", salaryLien: "Maaş haczi",
   installmentCount: "Taksit bilgisi", status: "Dosya durumu",
   totalClaimAmount: "Toplam talep", netClaimAmount: "Net talep",
   monthlyInstallmentAmount: "Aylık taksit", finalInstallmentAmount: "Son taksit",
@@ -157,6 +162,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           damageAmount: normalizeMoney(draft.damageAmount),
           depreciationAmount: normalizeMoney(draft.depreciationAmount),
           profitLossAmount: normalizeMoney(draft.profitLossAmount),
+          dailyRentalAmount: draft.dailyRentalAmount ? normalizeMoney(draft.dailyRentalAmount) : null,
           discountAmount: normalizeMoney(draft.discountAmount),
           installmentCount: draft.installmentCount,
         }),
@@ -284,9 +290,21 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <TextField label="Kaza Tarihi" type="date" value={draft.accidentDate} error={fieldErrors.accidentDate?.[0]} onChange={(value) => update("accidentDate", value)} />
           <label><span>Borçlu Türü</span><select value={draft.debtorType} onChange={(event) => update("debtorType", event.target.value as DebtorType)}><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select></label>
           <TextField label="Borçlu Taraf" maxLength={150} value={draft.debtorName ?? ""} error={fieldErrors.debtorName?.[0]} onChange={(value) => update("debtorName", value)} />
-          <MoneyField label="Hasar Bedeli" value={draft.damageAmount} error={fieldErrors.damageAmount?.[0]} onChange={(value) => update("damageAmount", value)} />
-          <MoneyField label="Değer Kaybı" value={draft.depreciationAmount} error={fieldErrors.depreciationAmount?.[0]} onChange={(value) => update("depreciationAmount", value)} />
-          <MoneyField label="Kazanç Kaybı" value={draft.profitLossAmount} error={fieldErrors.profitLossAmount?.[0]} onChange={(value) => update("profitLossAmount", value)} />
+          <label><span>İlam Durumu</span><select value={draft.judgmentStatus} onChange={(event) => update("judgmentStatus", event.target.value as JudgmentStatus)}><option value="WITHOUT_JUDGMENT">İlamsız</option><option value="WITH_JUDGMENT">İlamlı</option></select></label>
+          <fieldset className={`${styles.editChoiceSection} ${styles.editWideField}`}>
+            <legend>Dosya Türleri</legend>
+            <div className={styles.editClaimChecks}>
+              <label><input type="checkbox" checked={draft.hasDamageClaim} onChange={(event) => setDraft((current) => current ? { ...current, hasDamageClaim: event.target.checked, damageAmount: event.target.checked ? current.damageAmount : "0" } : current)} /> Hasar Bedeli</label>
+              <label><input type="checkbox" checked={draft.hasDepreciationClaim} onChange={(event) => setDraft((current) => current ? { ...current, hasDepreciationClaim: event.target.checked, depreciationAmount: event.target.checked ? current.depreciationAmount : "0" } : current)} /> Değer Kaybı</label>
+              <label><input type="checkbox" checked={draft.hasProfitLossClaim} onChange={(event) => setDraft((current) => current ? { ...current, hasProfitLossClaim: event.target.checked, profitLossDays: event.target.checked ? current.profitLossDays : null, dailyRentalAmount: event.target.checked ? current.dailyRentalAmount : null, profitLossAmount: event.target.checked ? current.profitLossAmount : "0" } : current)} /> Kazanç Kaybı</label>
+            </div>
+            {fieldErrors.hasDamageClaim?.[0] && <small>{fieldErrors.hasDamageClaim[0]}</small>}
+          </fieldset>
+          <MoneyField label="Hasar Bedeli" readOnly={!draft.hasDamageClaim} value={draft.hasDamageClaim ? draft.damageAmount : ""} error={fieldErrors.damageAmount?.[0]} onChange={(value) => update("damageAmount", value)} />
+          <MoneyField label="Değer Kaybı" readOnly={!draft.hasDepreciationClaim} value={draft.hasDepreciationClaim ? draft.depreciationAmount : ""} error={fieldErrors.depreciationAmount?.[0]} onChange={(value) => update("depreciationAmount", value)} />
+          <label><span>Kazanç Kaybı Gün Sayısı</span><input readOnly={!draft.hasProfitLossClaim} type="number" min="1" max="36500" value={draft.profitLossDays ?? ""} onChange={(event) => setDraft((current) => current ? withProfitLoss(current, event.target.value ? Number(event.target.value) : null, current.dailyRentalAmount) : current)} />{fieldErrors.profitLossDays?.[0] && <small>{fieldErrors.profitLossDays[0]}</small>}</label>
+          <MoneyField label="Günlük Kira Bedeli" readOnly={!draft.hasProfitLossClaim} value={draft.dailyRentalAmount ?? ""} error={fieldErrors.dailyRentalAmount?.[0]} onChange={(value) => setDraft((current) => current ? withProfitLoss(current, current.profitLossDays, value) : current)} />
+          <MoneyField label="Toplam Kazanç Kaybı" readOnly value={draft.hasProfitLossClaim ? draft.profitLossAmount : ""} error={fieldErrors.profitLossAmount?.[0]} onChange={() => undefined} />
           <MoneyField label="İndirim" value={draft.discountAmount} error={fieldErrors.discountAmount?.[0]} onChange={(value) => update("discountAmount", value)} />
           <TextField label="İcra Dairesi" maxLength={150} value={draft.enforcementOffice ?? ""} error={fieldErrors.enforcementOffice?.[0]} onChange={(value) => update("enforcementOffice", value)} />
           <TextField label="İcra Dosya No" maxLength={50} value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
@@ -301,6 +319,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
             <label><input type="checkbox" checked={draft.vehicleLien} onChange={(event) => update("vehicleLien", event.target.checked)} /> Araç haczi</label>
             <label><input type="checkbox" checked={draft.bankLien} onChange={(event) => update("bankLien", event.target.checked)} /> Banka haczi</label>
             <label><input type="checkbox" checked={draft.titleDeedLien} onChange={(event) => update("titleDeedLien", event.target.checked)} /> Tapu haczi</label>
+            <label><input type="checkbox" checked={draft.salaryLien} onChange={(event) => update("salaryLien", event.target.checked)} /> Maaş haczi</label>
           </div>
         </div>
         <section className={styles.editOperationSection}>
@@ -396,8 +415,8 @@ function EditActivityIcon({ name }: { name: "note" | "document" }) {
 function TextField({ label, value, onChange, error, type = "text", maxLength }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; maxLength?: number }) {
   return <label><span>{label}</span><input required={label !== "İcra Dairesi" && label !== "İcra Dosya No"} max={type === "date" ? "9999-12-31" : undefined} maxLength={maxLength} type={type} value={value} onChange={(event) => onChange(type === "date" ? limitDateYear(event.target.value, value) : event.target.value)} />{error && <small>{error}</small>}</label>;
 }
-function MoneyField({ label, value, onChange, error }: { label: string; value: string; onChange: (value: string) => void; error?: string }) {
-  return <label><span>{label}</span><div className={`${styles.editMoneyInput} ${error ? styles.editMoneyInvalid : ""}`}><input required inputMode="decimal" value={value} onChange={(event) => onChange(formatMoneyInput(event.target.value))} onBlur={() => {
+function MoneyField({ label, value, onChange, error, readOnly = false }: { label: string; value: string; onChange: (value: string) => void; error?: string; readOnly?: boolean }) {
+  return <label><span>{label}</span><div className={`${styles.editMoneyInput} ${error ? styles.editMoneyInvalid : ""}`}><input required={!readOnly} readOnly={readOnly} inputMode="decimal" value={value} onChange={(event) => onChange(formatMoneyInput(event.target.value))} onBlur={() => {
     const cents = parseMoneyToCents(value);
     if (cents !== null) onChange(centsToMoneyString(cents));
   }} /><b>TL</b></div>{error && <small>{error}</small>}</label>;
@@ -411,7 +430,8 @@ function debtorTypeLabel(value: DebtorType) { return ({ INSURANCE_COMPANY: "Sigo
 function claimTypeText(detail: CaseDetail) { return [detail.hasDamageClaim && "Hasar Bedeli", detail.hasDepreciationClaim && "Değer Kaybı", detail.hasProfitLossClaim && "Kazanç Kaybı"].filter(Boolean).join(", ") || "—"; }
 function profitLossText(detail: CaseDetail) { const amount = `${formatMoney(detail.profitLossAmount)} TL`; return detail.hasProfitLossClaim && detail.profitLossDays && detail.dailyRentalAmount ? `${detail.profitLossDays} gün × ${formatMoney(detail.dailyRentalAmount)} TL = ${amount}` : amount; }
 function installmentText(detail: CaseDetail) { if (!detail.installmentCount) return "Taksit yok"; const monthly = `${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay`; const final = detail.finalInstallmentAmount && detail.finalInstallmentAmount !== detail.monthlyInstallmentAmount ? ` · Son taksit ${formatMoney(detail.finalInstallmentAmount)} TL` : ""; return `${detail.installmentCount} ay · ${monthly}${final}`; }
-function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
+function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), hasDamageClaim: detail.hasDamageClaim, hasDepreciationClaim: detail.hasDepreciationClaim, hasProfitLossClaim: detail.hasProfitLossClaim, profitLossDays: detail.profitLossDays, dailyRentalAmount: detail.dailyRentalAmount ? formatMoney(detail.dailyRentalAmount) : null, judgmentStatus: detail.judgmentStatus, discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, salaryLien: detail.salaryLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
+function withProfitLoss(draft: Draft, days: number | null, dailyRentalAmount: string | null): Draft { const dailyCents = parseMoneyToCents(dailyRentalAmount ?? "") ?? 0n; const total = days ? dailyCents * BigInt(days) : 0n; return { ...draft, profitLossDays: days, dailyRentalAmount, profitLossAmount: centsToMoneyString(total) }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
 function calculateDraftInstallment(draft: Draft) {
   const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);

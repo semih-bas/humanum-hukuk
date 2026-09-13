@@ -121,7 +121,7 @@ test("beklenmeyen alanların API modeline girmesine izin vermez", () => {
 });
 
 test("düzenleme sürümü zorunlu ve pozitif tam sayıdır", () => {
-  const createOnlyFields = new Set(["note", "reminder", "hasDamageClaim", "hasDepreciationClaim", "hasProfitLossClaim", "profitLossDays", "dailyRentalAmount", "judgmentStatus", "salaryLien"]);
+  const createOnlyFields = new Set(["note", "reminder"]);
   const editableCase = Object.fromEntries(Object.entries(validCase).filter(([key]) => !createOnlyFields.has(key)));
   assert.equal(updateCaseSchema.safeParse({ ...editableCase, version: 1 }).success, true);
   assert.equal(updateCaseSchema.safeParse(editableCase).success, false);

@@ -16,9 +16,11 @@ type TransactionClient = Prisma.TransactionClient;
 
 const editableFields = [
   "licenseHolder", "vehiclePlate", "accidentDate", "debtorType", "debtorName",
-  "damageAmount", "depreciationAmount", "profitLossAmount", "discountAmount",
+  "hasDamageClaim", "hasDepreciationClaim", "hasProfitLossClaim", "damageAmount",
+  "depreciationAmount", "profitLossAmount", "profitLossDays", "dailyRentalAmount",
+  "judgmentStatus", "discountAmount",
   "enforcementOffice", "enforcementFileNumber", "vehicleLien", "bankLien",
-  "titleDeedLien", "installmentCount", "status",
+  "titleDeedLien", "salaryLien", "installmentCount", "status",
 ] as const;
 
 export async function updateCaseFile(id: string, rawInput: UpdateCaseInput, actorUserId: string) {
@@ -57,12 +59,19 @@ export async function updateCaseFileInTransaction(
     damageAmount: input.damageAmount,
     depreciationAmount: input.depreciationAmount,
     profitLossAmount: input.profitLossAmount,
+    hasDamageClaim: input.hasDamageClaim,
+    hasDepreciationClaim: input.hasDepreciationClaim,
+    hasProfitLossClaim: input.hasProfitLossClaim,
+    profitLossDays: input.profitLossDays,
+    dailyRentalAmount: input.dailyRentalAmount,
+    judgmentStatus: input.judgmentStatus,
     discountAmount: input.discountAmount,
     enforcementOffice: input.enforcementOffice,
     enforcementFileNumber: input.enforcementFileNumber,
     vehicleLien: input.vehicleLien,
     bankLien: input.bankLien,
     titleDeedLien: input.titleDeedLien,
+    salaryLien: input.salaryLien,
     installmentCount: input.installmentCount,
     status: input.status,
   };
@@ -93,6 +102,12 @@ export async function updateCaseFileInTransaction(
     damageAmount: input.damageAmount.toFixed(2),
     depreciationAmount: input.depreciationAmount.toFixed(2),
     profitLossAmount: input.profitLossAmount.toFixed(2),
+    hasDamageClaim: input.hasDamageClaim,
+    hasDepreciationClaim: input.hasDepreciationClaim,
+    hasProfitLossClaim: input.hasProfitLossClaim,
+    profitLossDays: input.profitLossDays,
+    dailyRentalAmount: input.dailyRentalAmount?.toFixed(2) ?? null,
+    judgmentStatus: input.judgmentStatus,
     discountAmount: input.discountAmount.toFixed(2),
     totalClaimAmount: financials.totalClaimAmount.toFixed(2),
     netClaimAmount: financials.netClaimAmount.toFixed(2),
@@ -103,6 +118,7 @@ export async function updateCaseFileInTransaction(
     vehicleLien: input.vehicleLien,
     bankLien: input.bankLien,
     titleDeedLien: input.titleDeedLien,
+    salaryLien: input.salaryLien,
     installmentCount: input.installmentCount,
     status: input.status,
   };

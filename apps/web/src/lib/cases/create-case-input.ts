@@ -91,7 +91,7 @@ const rawCaseCoreSchema = z.object({
   status: z.enum(["OPEN", "ENFORCEMENT", "INSTALLMENT", "PENDING", "CLOSED"]),
 });
 
-const rawCreateCaseSchema = rawCaseCoreSchema.extend({
+const editableCaseFields = {
   hasDamageClaim: z.boolean(),
   hasDepreciationClaim: z.boolean(),
   hasProfitLossClaim: z.boolean(),
@@ -99,6 +99,11 @@ const rawCreateCaseSchema = rawCaseCoreSchema.extend({
   dailyRentalAmount: optionalMoney,
   judgmentStatus: z.enum(["WITHOUT_JUDGMENT", "WITH_JUDGMENT"]),
   salaryLien: z.boolean(),
+};
+
+const rawEditableCaseSchema = rawCaseCoreSchema.extend(editableCaseFields);
+
+const rawCreateCaseSchema = rawEditableCaseSchema.extend({
   note: optionalText("Not", NOTE_MAX_LENGTH),
   reminder: addCaseReminderSchema.nullable().optional().transform((value) => value ?? null),
 }).strict();
@@ -108,6 +113,7 @@ export const addCaseNoteSchema = z.object({
 }).strict();
 
 type CaseCoreInput = z.infer<typeof rawCaseCoreSchema>;
+type EditableCaseInput = z.infer<typeof rawEditableCaseSchema>;
 
 function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
   const accidentDate = parseDateOnly(value.accidentDate);
@@ -156,9 +162,7 @@ function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
   }
 }
 
-export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context) => {
-  validateCaseRules(value, context);
-
+function validateEditableCaseRules(value: EditableCaseInput, context: z.RefinementCtx) {
   if (!value.hasDamageClaim && !value.hasDepreciationClaim && !value.hasProfitLossClaim) {
     context.addIssue({ code: "custom", path: ["hasDamageClaim"], message: "En az bir dosya türü seçilmelidir." });
   }
@@ -186,10 +190,18 @@ export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context)
   } else if (!value.profitLossAmount.isZero() || value.profitLossDays || value.dailyRentalAmount) {
     context.addIssue({ code: "custom", path: ["profitLossAmount"], message: "Kazanç kaybı seçili değilken hesaplama alanları boş olmalıdır." });
   }
+}
+
+export const createCaseSchema = rawCreateCaseSchema.superRefine((value, context) => {
+  validateCaseRules(value, context);
+  validateEditableCaseRules(value, context);
 });
-export const updateCaseSchema = rawCaseCoreSchema.extend({
+export const updateCaseSchema = rawEditableCaseSchema.extend({
   version: z.number({ error: "Dosya sürümü sayı olmalıdır." }).int().min(1).max(2_147_483_647),
-}).strict().superRefine(validateCaseRules);
+}).strict().superRefine((value, context) => {
+  validateCaseRules(value, context);
+  validateEditableCaseRules(value, context);
+});
 
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
