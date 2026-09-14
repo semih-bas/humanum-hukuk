@@ -1,7 +1,7 @@
 import { ApiRequestError, assertSameOrigin, requireApiSession } from "@/lib/api-security";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
 import { DocumentQuotaExceededError, DocumentValidationError, MAX_MULTIPART_BYTES, storeCaseDocument } from "@/lib/document-storage";
-import { documentStorageLimits } from "@/lib/document-limits";
+import { documentStorageLimits, documentUploadRateLimitKey } from "@/lib/document-limits";
 import { consumeDurableRateLimit } from "@/lib/email-rate-limit";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!Number.isFinite(declaredLength) || declaredLength <= 0) throw new ApiRequestError(411, "LENGTH_REQUIRED", "Evrak boyutu doğrulanamadı.");
     if (declaredLength > MAX_MULTIPART_BYTES) throw new ApiRequestError(413, "PAYLOAD_TOO_LARGE", "Evrak 20 MB sınırını aşıyor.");
 
-    const uploadAttempt = await consumeDurableRateLimit(`document-upload:${session.user.id}`, {
+    const uploadAttempt = await consumeDurableRateLimit(documentUploadRateLimitKey(session.user.id), {
       max: documentStorageLimits().maxUploadsPerUserHour,
       windowMs: 60 * 60 * 1_000,
     });

@@ -14,7 +14,7 @@ type MoneyField = "insuranceSettlementOffer" | "postageExpense" | "enforcementEx
 type Tab = "general" | "payments" | "description" | "documents";
 const initialForm = { arbitrationApplicationNo: "", opposingInsuranceCompany: "", opposingPolicyNumber: "", policyExpiryDate: "", opposingVehicleOwner: "", opposingIdentityNumber: "", vehicleOwner: "", identityNumber: "", vehiclePlate: "", accidentDate: "", postalDeliveryDate: "", caseTypes: ["DEPRECIATION"] as InsuranceCaseType[], insuranceApplicationDate: "", insuranceSettlementOffer: "0", arbitrationApplicationDate: "", hasArbitration: false, arbitrationCaseNumber: "", status: "INSURANCE_APPLICATION", postageExpense: "0", enforcementExpense: "0", arbitrationApplicationFee: "0", expertFee: "0", postalAmount: "0", actualDepreciationAmount: "0", description: "" };
 
-type ExistingCase = Partial<typeof initialForm> & { referenceNumber?: string; payments?: Array<Omit<InsurancePaymentEntry, "clientId"> & { id: string }>; documents?: Array<{ id: string; originalName: string }> };
+type ExistingCase = Partial<typeof initialForm> & { referenceNumber?: string; version?: number; payments?: Array<Omit<InsurancePaymentEntry, "clientId"> & { id: string }>; documents?: Array<{ id: string; originalName: string }> };
 
 export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = false }: { caseId?: string; initialData?: ExistingCase; readOnly?: boolean } = {}) {
   const router = useRouter();
@@ -28,8 +28,14 @@ export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = f
   async function submit(event: FormEvent) {
     event.preventDefault(); if (saving) return; setSaving(true); setError(""); setErrors({});
     try {
-      const response = await fetch(caseId ? `/api/insurance-arbitration/${encodeURIComponent(caseId)}` : "/api/insurance-arbitration", { method: caseId ? "PATCH" : "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, arbitrationApplicationNo: form.arbitrationApplicationNo || null, opposingPolicyNumber: form.opposingPolicyNumber || null, policyExpiryDate: form.policyExpiryDate || null, opposingVehicleOwner: form.opposingVehicleOwner || null, opposingIdentityNumber: form.opposingIdentityNumber || null, identityNumber: form.identityNumber || null, postalDeliveryDate: form.postalDeliveryDate || null, insuranceApplicationDate: form.insuranceApplicationDate || null, arbitrationApplicationDate: form.arbitrationApplicationDate || null, arbitrationCaseNumber: form.arbitrationCaseNumber || null, description: form.description || null, payments: payments.map((payment) => ({ type: payment.type, paymentDate: payment.paymentDate, amount: payment.amount, commission: payment.commission, description: payment.description || null })) }) });
-      const body = await response.json(); if (!response.ok || !body.data) { setErrors(body.error?.fields ?? {}); throw new Error(body.error?.message ?? "Dosya kaydedilemedi."); }
+      const response = await fetch(caseId ? `/api/insurance-arbitration/${encodeURIComponent(caseId)}` : "/api/insurance-arbitration", { method: caseId ? "PATCH" : "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, ...(caseId ? { version: initialData?.version } : {}), arbitrationApplicationNo: form.arbitrationApplicationNo || null, opposingPolicyNumber: form.opposingPolicyNumber || null, policyExpiryDate: form.policyExpiryDate || null, opposingVehicleOwner: form.opposingVehicleOwner || null, opposingIdentityNumber: form.opposingIdentityNumber || null, identityNumber: form.identityNumber || null, postalDeliveryDate: form.postalDeliveryDate || null, insuranceApplicationDate: form.insuranceApplicationDate || null, arbitrationApplicationDate: form.arbitrationApplicationDate || null, arbitrationCaseNumber: form.arbitrationCaseNumber || null, description: form.description || null, payments: payments.map((payment) => ({ type: payment.type, paymentDate: payment.paymentDate, amount: payment.amount, commission: payment.commission, description: payment.description || null })) }) });
+      const body = await response.json();
+      if (response.status === 409 && body.error?.code === "VERSION_CONFLICT") {
+        window.alert(body.error.message);
+        window.location.reload();
+        return;
+      }
+      if (!response.ok || !body.data) { setErrors(body.error?.fields ?? {}); throw new Error(body.error?.message ?? "Dosya kaydedilemedi."); }
       for (const file of files) { const data = new FormData(); data.append("file", file); const upload = await fetch(`/api/insurance-arbitration/${body.data.id}/documents`, { method: "POST", credentials: "same-origin", body: data }); if (!upload.ok) throw new Error(`${file.name} yüklenemedi; dosya kaydı oluşturuldu.`); }
       router.push(`/sigorta-ve-tahkim?${caseId ? "updated" : "created"}=${encodeURIComponent(body.data.referenceNumber)}`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Dosya kaydedilemedi."); setSaving(false); }

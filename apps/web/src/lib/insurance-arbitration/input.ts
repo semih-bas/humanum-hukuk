@@ -1,7 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçerli bir tarih giriniz.");
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçerli bir tarih giriniz.").refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}, "Geçerli bir tarih giriniz.");
 const optionalDate = z.union([date, z.literal(""), z.null()]).transform((value) => value || null);
 const optionalText = (maximum: number) => z.union([z.string().trim().max(maximum), z.null()]).transform((value) => value || null);
 const optionalIdentity = z.union([
@@ -46,5 +49,10 @@ export const insuranceCaseInputSchema = z.object({
   if (!value.hasArbitration && (value.arbitrationApplicationDate || value.arbitrationApplicationNo || value.arbitrationCaseNumber)) context.addIssue({ code: "custom", path: ["hasArbitration"], message: "Tahkim yokken tahkim bilgileri girilemez." });
 });
 
+export const updateInsuranceCaseInputSchema = insuranceCaseInputSchema.safeExtend({
+  version: z.number({ error: "Dosya sürümü sayı olmalıdır." }).int().min(1).max(2_147_483_647),
+});
+
 export type InsuranceCaseInput = z.infer<typeof insuranceCaseInputSchema>;
+export type UpdateInsuranceCaseInput = z.infer<typeof updateInsuranceCaseInputSchema>;
 export function parseDate(value: string | null) { return value ? new Date(`${value}T00:00:00.000Z`) : null; }

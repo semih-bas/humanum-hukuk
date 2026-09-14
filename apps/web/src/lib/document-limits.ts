@@ -10,6 +10,12 @@ export type DocumentStorageLimits = {
   maxUploadsPerUserHour: number;
 };
 
+export const DOCUMENT_STORAGE_LOCK_ID = 4_452_631_117;
+
+export function documentUploadRateLimitKey(userId: string): string {
+  return `document-upload:${userId}`;
+}
+
 function integerEnvironment(name: string, fallback: number, maximum: number): number {
   const raw = process.env[name]?.trim();
   const value = raw ? Number(raw) : fallback;

@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/database";
-import type { InsuranceCaseInput } from "./input";
+import type { InsuranceCaseInput, UpdateInsuranceCaseInput } from "./input";
 import { parseDate } from "./input";
 import type { InsuranceStatus } from "./presentation";
 
@@ -44,6 +44,7 @@ export async function createInsuranceCase(input: InsuranceCaseInput, actorUserId
 }
 
 export class InsuranceCaseNotFoundError extends Error {}
+export class InsuranceCaseVersionConflictError extends Error {}
 
 export async function getInsuranceCase(id: string) {
   const record = await prisma.insuranceArbitrationCase.findUnique({ where: { id }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } } } });
@@ -51,13 +52,22 @@ export async function getInsuranceCase(id: string) {
   return presentCase(record);
 }
 
-export async function updateInsuranceCase(id: string, input: InsuranceCaseInput, actorUserId: string) {
+export async function updateInsuranceCase(id: string, input: UpdateInsuranceCaseInput, actorUserId: string) {
   await prisma.$transaction(async (transaction) => {
-    const existing = await transaction.insuranceArbitrationCase.findUnique({ where: { id }, select: { id: true, referenceNumber: true } });
+    const existing = await transaction.insuranceArbitrationCase.findUnique({ where: { id }, select: { id: true, referenceNumber: true, version: true } });
     if (!existing) throw new InsuranceCaseNotFoundError();
-    const { payments, ...caseInput } = input;
-    await transaction.insuranceArbitrationCase.update({ where: { id }, data: { ...caseInput, accidentDate: parseDate(input.accidentDate)!, policyExpiryDate: parseDate(input.policyExpiryDate), postalDeliveryDate: parseDate(input.postalDeliveryDate), insuranceApplicationDate: parseDate(input.insuranceApplicationDate), arbitrationApplicationDate: input.hasArbitration ? parseDate(input.arbitrationApplicationDate) : null, arbitrationApplicationNo: input.hasArbitration ? input.arbitrationApplicationNo : null, arbitrationCaseNumber: input.hasArbitration ? input.arbitrationCaseNumber : null, updatedById: actorUserId, payments: { deleteMany: {}, create: payments.map((payment) => ({ type: payment.type, paymentDate: parseDate(payment.paymentDate)!, amount: payment.amount, commission: payment.commission, clientAmount: payment.amount.minus(payment.commission), description: payment.description })) } } });
-    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.updated", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber } } });
+    if (existing.version !== input.version) throw new InsuranceCaseVersionConflictError();
+    const { payments, version, ...caseInput } = input;
+    const updated = await transaction.insuranceArbitrationCase.updateMany({
+      where: { id, version },
+      data: { ...caseInput, accidentDate: parseDate(input.accidentDate)!, policyExpiryDate: parseDate(input.policyExpiryDate), postalDeliveryDate: parseDate(input.postalDeliveryDate), insuranceApplicationDate: parseDate(input.insuranceApplicationDate), arbitrationApplicationDate: input.hasArbitration ? parseDate(input.arbitrationApplicationDate) : null, arbitrationApplicationNo: input.hasArbitration ? input.arbitrationApplicationNo : null, arbitrationCaseNumber: input.hasArbitration ? input.arbitrationCaseNumber : null, updatedById: actorUserId, version: { increment: 1 } },
+    });
+    if (updated.count !== 1) throw new InsuranceCaseVersionConflictError();
+    await transaction.insuranceArbitrationPayment.deleteMany({ where: { caseId: id } });
+    if (payments.length > 0) {
+      await transaction.insuranceArbitrationPayment.createMany({ data: payments.map((payment) => ({ caseId: id, type: payment.type, paymentDate: parseDate(payment.paymentDate)!, amount: payment.amount, commission: payment.commission, clientAmount: payment.amount.minus(payment.commission), description: payment.description })) });
+    }
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.updated", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, previousVersion: version, newVersion: version + 1 } } });
   });
   return getInsuranceCase(id);
 }

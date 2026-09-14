@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertDocumentQuota, DocumentQuotaExceededError, documentStorageLimits } from "../src/lib/document-limits";
+import { assertDocumentQuota, DocumentQuotaExceededError, documentStorageLimits, documentUploadRateLimitKey } from "../src/lib/document-limits";
 import { hasExpectedDocumentDigest } from "../src/lib/document-integrity";
 import { buildDatabaseUrl } from "../src/lib/database-url";
 import { requireHttpUrl } from "../src/lib/environment";
@@ -46,6 +46,10 @@ test("document quotas reject per-case and aggregate overflow", () => {
     (error) => error instanceof DocumentQuotaExceededError && error.code === "CASE_DOCUMENT_LIMIT");
   assert.throws(() => assertDocumentQuota({ caseDocumentCount: 0, storedBytes: 61 }, 40, limits),
     (error) => error instanceof DocumentQuotaExceededError && error.code === "STORAGE_QUOTA_EXCEEDED");
+});
+
+test("all document modules share one per-user upload rate-limit bucket", () => {
+  assert.equal(documentUploadRateLimitKey("user-123"), "document-upload:user-123");
 });
 
 test("document limit configuration rejects unsafe values", () => {

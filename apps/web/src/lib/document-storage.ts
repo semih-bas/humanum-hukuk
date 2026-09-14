@@ -5,7 +5,7 @@ import { mkdir, open, readFile, readdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import { prisma } from "./database";
-import { assertDocumentQuota, documentStorageLimits, DocumentQuotaExceededError } from "./document-limits";
+import { assertDocumentQuota, DOCUMENT_STORAGE_LOCK_ID, documentStorageLimits, DocumentQuotaExceededError } from "./document-limits";
 import { hasExpectedDocumentDigest } from "./document-integrity";
 import { CaseNotFoundError } from "./cases/update-case";
 import {
@@ -18,8 +18,6 @@ import {
 export { DocumentValidationError, MAX_DOCUMENT_BYTES, MAX_MULTIPART_BYTES };
 export { DocumentQuotaExceededError };
 export class DocumentNotFoundError extends Error {}
-
-const DOCUMENT_STORAGE_LOCK_ID = 4_452_631_117;
 
 export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string, transactionId?: string) {
   const inspected = await inspectDocumentUpload(file, requestedName);
