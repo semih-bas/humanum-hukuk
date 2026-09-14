@@ -34,7 +34,7 @@ export async function readInsuranceDocument(caseId: string, documentId: string) 
   const document = await prisma.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId }, select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true } });
   if (!document) throw new InsuranceDocumentNotFoundError();
   try {
-    const data = await readFile(resolveStorageKey(document.storageKey));
+    const data = await readFile(/* turbopackIgnore: true */ resolveStorageKey(document.storageKey));
     if (data.byteLength !== document.sizeBytes || !hasExpectedDocumentDigest(data, document.sha256)) throw new Error("Invalid document data");
     return { ...document, data };
   } catch { throw new InsuranceDocumentNotFoundError(); }
@@ -43,7 +43,7 @@ export async function readInsuranceDocument(caseId: string, documentId: string) 
 function storageRoot() {
   const configured = process.env.DOCUMENT_STORAGE_PATH?.trim();
   if (!configured && process.env.NODE_ENV === "production") throw new Error("Missing required environment variable: DOCUMENT_STORAGE_PATH");
-  return path.resolve(configured || path.join(process.cwd(), ".data", "documents"));
+  return path.resolve(/* turbopackIgnore: true */ configured || path.join(process.cwd(), ".data", "documents"));
 }
 
 function resolveStorageKey(storageKey: string) {
