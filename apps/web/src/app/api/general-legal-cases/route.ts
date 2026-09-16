@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
-import { createGeneralLegalCase, GeneralLegalCaseUserReferenceError } from "@/lib/general-legal-cases/create";
+import { createGeneralLegalCase } from "@/lib/general-legal-cases/create";
 import { createGeneralLegalCaseInputSchema } from "@/lib/general-legal-cases/input";
 import { generalLegalCaseListQuerySchema } from "@/lib/general-legal-cases/query";
 import { listGeneralLegalCases } from "@/lib/general-legal-cases/service";
+import { GeneralLegalCaseUserReferenceError } from "@/lib/general-legal-cases/user-references";
 
 export async function GET(request: Request) {
   try {

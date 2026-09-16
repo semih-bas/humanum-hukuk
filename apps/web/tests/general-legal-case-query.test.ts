@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { generalCaseAccessWhere } from "../src/lib/general-legal-cases/access";
+import { canRetainRestrictedAccess, generalCaseAccessWhere } from "../src/lib/general-legal-cases/access";
 import { generalLegalCaseListQuerySchema } from "../src/lib/general-legal-cases/query";
 
 test("liste sorgusu güvenli varsayılanları uygular", () => {
@@ -29,4 +29,20 @@ test("normal kullanıcı kısıtlı dosyalarda yalnızca ilişkili olduğu kayı
       { parties: { some: { representativeUserId: "user-id" } } },
     ],
   });
+});
+
+test("kısıtlı dosya düzenlenirken kullanıcının yeni kayıtta erişimi korunur", () => {
+  const input = {
+    confidentiality: "RESTRICTED" as const,
+    responsibleUserId: "other-user",
+    fileStaffUserId: null,
+    parties: [{ representativeUserId: null }],
+  };
+  assert.equal(canRetainRestrictedAccess({ id: "user-id", role: "user" }, "creator-id", input), false);
+  assert.equal(canRetainRestrictedAccess({ id: "user-id", role: "admin" }, "creator-id", input), true);
+  assert.equal(canRetainRestrictedAccess({ id: "user-id", role: "user" }, "user-id", input), true);
+  assert.equal(canRetainRestrictedAccess({ id: "user-id", role: "user" }, "creator-id", {
+    ...input,
+    fileStaffUserId: "user-id",
+  }), true);
 });

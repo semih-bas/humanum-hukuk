@@ -3,11 +3,10 @@ import { prisma } from "@/lib/database";
 import type { CreateGeneralLegalCaseInput, GeneralCasePartyInput } from "./input";
 import { parseDateOnly } from "./input";
 import { formatGeneralCaseReference } from "./reference";
-
-export class GeneralLegalCaseUserReferenceError extends Error {}
+import { assertActiveGeneralCaseUserReferences } from "./user-references";
 
 export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput, actorUserId: string) {
-  await assertActiveUserReferences(input);
+  await assertActiveGeneralCaseUserReferences(input);
 
   return prisma.$transaction(async (transaction) => {
     const [sequence] = await transaction.$queryRaw<Array<{ value: bigint }>>`
@@ -40,19 +39,6 @@ export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput,
     });
     return record;
   });
-}
-
-async function assertActiveUserReferences(input: CreateGeneralLegalCaseInput) {
-  const identifiers = new Set<string>([input.responsibleUserId]);
-  if (input.fileStaffUserId) identifiers.add(input.fileStaffUserId);
-  for (const party of input.parties) {
-    if (party.representativeUserId) identifiers.add(party.representativeUserId);
-  }
-  const users = await prisma.user.findMany({
-    where: { id: { in: [...identifiers] }, OR: [{ banned: false }, { banned: null }] },
-    select: { id: true },
-  });
-  if (users.length !== identifiers.size) throw new GeneralLegalCaseUserReferenceError();
 }
 
 function partyCreateData(parties: GeneralCasePartyInput[]) {
