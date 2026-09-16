@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { ApiRequestError, requireApiSession } from "@/lib/api-security";
+import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
+import { createGeneralLegalCase, GeneralLegalCaseUserReferenceError } from "@/lib/general-legal-cases/create";
+import { createGeneralLegalCaseInputSchema } from "@/lib/general-legal-cases/input";
 import { generalLegalCaseListQuerySchema } from "@/lib/general-legal-cases/query";
 import { listGeneralLegalCases } from "@/lib/general-legal-cases/service";
 
@@ -15,8 +17,27 @@ export async function GET(request: Request) {
   }
 }
 
+export async function POST(request: Request) {
+  try {
+    assertSameOrigin(request);
+    const session = await requireApiSession(request);
+    const validation = createGeneralLegalCaseInputSchema.safeParse(await readJsonBody(request));
+    if (!validation.success) {
+      return json({
+        error: { message: "Dosya bilgileri geçerli değil.", fields: validation.error.flatten().fieldErrors },
+      }, 400);
+    }
+    return json({ data: await createGeneralLegalCase(validation.data, session.user.id) }, 201);
+  } catch (error) {
+    return handle(error, "Genel dava ve arabuluculuk dosyası oluşturulamadı.");
+  }
+}
+
 function handle(error: unknown, message: string) {
   if (error instanceof ApiRequestError) return json({ error: { code: error.code, message: error.message } }, error.status);
+  if (error instanceof GeneralLegalCaseUserReferenceError) {
+    return json({ error: { code: "INVALID_USER_REFERENCE", message: "Seçilen sorumlu veya vekil aktif değil." } }, 400);
+  }
   console.error(message, { error: error instanceof Error ? error.name : "UnknownError" });
   return json({ error: { code: "INTERNAL_ERROR", message } }, 500);
 }
