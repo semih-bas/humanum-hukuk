@@ -92,7 +92,7 @@ export default function FinanceStep({ finance, setFinance, entries, setEntries, 
       {entries.length === 0 ? <p className={styles.empty}>Henüz mali hareket eklenmedi. Bu alan zorunlu değildir.</p> : <div className={styles.tableWrap}><table><thead><tr><th>Tür</th><th>Tarih</th><th>Kategori</th><th>Açıklama</th><th>Tutar</th><th></th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.clientId}><td><span className={`${styles.badge} ${styles[entry.type.toLowerCase()]}`}>{entryTypeLabel(entry.type)}</span></td><td>{entry.entryDate}</td><td>{entry.category}</td><td>{entry.description}</td><td>{moneyLabel(entry.amount)}</td><td><button type="button" onClick={() => setEntries((current) => current.filter((item) => item.clientId !== entry.clientId))}>Kaldır</button></td></tr>)}</tbody></table></div>}
     </section>
 
-    <footer><button type="button" className={styles.back} onClick={onBack}>← Taraflar</button><span>3 / 7 · Mali Bilgiler</span><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Dosyayı Kaydet"}</button></footer>
+    <footer><button type="button" className={styles.back} onClick={onBack}>← Taraflar</button><span>3 / 7 · Mali Bilgiler</span><button type="submit" disabled={saving}>Dava Sürecine İlerle →</button></footer>
   </form>;
 }
 

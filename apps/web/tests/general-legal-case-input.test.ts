@@ -87,6 +87,34 @@ test("mali özet olmadan başlangıç hareketi oluşturmaz", () => {
   }).success, false);
 });
 
+test("dosyayı başlangıç süreç işlemi ve duruşmayla tek seferde kabul eder", () => {
+  const result = createGeneralLegalCaseInputSchema.safeParse({
+    ...valid,
+    processEntries: [{
+      type: "FILING",
+      stage: "CASE_OPENING",
+      eventDate: "2026-09-15",
+      action: "Dava dilekçesi sunuldu",
+      description: "Dilekçe UYAP kaydına işlendi.",
+      responsibleUserId: "admin-test",
+    }],
+    hearings: [{
+      startsAt: "2099-10-20T10:30:00.000+03:00",
+      court: "İstanbul 8. Asliye Hukuk Mahkemesi",
+      hearingType: "Ön inceleme",
+      courtroom: "2. Salon",
+      attendeeUserId: "admin-test",
+      reminderOffsetMinutes: 1440,
+      note: null,
+      status: "PLANNED",
+    }],
+  });
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.processEntries[0]?.action, "Dava dilekçesi sunuldu");
+  assert.equal(result.data.hearings[0]?.startsAt.toISOString(), "2099-10-20T07:30:00.000Z");
+});
+
 test("dosya türüne uygun iki ana taraf bulunmadan kayıt oluşturmaz", () => {
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, parties: [party("PLAINTIFF"), party("INTERVENOR")] }).success, false);
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, kind: "MEDIATION", parties: [party("PLAINTIFF"), party("DEFENDANT")] }).success, false);

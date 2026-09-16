@@ -21,6 +21,12 @@ export async function assertActiveGeneralCaseUserReferences(
   for (const party of input.parties) {
     if (party.representativeUserId) identifiers.add(party.representativeUserId);
   }
+  for (const entry of input.processEntries) {
+    if (entry.responsibleUserId) identifiers.add(entry.responsibleUserId);
+  }
+  for (const hearing of input.hearings) {
+    if (hearing.attendeeUserId) identifiers.add(hearing.attendeeUserId);
+  }
   const users = await prisma.user.findMany({
     where: { id: { in: [...identifiers] }, OR: [{ banned: false }, { banned: null }] },
     select: { id: true },

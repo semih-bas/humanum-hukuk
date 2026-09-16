@@ -2,8 +2,6 @@ import { hasControlCharacter, normalizeText } from "@/lib/form-input";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { z } from "zod";
 
-import { parseDateOnly } from "./input";
-
 const stages = ["CASE_OPENING", "NOTIFICATION", "RESPONSE_PETITION", "PRELIMINARY_REVIEW", "EXAMINATION", "EXPERT_REPORT", "HEARING", "DECISION", "APPEAL", "CASSATION", "FINALIZATION", "COLLECTION", "CLOSED"] as const;
 const version = z.number().int().min(1).max(2_147_483_647);
 
@@ -20,7 +18,7 @@ const optionalText = (label: string, maximum: number) => z.union([
 
 const optionalUserId = z.union([resourceIdSchema, z.literal(""), z.null()]).transform((value) => value || null);
 const eventDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "İşlem tarihi YYYY-MM-DD biçiminde olmalıdır.")
-  .refine((value) => parseDateOnly(value) !== null, "İşlem tarihi geçerli değildir.")
+  .refine((value) => parseProcessDateOnly(value) !== null, "İşlem tarihi geçerli değildir.")
   .refine((value) => value <= currentIstanbulDate(), "İşlem tarihi gelecekte olamaz.");
 
 const processEntryFields = {
@@ -63,4 +61,9 @@ export type UpdateGeneralCaseHearingInput = z.infer<typeof updateGeneralCaseHear
 
 function currentIstanbulDate() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function parseProcessDateOnly(value: string) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : parsed;
 }

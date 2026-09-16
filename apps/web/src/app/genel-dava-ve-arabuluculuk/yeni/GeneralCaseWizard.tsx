@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
 import partyStyles from "./PartyStep.module.css";
+import ProcessStep, { type HearingDraft, type ProcessEntryDraft } from "./ProcessStep";
 import styles from "./page.module.css";
 
 const steps = ["Genel Bilgiler", "Taraflar", "Mali Bilgiler", "Dava Süreci", "Evraklar", "Görevler", "Notlar"];
@@ -41,6 +42,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const [parties, setParties] = useState<PartyDraft[]>(() => primaryParties("GENERAL_LITIGATION"));
   const [finance, setFinance] = useState<FinanceDraft>(initialFinance);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>([]);
+  const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>([]);
+  const [hearings, setHearings] = useState<HearingDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); }
@@ -55,6 +58,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
       : { ...current, claimAmount: form.caseValue || "0", expectedCollectionAmount: form.caseValue || "0" });
     setError(""); setStep(2);
   }
+  function continueToProcess(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(3); }
   function updateParty(clientId: string, name: keyof PartyDraft, value: string) { setParties((current) => current.map((party) => party.clientId === clientId ? { ...party, [name]: value } : party)); }
   function addParty() { setParties((current) => [...current, makeParty("THIRD_PARTY")]); }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
@@ -81,6 +85,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
             financeDescription: finance.financeDescription || null,
           },
           financialEntries: financialEntries.map(financialEntryPayload),
+          processEntries: processEntries.map(processEntryPayload),
+          hearings: hearings.map(hearingPayload),
         }),
       });
       const body = await response.json();
@@ -94,7 +100,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
 
   return <AppShell><main className={styles.page}>
     <header className={styles.header}><div><Link href="/genel-dava-ve-arabuluculuk" aria-label="Listeye dön">←</Link><div><h1>Yeni Dosya</h1><p>Genel dava veya arabuluculuk kaydı oluşturun.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>Vazgeç</Link></header>
-    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={index > step || index > 2} onClick={() => index <= step && index <= 2 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={index > step || index > 3} onClick={() => index <= step && index <= 3 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={styles.form} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
@@ -140,7 +146,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
         </div></article>;
       })}</div>
       <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
-    </form> : <FinanceStep finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={submit} saving={saving} error={error} />}
+    </form> : step === 2 ? <FinanceStep finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={continueToProcess} saving={false} error={error} />
+      : <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={submit} saving={saving} error={error} />}
   </main></AppShell>;
 }
 
@@ -180,4 +187,12 @@ function partyPayload(party: PartyDraft) {
 
 function financialEntryPayload(entry: FinancialEntryDraft) {
   return { type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description };
+}
+
+function processEntryPayload(entry: ProcessEntryDraft) {
+  return { type: entry.type, stage: entry.stage, eventDate: entry.eventDate, action: entry.action, description: entry.description || null, responsibleUserId: entry.responsibleUserId };
+}
+
+function hearingPayload(hearing: HearingDraft) {
+  return { startsAt: new Date(hearing.startsAt).toISOString(), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom || null, attendeeUserId: hearing.attendeeUserId, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note || null, status: hearing.status };
 }
