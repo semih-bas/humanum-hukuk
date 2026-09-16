@@ -35,6 +35,12 @@ model User {
   createdInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseCreatedBy")
   updatedInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseUpdatedBy")
   insuranceDocuments InsuranceArbitrationDocument[]
+  createdGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseCreatedBy")
+  updatedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseUpdatedBy")
+  archivedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseArchivedBy")
+  responsibleGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseResponsibleUser")
+  staffedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseFileStaff")
+  representedGeneralParties GeneralCaseParty[] @relation("GeneralCasePartyRepresentative")
   reminderDeliveries ReminderDelivery[]
 
   @@unique([email])
@@ -403,6 +409,133 @@ model InsuranceArbitrationDocument {
   @@index([caseId, createdAt])
   @@index([uploadedById, createdAt])
   @@map("insurance_arbitration_document")
+}
+
+enum GeneralCaseKind {
+  GENERAL_LITIGATION
+  MEDIATION
+}
+
+enum GeneralCaseStatus {
+  DRAFT
+  ACTIVE
+  DECISION
+  APPEAL
+  COMPLETED
+  CLOSED
+}
+
+enum GeneralCaseStage {
+  CASE_OPENING
+  NOTIFICATION
+  RESPONSE_PETITION
+  PRELIMINARY_REVIEW
+  EXAMINATION
+  EXPERT_REPORT
+  HEARING
+  DECISION
+  APPEAL
+  CASSATION
+  FINALIZATION
+  COLLECTION
+  CLOSED
+}
+
+enum GeneralCaseConfidentiality {
+  NORMAL
+  RESTRICTED
+}
+
+enum GeneralPartyKind {
+  INDIVIDUAL
+  ORGANIZATION
+}
+
+enum GeneralPartyRole {
+  PLAINTIFF
+  DEFENDANT
+  APPLICANT
+  RESPONDENT
+  INTERVENOR
+  THIRD_PARTY
+  RELATED_INSTITUTION
+}
+
+model GeneralLegalCase {
+  id                      String                     @id @default(cuid())
+  referenceNumber         String                     @unique
+  kind                    GeneralCaseKind            @default(GENERAL_LITIGATION)
+  caseType                String                     @db.VarChar(100)
+  subject                 String                     @db.Text
+  openingDate             DateTime                   @db.Date
+  caseValue               Decimal                    @default(0) @db.Decimal(18, 2)
+  uyapMainNumber          String?                    @db.VarChar(80)
+  uyapDecisionNumber      String?                    @db.VarChar(80)
+  courthouse              String?                    @db.VarChar(150)
+  courtType               String?                    @db.VarChar(100)
+  court                   String?                    @db.VarChar(150)
+  status                  GeneralCaseStatus          @default(ACTIVE)
+  stage                   GeneralCaseStage           @default(CASE_OPENING)
+  procedure               String?                    @db.VarChar(100)
+  urgent                  Boolean                    @default(false)
+  confidentiality         GeneralCaseConfidentiality @default(NORMAL)
+  estimatedCompletionDate DateTime?                  @db.Date
+  trackingGroup           String?                    @db.VarChar(100)
+  tags                    String[]                   @default([])
+  office                  String?                    @db.VarChar(100)
+  description             String?                    @db.Text
+  responsibleUserId       String
+  fileStaffUserId         String?
+  version                 Int                        @default(1)
+  createdById             String
+  updatedById             String
+  archivedById            String?
+  archivedAt              DateTime?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  responsibleUser         User                       @relation("GeneralLegalCaseResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: Restrict)
+  fileStaffUser           User?                      @relation("GeneralLegalCaseFileStaff", fields: [fileStaffUserId], references: [id], onDelete: SetNull)
+  createdBy               User                       @relation("GeneralLegalCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy               User                       @relation("GeneralLegalCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy              User?                      @relation("GeneralLegalCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  parties                 GeneralCaseParty[]
+
+  @@index([kind, status])
+  @@index([stage])
+  @@index([caseType])
+  @@index([court])
+  @@index([openingDate])
+  @@index([responsibleUserId, status])
+  @@index([updatedAt])
+  @@index([archivedAt])
+  @@map("general_legal_case")
+}
+
+model GeneralCaseParty {
+  id                   String           @id @default(cuid())
+  caseId               String
+  role                 GeneralPartyRole
+  kind                 GeneralPartyKind
+  name                 String           @db.VarChar(200)
+  identityOrTaxNumber  String?          @db.VarChar(20)
+  phone                String?          @db.VarChar(30)
+  email                String?          @db.VarChar(254)
+  address              String?          @db.Text
+  representativeUserId String?
+  representativeName   String?          @db.VarChar(200)
+  clientType           String?          @db.VarChar(100)
+  description          String?          @db.VarChar(500)
+  sortOrder            Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  case                 GeneralLegalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  representativeUser   User?            @relation("GeneralCasePartyRepresentative", fields: [representativeUserId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, role, sortOrder])
+  @@index([identityOrTaxNumber])
+  @@index([name])
+  @@index([representativeUserId])
+  @@map("general_case_party")
 }
 
 model CaseTransaction {
