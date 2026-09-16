@@ -63,7 +63,12 @@ export async function listGeneralLegalCases(input: GeneralLegalCaseListQuery, ac
       items: records.map((record) => ({
         ...record,
         caseValue: record.caseValue.toFixed(2),
+        claimAmount: record.claimAmount.toFixed(2),
+        amendmentAmount: record.amendmentAmount.toFixed(2),
+        expectedCollectionAmount: record.expectedCollectionAmount.toFixed(2),
+        opposingAttorneyFee: record.opposingAttorneyFee.toFixed(2),
         openingDate: dateString(record.openingDate),
+        interestStartDate: dateString(record.interestStartDate),
         estimatedCompletionDate: dateString(record.estimatedCompletionDate),
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),

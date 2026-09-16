@@ -29,7 +29,12 @@ function presentGeneralLegalCase(record: GeneralCaseRecord) {
   return {
     ...record,
     caseValue: record.caseValue.toFixed(2),
+    claimAmount: record.claimAmount.toFixed(2),
+    amendmentAmount: record.amendmentAmount.toFixed(2),
+    expectedCollectionAmount: record.expectedCollectionAmount.toFixed(2),
+    opposingAttorneyFee: record.opposingAttorneyFee.toFixed(2),
     openingDate: dateString(record.openingDate),
+    interestStartDate: dateString(record.interestStartDate),
     estimatedCompletionDate: dateString(record.estimatedCompletionDate),
     archivedAt: record.archivedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
