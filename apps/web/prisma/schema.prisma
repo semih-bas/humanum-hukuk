@@ -53,6 +53,9 @@ model User {
   updatedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingUpdatedBy")
   deletedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingDeletedBy")
   uploadedGeneralCaseDocuments         GeneralCaseDocument[]          @relation("GeneralCaseDocumentUploadedBy")
+  assignedGeneralCaseTasks             GeneralCaseTask[]              @relation("GeneralCaseTaskAssignee")
+  createdGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskCreatedBy")
+  updatedGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskUpdatedBy")
   reminderDeliveries                   ReminderDelivery[]
 
   @@unique([email])
@@ -506,6 +509,20 @@ enum GeneralHearingStatus {
   CANCELLED
 }
 
+enum GeneralTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum GeneralTaskStatus {
+  PLANNED
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 model GeneralLegalCase {
   id                       String                      @id @default(cuid())
   referenceNumber          String                      @unique
@@ -558,6 +575,7 @@ model GeneralLegalCase {
   processEntries           GeneralCaseProcessEntry[]
   hearings                 GeneralCaseHearing[]
   documents                GeneralCaseDocument[]
+  tasks                    GeneralCaseTask[]
 
   @@index([kind, status])
   @@index([stage])
@@ -698,6 +716,33 @@ model GeneralCaseDocument {
   @@index([caseId, category, createdAt])
   @@index([uploadedById, createdAt])
   @@map("general_case_document")
+}
+
+model GeneralCaseTask {
+  id                    String              @id @default(cuid())
+  caseId                String
+  title                 String              @db.VarChar(150)
+  description           String?             @db.Text
+  assigneeUserId        String?
+  priority              GeneralTaskPriority @default(MEDIUM)
+  dueAt                 DateTime
+  taskType              String?             @db.VarChar(100)
+  reminderOffsetMinutes Int?
+  status                GeneralTaskStatus   @default(PLANNED)
+  createdById           String
+  updatedById           String
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  version               Int                 @default(1)
+  case                  GeneralLegalCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  assignee              User?               @relation("GeneralCaseTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  createdBy             User                @relation("GeneralCaseTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User                @relation("GeneralCaseTaskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([caseId, dueAt])
+  @@index([caseId, status, priority])
+  @@index([assigneeUserId, status, dueAt])
+  @@map("general_case_task")
 }
 
 model CaseTransaction {
