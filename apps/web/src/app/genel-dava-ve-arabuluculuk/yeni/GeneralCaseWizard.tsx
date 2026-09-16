@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
+import DocumentsStep, { type DocumentDraft } from "./DocumentsStep";
 import partyStyles from "./PartyStep.module.css";
 import ProcessStep, { type HearingDraft, type ProcessEntryDraft } from "./ProcessStep";
 import styles from "./page.module.css";
@@ -44,6 +45,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>([]);
   const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>([]);
   const [hearings, setHearings] = useState<HearingDraft[]>([]);
+  const [documents, setDocuments] = useState<DocumentDraft[]>([]);
+  const [createdCase, setCreatedCase] = useState<{ id: string; referenceNumber: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); }
@@ -59,13 +62,16 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
     setError(""); setStep(2);
   }
   function continueToProcess(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(3); }
+  function continueToDocuments(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(4); }
   function updateParty(clientId: string, name: keyof PartyDraft, value: string) { setParties((current) => current.map((party) => party.clientId === clientId ? { ...party, [name]: value } : party)); }
   function addParty() { setParties((current) => [...current, makeParty("THIRD_PARTY")]); }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving) return; setSaving(true); setError("");
     try {
-      const response = await fetch("/api/general-legal-cases", {
+      let record = createdCase;
+      if (!record) {
+        const response = await fetch("/api/general-legal-cases", {
         method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
@@ -89,9 +95,20 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
           hearings: hearings.map(hearingPayload),
         }),
       });
-      const body = await response.json();
-      if (!response.ok || !body.data) throw new Error(body.error?.message ?? "Dosya kaydedilemedi.");
-      router.push(`/genel-dava-ve-arabuluculuk?created=${encodeURIComponent(body.data.referenceNumber)}`);
+        const body = await response.json();
+        if (!response.ok || !body.data) throw new Error(body.error?.message ?? "Dosya kaydedilemedi.");
+        record = body.data;
+        setCreatedCase(record);
+      }
+      if (!record) throw new Error("Dosya kaydı doğrulanamadı.");
+      for (const document of documents) {
+        const data = new FormData(); data.append("file", document.file); data.append("category", document.category);
+        const upload = await fetch(`/api/general-legal-cases/${record!.id}/documents`, { method: "POST", credentials: "same-origin", body: data });
+        const uploadBody = await upload.json();
+        if (!upload.ok) throw new Error(`Dosya oluşturuldu ancak ${document.file.name} yüklenemedi: ${uploadBody.error?.message ?? "Bilinmeyen hata"}. Tekrar deneyebilirsiniz.`);
+        setDocuments((current) => current.filter((item) => item.clientId !== document.clientId));
+      }
+      router.push(`/genel-dava-ve-arabuluculuk?created=${encodeURIComponent(record.referenceNumber)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Dosya kaydedilemedi."); setSaving(false);
     }
@@ -100,7 +117,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
 
   return <AppShell><main className={styles.page}>
     <header className={styles.header}><div><Link href="/genel-dava-ve-arabuluculuk" aria-label="Listeye dön">←</Link><div><h1>Yeni Dosya</h1><p>Genel dava veya arabuluculuk kaydı oluşturun.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>Vazgeç</Link></header>
-    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={index > step || index > 3} onClick={() => index <= step && index <= 3 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase) || index > step || index > 4} onClick={() => !createdCase && index <= step && index <= 4 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={styles.form} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
@@ -147,7 +164,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
       })}</div>
       <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
     </form> : step === 2 ? <FinanceStep finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={continueToProcess} saving={false} error={error} />
-      : <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={submit} saving={saving} error={error} />}
+      : step === 3 ? <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={continueToDocuments} error={error} />
+        : <DocumentsStep documents={documents} setDocuments={setDocuments} onBack={() => setStep(3)} onSubmit={submit} saving={saving} locked={Boolean(createdCase)} error={error} />}
   </main></AppShell>;
 }
 

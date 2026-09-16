@@ -23,7 +23,6 @@ type Props = {
   setHearings: Dispatch<SetStateAction<HearingDraft[]>>;
   onBack: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  saving: boolean;
   error: string;
 };
 
@@ -72,7 +71,7 @@ export default function ProcessStep(props: Props) {
     </div>
 
     <section className={styles.records}><h2>Başlangıç Süreç Kayıtları</h2>{props.entries.length === 0 && props.hearings.length === 0 ? <p>Henüz süreç işlemi veya duruşma eklenmedi. Bu alan zorunlu değildir.</p> : <div className={styles.recordGrid}>{props.entries.map((item) => <article key={item.clientId}><b>{item.action}</b><span>{stageLabel(item.stage)} · {item.eventDate}</span><button type="button" onClick={() => props.setEntries((current) => current.filter((value) => value.clientId !== item.clientId))}>Kaldır</button></article>)}{props.hearings.map((item) => <article key={item.clientId}><b>{item.hearingType}</b><span>{item.court} · {formatLocalDateTime(item.startsAt)}</span><button type="button" onClick={() => props.setHearings((current) => current.filter((value) => value.clientId !== item.clientId))}>Kaldır</button></article>)}</div>}</section>
-    <footer><button type="button" className={styles.back} onClick={props.onBack}>← Mali Bilgiler</button><span>4 / 7 · Dava Süreci</span><button type="submit" disabled={props.saving}>{props.saving ? "Kaydediliyor…" : "Dosyayı Kaydet"}</button></footer>
+    <footer><button type="button" className={styles.back} onClick={props.onBack}>← Mali Bilgiler</button><span>4 / 7 · Dava Süreci</span><button type="submit">Evraklara İlerle →</button></footer>
   </form>;
 }
 
