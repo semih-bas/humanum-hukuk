@@ -8,51 +8,52 @@ datasource db {
 }
 
 model User {
-  id                                 String                         @id
-  name                               String
-  email                              String
-  emailVerified                      Boolean                        @default(false)
-  image                              String?
-  createdAt                          DateTime                       @default(now())
-  updatedAt                          DateTime                       @updatedAt
-  role                               String?
-  mustChangePassword                 Boolean                        @default(false)
-  banned                             Boolean?                       @default(false)
-  banReason                          String?
-  banExpires                         DateTime?
-  sessions                           Session[]
-  accounts                           Account[]
-  auditLogs                          AuditLog[]
-  createdCases                       CaseFile[]                     @relation("CaseFileCreatedBy")
-  updatedCases                       CaseFile[]                     @relation("CaseFileUpdatedBy")
-  archivedCases                      CaseFile[]                     @relation("CaseFileArchivedBy")
-  caseChanges                        CaseFileChange[]
-  caseNotes                          CaseNote[]
-  caseDocuments                      CaseDocument[]
-  caseReminders                      CaseReminder[]
-  createdCaseTransactions            CaseTransaction[]              @relation("CaseTransactionCreatedBy")
-  deletedCaseTransactions            CaseTransaction[]              @relation("CaseTransactionDeletedBy")
-  createdInsuranceCases              InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseCreatedBy")
-  updatedInsuranceCases              InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
-  insuranceDocuments                 InsuranceArbitrationDocument[]
-  createdGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
-  updatedGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
-  archivedGeneralCases               GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
-  responsibleGeneralCases            GeneralLegalCase[]             @relation("GeneralLegalCaseResponsibleUser")
-  staffedGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseFileStaff")
-  representedGeneralParties          GeneralCaseParty[]             @relation("GeneralCasePartyRepresentative")
-  createdGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryCreatedBy")
-  updatedGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryUpdatedBy")
-  deletedGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryDeletedBy")
-  responsibleGeneralCaseProcessEntries GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryResponsibleUser")
-  createdGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryCreatedBy")
-  updatedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryUpdatedBy")
-  deletedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryDeletedBy")
-  attendingGeneralCaseHearings         GeneralCaseHearing[]         @relation("GeneralCaseHearingAttendee")
-  createdGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingCreatedBy")
-  updatedGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingUpdatedBy")
-  deletedGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingDeletedBy")
-  reminderDeliveries                 ReminderDelivery[]
+  id                                   String                         @id
+  name                                 String
+  email                                String
+  emailVerified                        Boolean                        @default(false)
+  image                                String?
+  createdAt                            DateTime                       @default(now())
+  updatedAt                            DateTime                       @updatedAt
+  role                                 String?
+  mustChangePassword                   Boolean                        @default(false)
+  banned                               Boolean?                       @default(false)
+  banReason                            String?
+  banExpires                           DateTime?
+  sessions                             Session[]
+  accounts                             Account[]
+  auditLogs                            AuditLog[]
+  createdCases                         CaseFile[]                     @relation("CaseFileCreatedBy")
+  updatedCases                         CaseFile[]                     @relation("CaseFileUpdatedBy")
+  archivedCases                        CaseFile[]                     @relation("CaseFileArchivedBy")
+  caseChanges                          CaseFileChange[]
+  caseNotes                            CaseNote[]
+  caseDocuments                        CaseDocument[]
+  caseReminders                        CaseReminder[]
+  createdCaseTransactions              CaseTransaction[]              @relation("CaseTransactionCreatedBy")
+  deletedCaseTransactions              CaseTransaction[]              @relation("CaseTransactionDeletedBy")
+  createdInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseCreatedBy")
+  updatedInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
+  insuranceDocuments                   InsuranceArbitrationDocument[]
+  createdGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
+  updatedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
+  archivedGeneralCases                 GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
+  responsibleGeneralCases              GeneralLegalCase[]             @relation("GeneralLegalCaseResponsibleUser")
+  staffedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseFileStaff")
+  representedGeneralParties            GeneralCaseParty[]             @relation("GeneralCasePartyRepresentative")
+  createdGeneralCaseFinancialEntries   GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryCreatedBy")
+  updatedGeneralCaseFinancialEntries   GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryUpdatedBy")
+  deletedGeneralCaseFinancialEntries   GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryDeletedBy")
+  responsibleGeneralCaseProcessEntries GeneralCaseProcessEntry[]      @relation("GeneralCaseProcessEntryResponsibleUser")
+  createdGeneralCaseProcessEntries     GeneralCaseProcessEntry[]      @relation("GeneralCaseProcessEntryCreatedBy")
+  updatedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]      @relation("GeneralCaseProcessEntryUpdatedBy")
+  deletedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]      @relation("GeneralCaseProcessEntryDeletedBy")
+  attendingGeneralCaseHearings         GeneralCaseHearing[]           @relation("GeneralCaseHearingAttendee")
+  createdGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingCreatedBy")
+  updatedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingUpdatedBy")
+  deletedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingDeletedBy")
+  uploadedGeneralCaseDocuments         GeneralCaseDocument[]          @relation("GeneralCaseDocumentUploadedBy")
+  reminderDeliveries                   ReminderDelivery[]
 
   @@unique([email])
   @@index([role])
@@ -556,6 +557,7 @@ model GeneralLegalCase {
   financialEntries         GeneralCaseFinancialEntry[]
   processEntries           GeneralCaseProcessEntry[]
   hearings                 GeneralCaseHearing[]
+  documents                GeneralCaseDocument[]
 
   @@index([kind, status])
   @@index([stage])
@@ -677,6 +679,25 @@ model GeneralCaseHearing {
   @@index([caseId, status, deletedAt])
   @@index([attendeeUserId])
   @@map("general_case_hearing")
+}
+
+model GeneralCaseDocument {
+  id           String           @id @default(cuid())
+  caseId       String
+  uploadedById String
+  originalName String           @db.VarChar(255)
+  category     String           @db.VarChar(100)
+  storageKey   String           @unique
+  mimeType     String           @db.VarChar(100)
+  sizeBytes    Int
+  sha256       String           @db.Char(64)
+  createdAt    DateTime         @default(now())
+  case         GeneralLegalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy   User             @relation("GeneralCaseDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([caseId, category, createdAt])
+  @@index([uploadedById, createdAt])
+  @@map("general_case_document")
 }
 
 model CaseTransaction {
