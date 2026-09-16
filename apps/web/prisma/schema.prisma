@@ -44,6 +44,14 @@ model User {
   createdGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryCreatedBy")
   updatedGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryUpdatedBy")
   deletedGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryDeletedBy")
+  responsibleGeneralCaseProcessEntries GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryResponsibleUser")
+  createdGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryCreatedBy")
+  updatedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryUpdatedBy")
+  deletedGeneralCaseProcessEntries     GeneralCaseProcessEntry[]    @relation("GeneralCaseProcessEntryDeletedBy")
+  attendingGeneralCaseHearings         GeneralCaseHearing[]         @relation("GeneralCaseHearingAttendee")
+  createdGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingCreatedBy")
+  updatedGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingUpdatedBy")
+  deletedGeneralCaseHearings           GeneralCaseHearing[]         @relation("GeneralCaseHearingDeletedBy")
   reminderDeliveries                 ReminderDelivery[]
 
   @@unique([email])
@@ -481,6 +489,22 @@ enum GeneralPaymentPlan {
   INSTALLMENT
 }
 
+enum GeneralProcessEntryType {
+  STAGE_CHANGE
+  FILING
+  NOTIFICATION
+  HEARING
+  DECISION
+  OTHER
+}
+
+enum GeneralHearingStatus {
+  PLANNED
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
 model GeneralLegalCase {
   id                       String                      @id @default(cuid())
   referenceNumber          String                      @unique
@@ -530,6 +554,8 @@ model GeneralLegalCase {
   archivedBy               User?                       @relation("GeneralLegalCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   parties                  GeneralCaseParty[]
   financialEntries         GeneralCaseFinancialEntry[]
+  processEntries           GeneralCaseProcessEntry[]
+  hearings                 GeneralCaseHearing[]
 
   @@index([kind, status])
   @@index([stage])
@@ -593,6 +619,64 @@ model GeneralCaseFinancialEntry {
   @@index([caseId, deletedAt])
   @@index([createdById, createdAt])
   @@map("general_case_financial_entry")
+}
+
+model GeneralCaseProcessEntry {
+  id                String                  @id @default(cuid())
+  caseId            String
+  type              GeneralProcessEntryType
+  stage             GeneralCaseStage
+  eventDate         DateTime                @db.Date
+  action            String                  @db.VarChar(150)
+  description       String?                 @db.Text
+  responsibleUserId String?
+  createdById       String
+  updatedById       String
+  deletedById       String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  deletedAt         DateTime?
+  version           Int                     @default(1)
+  case              GeneralLegalCase        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  responsibleUser   User?                   @relation("GeneralCaseProcessEntryResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdBy         User                    @relation("GeneralCaseProcessEntryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                    @relation("GeneralCaseProcessEntryUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy         User?                   @relation("GeneralCaseProcessEntryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([caseId, eventDate, createdAt])
+  @@index([caseId, stage, deletedAt])
+  @@index([responsibleUserId])
+  @@map("general_case_process_entry")
+}
+
+model GeneralCaseHearing {
+  id                    String               @id @default(cuid())
+  caseId                String
+  startsAt              DateTime
+  court                 String               @db.VarChar(150)
+  hearingType           String               @db.VarChar(100)
+  courtroom             String?              @db.VarChar(100)
+  attendeeUserId        String?
+  reminderOffsetMinutes Int?
+  note                  String?              @db.Text
+  status                GeneralHearingStatus @default(PLANNED)
+  createdById           String
+  updatedById           String
+  deletedById           String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  deletedAt             DateTime?
+  version               Int                  @default(1)
+  case                  GeneralLegalCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  attendeeUser          User?                @relation("GeneralCaseHearingAttendee", fields: [attendeeUserId], references: [id], onDelete: SetNull)
+  createdBy             User                 @relation("GeneralCaseHearingCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User                 @relation("GeneralCaseHearingUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy             User?                @relation("GeneralCaseHearingDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([caseId, startsAt])
+  @@index([caseId, status, deletedAt])
+  @@index([attendeeUserId])
+  @@map("general_case_hearing")
 }
 
 model CaseTransaction {
