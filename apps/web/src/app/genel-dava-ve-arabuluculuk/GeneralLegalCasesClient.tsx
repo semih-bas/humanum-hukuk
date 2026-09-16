@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import buttonStyles from "./new-button.module.css";
 import styles from "./page.module.css";
 
 type Kind = "GENERAL_LITIGATION" | "MEDIATION";
@@ -67,7 +69,7 @@ export default function GeneralLegalCasesClient() {
   ] as const;
 
   return <main className={styles.page}>
-    <header className={styles.intro}><h1>Genel Dava ve Arabuluculuk</h1><p>Dava ve arabuluculuk dosyalarını tek, güvenli çalışma alanından takip edin.</p></header>
+    <header className={`${styles.intro} ${buttonStyles.header}`}><div><h1>Genel Dava ve Arabuluculuk</h1><p>Dava ve arabuluculuk dosyalarını tek, güvenli çalışma alanından takip edin.</p></div><Link className={buttonStyles.button} href="/genel-dava-ve-arabuluculuk/yeni">+ Yeni Dosya</Link></header>
     <section className={styles.cards}>{cards.map(([label, value, tone]) => <article className={styles[tone]} key={label}><strong>{value}</strong><span>{label}</span></article>)}</section>
     <section className={styles.workspace}>
       <div className={styles.filters}>
