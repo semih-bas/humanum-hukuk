@@ -4,6 +4,15 @@ import type { CreateGeneralLegalCaseInput, UpdateGeneralLegalCaseInput } from ".
 
 export class GeneralLegalCaseUserReferenceError extends Error {}
 
+export async function assertActiveGeneralCaseUserReference(userId: string | null) {
+  if (!userId) return;
+  const user = await prisma.user.findFirst({
+    where: { id: userId, OR: [{ banned: false }, { banned: null }] },
+    select: { id: true },
+  });
+  if (!user) throw new GeneralLegalCaseUserReferenceError();
+}
+
 export async function assertActiveGeneralCaseUserReferences(
   input: CreateGeneralLegalCaseInput | UpdateGeneralLegalCaseInput,
 ) {
