@@ -3,6 +3,8 @@ import { hasControlCharacter, normalizeText, parseMoneyToCents } from "@/lib/for
 import { resourceIdSchema } from "@/lib/resource-id";
 import { z } from "zod";
 
+import { createGeneralCaseFinanceSummarySchema, createGeneralCaseFinancialEntrySchema } from "./finance-input";
+
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -92,6 +94,8 @@ const rawGeneralLegalCaseInputSchema = z.object({
   responsibleUserId: resourceIdSchema,
   fileStaffUserId: z.union([resourceIdSchema, z.literal(""), z.null()]).transform((value) => value || null),
   parties: z.array(generalCasePartyInputSchema).min(2, "En az iki taraf eklenmelidir.").max(100, "Bir dosyada en fazla 100 taraf olabilir."),
+  finance: createGeneralCaseFinanceSummarySchema.nullable().optional().default(null),
+  financialEntries: z.array(createGeneralCaseFinancialEntrySchema).max(500, "Bir dosyada en fazla 500 başlangıç mali hareketi olabilir.").optional().default([]),
 }).strict();
 
 function validateGeneralLegalCase(value: z.infer<typeof rawGeneralLegalCaseInputSchema>, context: z.RefinementCtx) {
@@ -118,6 +122,9 @@ function validateGeneralLegalCase(value: z.infer<typeof rawGeneralLegalCaseInput
 
   if (value.kind === "GENERAL_LITIGATION" && (!value.courthouse || !value.courtType || !value.court)) {
     context.addIssue({ code: "custom", path: ["court"], message: "Genel dava için adliye, mahkeme türü ve mahkeme zorunludur." });
+  }
+  if (value.financialEntries.length > 0 && !value.finance) {
+    context.addIssue({ code: "custom", path: ["finance"], message: "Başlangıç mali hareketleri için mali özet zorunludur." });
   }
 }
 

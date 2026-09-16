@@ -5,6 +5,7 @@ import { formatMoneyInput, limitDateYear } from "@/lib/form-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
 import partyStyles from "./PartyStep.module.css";
 import styles from "./page.module.css";
 
@@ -22,6 +23,11 @@ const initialForm = {
   stage: "CASE_OPENING", procedure: "", urgent: false, confidentiality: "NORMAL", estimatedCompletionDate: "",
   trackingGroup: "", tags: "", office: "", description: "",
 };
+const initialFinance: FinanceDraft = {
+  claimAmount: "0", amendmentAmount: "0", interestRequested: false, interestStartDate: "",
+  expectedCollectionAmount: "0", opposingAttorneyFee: "0", paymentPlan: "CASH", installmentCount: "3",
+  financeDescription: "",
+};
 export type GeneralCaseDraft = typeof initialForm;
 type PartyDraft = {
   clientId: string; role: string; kind: "INDIVIDUAL" | "ORGANIZATION"; name: string; identityOrTaxNumber: string;
@@ -33,6 +39,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(0);
   const [parties, setParties] = useState<PartyDraft[]>(() => primaryParties("GENERAL_LITIGATION"));
+  const [finance, setFinance] = useState<FinanceDraft>(initialFinance);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); }
@@ -40,6 +48,13 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   function updateStatus(value: string) { setForm((current) => ({ ...current, status: value, stage: value === "CLOSED" ? "CLOSED" : current.stage === "CLOSED" ? "CASE_OPENING" : current.stage })); }
   function updateStage(value: string) { setForm((current) => ({ ...current, stage: value, status: value === "CLOSED" ? "CLOSED" : current.status === "CLOSED" ? "ACTIVE" : current.status })); }
   function continueToParties(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setStep(1); }
+  function continueToFinance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFinance((current) => current.claimAmount !== "0" || current.expectedCollectionAmount !== "0"
+      ? current
+      : { ...current, claimAmount: form.caseValue || "0", expectedCollectionAmount: form.caseValue || "0" });
+    setError(""); setStep(2);
+  }
   function updateParty(clientId: string, name: keyof PartyDraft, value: string) { setParties((current) => current.map((party) => party.clientId === clientId ? { ...party, [name]: value } : party)); }
   function addParty() { setParties((current) => [...current, makeParty("THIRD_PARTY")]); }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
@@ -59,6 +74,13 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
           office: form.office || null, description: form.description || null, responsibleUserId: currentUser.id,
           fileStaffUserId: null,
           parties: parties.map(partyPayload),
+          finance: {
+            ...finance,
+            interestStartDate: finance.interestRequested ? finance.interestStartDate : null,
+            installmentCount: finance.paymentPlan === "INSTALLMENT" ? Number(finance.installmentCount) : null,
+            financeDescription: finance.financeDescription || null,
+          },
+          financialEntries: financialEntries.map(financialEntryPayload),
         }),
       });
       const body = await response.json();
@@ -72,7 +94,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
 
   return <AppShell><main className={styles.page}>
     <header className={styles.header}><div><Link href="/genel-dava-ve-arabuluculuk" aria-label="Listeye dön">←</Link><div><h1>Yeni Dosya</h1><p>Genel dava veya arabuluculuk kaydı oluşturun.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>Vazgeç</Link></header>
-    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={index > 1} onClick={() => index <= 1 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={index > step || index > 2} onClick={() => index <= step && index <= 2 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={styles.form} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
@@ -99,7 +121,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
       </div></section>
       <section className={styles.panel}><h2>Etiket ve Açıklama</h2><div className={styles.grid2}><label><span>Etiketler</span><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="Virgülle ayırın: tazminat, ticari" /></label><label><span>Açıklama</span><textarea maxLength={4000} value={form.description} onChange={(event) => update("description", event.target.value)} /></label></div></section>
       <footer><span>1 / 7 · Genel Bilgiler</span><button type="submit">Taraflara İlerle →</button></footer>
-    </form> : <form className={`${styles.form} ${partyStyles.form}`} onSubmit={submit}>
+    </form> : step === 1 ? <form className={`${styles.form} ${partyStyles.form}`} onSubmit={continueToFinance}>
       <header className={partyStyles.heading}><div><h2>Dosya Tarafları</h2><p>Birden fazla kişi, şirket veya ilgili kurum ekleyebilirsiniz.</p></div><button type="button" onClick={addParty}>+ Diğer Taraf Ekle</button></header>
       {error && <p className={partyStyles.error}>{error}</p>}
       <div className={partyStyles.cards}>{parties.map((party, index) => {
@@ -117,8 +139,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
           <label className={partyStyles.wide}><span>Açıklama</span><input maxLength={500} value={party.description} onChange={(event) => updateParty(party.clientId, "description", event.target.value)} /></label>
         </div></article>;
       })}</div>
-      <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Dosyayı Oluştur"}</button></footer>
-    </form>}
+      <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
+    </form> : <FinanceStep finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={submit} saving={saving} error={error} />}
   </main></AppShell>;
 }
 
@@ -154,4 +176,8 @@ function partyPayload(party: PartyDraft) {
     representativeName: party.representativeName || null, clientType: party.clientType || null,
     description: party.description || null,
   };
+}
+
+function financialEntryPayload(entry: FinancialEntryDraft) {
+  return { type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description };
 }

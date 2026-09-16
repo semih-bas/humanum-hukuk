@@ -64,6 +64,29 @@ test("arabuluculuğu aynı modülde başvuran ve karşı tarafla kabul eder", ()
   assert.equal(result.success, true);
 });
 
+test("dosyayı mali özet ve başlangıç hareketleriyle tek seferde kabul eder", () => {
+  const result = createGeneralLegalCaseInputSchema.safeParse({
+    ...valid,
+    finance: {
+      claimAmount: "335.000,00", amendmentAmount: "0", interestRequested: false, interestStartDate: null,
+      expectedCollectionAmount: "335.000,00", opposingAttorneyFee: "45.000,00",
+      paymentPlan: "CASH", installmentCount: null, financeDescription: "Karardan sonra tahsil edilecek.",
+    },
+    financialEntries: [{ type: "EXPENSE", category: "Başvuru Harcı", entryDate: "2026-09-15", amount: "1.640,00", description: "Başvuru harcı" }],
+  });
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.finance?.claimAmount.toFixed(2), "335000.00");
+  assert.equal(result.data.financialEntries[0]?.amount.toFixed(2), "1640.00");
+});
+
+test("mali özet olmadan başlangıç hareketi oluşturmaz", () => {
+  assert.equal(createGeneralLegalCaseInputSchema.safeParse({
+    ...valid,
+    financialEntries: [{ type: "EXPENSE", category: "Harc", entryDate: "2026-09-15", amount: "100", description: "Başvuru harcı" }],
+  }).success, false);
+});
+
 test("dosya türüne uygun iki ana taraf bulunmadan kayıt oluşturmaz", () => {
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, parties: [party("PLAINTIFF"), party("INTERVENOR")] }).success, false);
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, kind: "MEDIATION", parties: [party("PLAINTIFF"), party("DEFENDANT")] }).success, false);
