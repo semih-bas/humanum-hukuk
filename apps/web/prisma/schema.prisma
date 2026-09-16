@@ -8,40 +8,42 @@ datasource db {
 }
 
 model User {
-  id            String           @id
-  name          String
-  email         String
-  emailVerified Boolean          @default(false)
-  image         String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  role          String?
-  mustChangePassword Boolean  @default(false)
-  banned        Boolean?         @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-  auditLogs     AuditLog[]
-  createdCases  CaseFile[]       @relation("CaseFileCreatedBy")
-  updatedCases  CaseFile[]       @relation("CaseFileUpdatedBy")
-  archivedCases CaseFile[]       @relation("CaseFileArchivedBy")
-  caseChanges   CaseFileChange[]
-  caseNotes     CaseNote[]
-  caseDocuments CaseDocument[]
-  caseReminders CaseReminder[]
-  createdCaseTransactions CaseTransaction[] @relation("CaseTransactionCreatedBy")
-  deletedCaseTransactions CaseTransaction[] @relation("CaseTransactionDeletedBy")
-  createdInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseCreatedBy")
-  updatedInsuranceCases InsuranceArbitrationCase[] @relation("InsuranceArbitrationCaseUpdatedBy")
-  insuranceDocuments InsuranceArbitrationDocument[]
-  createdGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseCreatedBy")
-  updatedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseUpdatedBy")
-  archivedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseArchivedBy")
-  responsibleGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseResponsibleUser")
-  staffedGeneralCases GeneralLegalCase[] @relation("GeneralLegalCaseFileStaff")
-  representedGeneralParties GeneralCaseParty[] @relation("GeneralCasePartyRepresentative")
-  reminderDeliveries ReminderDelivery[]
+  id                                 String                         @id
+  name                               String
+  email                              String
+  emailVerified                      Boolean                        @default(false)
+  image                              String?
+  createdAt                          DateTime                       @default(now())
+  updatedAt                          DateTime                       @updatedAt
+  role                               String?
+  mustChangePassword                 Boolean                        @default(false)
+  banned                             Boolean?                       @default(false)
+  banReason                          String?
+  banExpires                         DateTime?
+  sessions                           Session[]
+  accounts                           Account[]
+  auditLogs                          AuditLog[]
+  createdCases                       CaseFile[]                     @relation("CaseFileCreatedBy")
+  updatedCases                       CaseFile[]                     @relation("CaseFileUpdatedBy")
+  archivedCases                      CaseFile[]                     @relation("CaseFileArchivedBy")
+  caseChanges                        CaseFileChange[]
+  caseNotes                          CaseNote[]
+  caseDocuments                      CaseDocument[]
+  caseReminders                      CaseReminder[]
+  createdCaseTransactions            CaseTransaction[]              @relation("CaseTransactionCreatedBy")
+  deletedCaseTransactions            CaseTransaction[]              @relation("CaseTransactionDeletedBy")
+  createdInsuranceCases              InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseCreatedBy")
+  updatedInsuranceCases              InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
+  insuranceDocuments                 InsuranceArbitrationDocument[]
+  createdGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
+  updatedGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
+  archivedGeneralCases               GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
+  responsibleGeneralCases            GeneralLegalCase[]             @relation("GeneralLegalCaseResponsibleUser")
+  staffedGeneralCases                GeneralLegalCase[]             @relation("GeneralLegalCaseFileStaff")
+  representedGeneralParties          GeneralCaseParty[]             @relation("GeneralCasePartyRepresentative")
+  createdGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryCreatedBy")
+  deletedGeneralCaseFinancialEntries GeneralCaseFinancialEntry[]    @relation("GeneralCaseFinancialEntryDeletedBy")
+  reminderDeliveries                 ReminderDelivery[]
 
   @@unique([email])
   @@index([role])
@@ -197,41 +199,41 @@ enum ReminderStatus {
 }
 
 model CaseFile {
-  id                    String           @id @default(cuid())
-  referenceNumber       String           @unique
+  id                    String            @id @default(cuid())
+  referenceNumber       String            @unique
   licenseHolder         String
   vehiclePlate          String
-  accidentDate          DateTime         @db.Date
+  accidentDate          DateTime          @db.Date
   debtorType            DebtorType
   debtorName            String?
-  damageAmount          Decimal          @default(0) @db.Decimal(18, 2)
-  depreciationAmount    Decimal          @default(0) @db.Decimal(18, 2)
-  profitLossAmount      Decimal          @default(0) @db.Decimal(18, 2)
-  hasDamageClaim        Boolean          @default(false)
-  hasDepreciationClaim  Boolean          @default(false)
-  hasProfitLossClaim    Boolean          @default(false)
+  damageAmount          Decimal           @default(0) @db.Decimal(18, 2)
+  depreciationAmount    Decimal           @default(0) @db.Decimal(18, 2)
+  profitLossAmount      Decimal           @default(0) @db.Decimal(18, 2)
+  hasDamageClaim        Boolean           @default(false)
+  hasDepreciationClaim  Boolean           @default(false)
+  hasProfitLossClaim    Boolean           @default(false)
   profitLossDays        Int?
-  dailyRentalAmount     Decimal?         @db.Decimal(18, 2)
-  judgmentStatus        JudgmentStatus   @default(WITHOUT_JUDGMENT)
-  discountAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  dailyRentalAmount     Decimal?          @db.Decimal(18, 2)
+  judgmentStatus        JudgmentStatus    @default(WITHOUT_JUDGMENT)
+  discountAmount        Decimal           @default(0) @db.Decimal(18, 2)
   enforcementOffice     String?
   enforcementFileNumber String?
-  vehicleLien           Boolean          @default(false)
-  bankLien              Boolean          @default(false)
-  titleDeedLien         Boolean          @default(false)
-  salaryLien            Boolean          @default(false)
+  vehicleLien           Boolean           @default(false)
+  bankLien              Boolean           @default(false)
+  titleDeedLien         Boolean           @default(false)
+  salaryLien            Boolean           @default(false)
   installmentCount      Int?
-  status                CaseFileStatus   @default(OPEN)
-  version               Int              @default(1)
+  status                CaseFileStatus    @default(OPEN)
+  version               Int               @default(1)
   createdById           String
   updatedById           String
   archivedById          String?
   archivedAt            DateTime?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  createdBy             User             @relation("CaseFileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy             User             @relation("CaseFileUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
-  archivedBy            User?            @relation("CaseFileArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  createdBy             User              @relation("CaseFileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy             User              @relation("CaseFileUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy            User?             @relation("CaseFileArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   changes               CaseFileChange[]
   notes                 CaseNote[]
   documents             CaseDocument[]
@@ -282,19 +284,19 @@ model CaseNote {
 }
 
 model CaseDocument {
-  id           String   @id @default(cuid())
-  caseFileId   String
-  uploadedById String
-  originalName String   @db.VarChar(255)
-  storageKey   String   @unique
-  mimeType     String   @db.VarChar(100)
-  sizeBytes    Int
-  sha256       String   @db.Char(64)
+  id            String           @id @default(cuid())
+  caseFileId    String
+  uploadedById  String
+  originalName  String           @db.VarChar(255)
+  storageKey    String           @unique
+  mimeType      String           @db.VarChar(100)
+  sizeBytes     Int
+  sha256        String           @db.Char(64)
   transactionId String?
-  createdAt    DateTime @default(now())
-  caseFile     CaseFile @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  transaction  CaseTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+  caseFile      CaseFile         @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  uploadedBy    User             @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  transaction   CaseTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([caseFileId, createdAt])
   @@index([uploadedById, createdAt])
@@ -331,40 +333,40 @@ enum InsurancePaymentType {
 }
 
 model InsuranceArbitrationCase {
-  id                         String                     @id @default(cuid())
-  referenceNumber            String                     @unique
-  arbitrationApplicationNo   String?                    @unique
+  id                         String                         @id @default(cuid())
+  referenceNumber            String                         @unique
+  arbitrationApplicationNo   String?                        @unique
   opposingInsuranceCompany   String
   opposingPolicyNumber       String?
-  policyExpiryDate           DateTime?                  @db.Date
+  policyExpiryDate           DateTime?                      @db.Date
   opposingVehicleOwner       String?
   opposingIdentityNumber     String?
   vehicleOwner               String
   identityNumber             String?
   vehiclePlate               String
-  accidentDate               DateTime                   @db.Date
-  postalDeliveryDate         DateTime?                  @db.Date
-  caseTypes                  InsuranceCaseType[]        @map("caseType")
-  insuranceApplicationDate   DateTime?                  @db.Date
-  insuranceSettlementOffer   Decimal                    @default(0) @db.Decimal(18,2)
-  arbitrationApplicationDate DateTime?                  @db.Date
-  hasArbitration             Boolean                    @default(false)
+  accidentDate               DateTime                       @db.Date
+  postalDeliveryDate         DateTime?                      @db.Date
+  caseTypes                  InsuranceCaseType[]            @map("caseType")
+  insuranceApplicationDate   DateTime?                      @db.Date
+  insuranceSettlementOffer   Decimal                        @default(0) @db.Decimal(18, 2)
+  arbitrationApplicationDate DateTime?                      @db.Date
+  hasArbitration             Boolean                        @default(false)
   arbitrationCaseNumber      String?
-  status                     InsuranceArbitrationStatus @default(INSURANCE_APPLICATION)
-  postageExpense             Decimal                    @default(0) @db.Decimal(18,2)
-  enforcementExpense         Decimal                    @default(0) @db.Decimal(18,2)
-  arbitrationApplicationFee  Decimal                    @default(0) @db.Decimal(18,2)
-  expertFee                  Decimal                    @default(0) @db.Decimal(18,2)
-  postalAmount               Decimal                    @default(0) @db.Decimal(18,2)
-  actualDepreciationAmount   Decimal                    @default(0) @db.Decimal(18,2)
+  status                     InsuranceArbitrationStatus     @default(INSURANCE_APPLICATION)
+  postageExpense             Decimal                        @default(0) @db.Decimal(18, 2)
+  enforcementExpense         Decimal                        @default(0) @db.Decimal(18, 2)
+  arbitrationApplicationFee  Decimal                        @default(0) @db.Decimal(18, 2)
+  expertFee                  Decimal                        @default(0) @db.Decimal(18, 2)
+  postalAmount               Decimal                        @default(0) @db.Decimal(18, 2)
+  actualDepreciationAmount   Decimal                        @default(0) @db.Decimal(18, 2)
   description                String?
-  version                    Int                        @default(1)
+  version                    Int                            @default(1)
   createdById                String
   updatedById                String
-  createdAt                  DateTime                   @default(now())
-  updatedAt                  DateTime                   @updatedAt
-  createdBy                  User                       @relation("InsuranceArbitrationCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy                  User                       @relation("InsuranceArbitrationCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  createdBy                  User                           @relation("InsuranceArbitrationCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy                  User                           @relation("InsuranceArbitrationCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   documents                  InsuranceArbitrationDocument[]
   payments                   InsuranceArbitrationPayment[]
 
@@ -381,9 +383,9 @@ model InsuranceArbitrationPayment {
   caseId       String
   type         InsurancePaymentType
   paymentDate  DateTime                 @db.Date
-  amount       Decimal                  @db.Decimal(18,2)
-  commission   Decimal                  @default(0) @db.Decimal(18,2)
-  clientAmount Decimal                  @default(0) @db.Decimal(18,2)
+  amount       Decimal                  @db.Decimal(18, 2)
+  commission   Decimal                  @default(0) @db.Decimal(18, 2)
+  clientAmount Decimal                  @default(0) @db.Decimal(18, 2)
   description  String?                  @db.VarChar(500)
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
@@ -394,17 +396,17 @@ model InsuranceArbitrationPayment {
 }
 
 model InsuranceArbitrationDocument {
-  id            String                   @id @default(cuid())
-  caseId        String
-  uploadedById  String
-  originalName  String                   @db.VarChar(255)
-  storageKey    String                   @unique
-  mimeType      String                   @db.VarChar(100)
-  sizeBytes     Int
-  sha256        String                   @db.Char(64)
-  createdAt     DateTime                 @default(now())
-  case          InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  uploadedBy    User                     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  id           String                   @id @default(cuid())
+  caseId       String
+  uploadedById String
+  originalName String                   @db.VarChar(255)
+  storageKey   String                   @unique
+  mimeType     String                   @db.VarChar(100)
+  sizeBytes    Int
+  sha256       String                   @db.Char(64)
+  createdAt    DateTime                 @default(now())
+  case         InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy   User                     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
 
   @@index([caseId, createdAt])
   @@index([uploadedById, createdAt])
@@ -461,44 +463,72 @@ enum GeneralPartyRole {
   RELATED_INSTITUTION
 }
 
+enum GeneralFinancialEntryType {
+  EXPENSE
+  COLLECTION
+  PAYMENT
+}
+
+enum GeneralCollectionStatus {
+  NOT_COLLECTED
+  PARTIAL
+  COLLECTED
+}
+
+enum GeneralPaymentPlan {
+  CASH
+  INSTALLMENT
+}
+
 model GeneralLegalCase {
-  id                      String                     @id @default(cuid())
-  referenceNumber         String                     @unique
-  kind                    GeneralCaseKind            @default(GENERAL_LITIGATION)
-  caseType                String                     @db.VarChar(100)
-  subject                 String                     @db.Text
-  openingDate             DateTime                   @db.Date
-  caseValue               Decimal                    @default(0) @db.Decimal(18, 2)
-  uyapMainNumber          String?                    @db.VarChar(80)
-  uyapDecisionNumber      String?                    @db.VarChar(80)
-  courthouse              String?                    @db.VarChar(150)
-  courtType               String?                    @db.VarChar(100)
-  court                   String?                    @db.VarChar(150)
-  status                  GeneralCaseStatus          @default(ACTIVE)
-  stage                   GeneralCaseStage           @default(CASE_OPENING)
-  procedure               String?                    @db.VarChar(100)
-  urgent                  Boolean                    @default(false)
-  confidentiality         GeneralCaseConfidentiality @default(NORMAL)
-  estimatedCompletionDate DateTime?                  @db.Date
-  trackingGroup           String?                    @db.VarChar(100)
-  tags                    String[]                   @default([])
-  office                  String?                    @db.VarChar(100)
-  description             String?                    @db.Text
-  responsibleUserId       String
-  fileStaffUserId         String?
-  version                 Int                        @default(1)
-  createdById             String
-  updatedById             String
-  archivedById            String?
-  archivedAt              DateTime?
-  createdAt               DateTime                   @default(now())
-  updatedAt               DateTime                   @updatedAt
-  responsibleUser         User                       @relation("GeneralLegalCaseResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: Restrict)
-  fileStaffUser           User?                      @relation("GeneralLegalCaseFileStaff", fields: [fileStaffUserId], references: [id], onDelete: SetNull)
-  createdBy               User                       @relation("GeneralLegalCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy               User                       @relation("GeneralLegalCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
-  archivedBy              User?                      @relation("GeneralLegalCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
-  parties                 GeneralCaseParty[]
+  id                       String                      @id @default(cuid())
+  referenceNumber          String                      @unique
+  kind                     GeneralCaseKind             @default(GENERAL_LITIGATION)
+  caseType                 String                      @db.VarChar(100)
+  subject                  String                      @db.Text
+  openingDate              DateTime                    @db.Date
+  caseValue                Decimal                     @default(0) @db.Decimal(18, 2)
+  claimAmount              Decimal                     @default(0) @db.Decimal(18, 2)
+  amendmentAmount          Decimal                     @default(0) @db.Decimal(18, 2)
+  interestRequested        Boolean                     @default(false)
+  interestStartDate        DateTime?                   @db.Date
+  expectedCollectionAmount Decimal                     @default(0) @db.Decimal(18, 2)
+  opposingAttorneyFee      Decimal                     @default(0) @db.Decimal(18, 2)
+  collectionStatus         GeneralCollectionStatus     @default(NOT_COLLECTED)
+  paymentPlan              GeneralPaymentPlan          @default(CASH)
+  installmentCount         Int?
+  financeDescription       String?                     @db.Text
+  uyapMainNumber           String?                     @db.VarChar(80)
+  uyapDecisionNumber       String?                     @db.VarChar(80)
+  courthouse               String?                     @db.VarChar(150)
+  courtType                String?                     @db.VarChar(100)
+  court                    String?                     @db.VarChar(150)
+  status                   GeneralCaseStatus           @default(ACTIVE)
+  stage                    GeneralCaseStage            @default(CASE_OPENING)
+  procedure                String?                     @db.VarChar(100)
+  urgent                   Boolean                     @default(false)
+  confidentiality          GeneralCaseConfidentiality  @default(NORMAL)
+  estimatedCompletionDate  DateTime?                   @db.Date
+  trackingGroup            String?                     @db.VarChar(100)
+  tags                     String[]                    @default([])
+  office                   String?                     @db.VarChar(100)
+  description              String?                     @db.Text
+  responsibleUserId        String
+  fileStaffUserId          String?
+  version                  Int                         @default(1)
+  createdById              String
+  updatedById              String
+  archivedById             String?
+  archivedAt               DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  responsibleUser          User                        @relation("GeneralLegalCaseResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: Restrict)
+  fileStaffUser            User?                       @relation("GeneralLegalCaseFileStaff", fields: [fileStaffUserId], references: [id], onDelete: SetNull)
+  createdBy                User                        @relation("GeneralLegalCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy                User                        @relation("GeneralLegalCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy               User?                       @relation("GeneralLegalCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  parties                  GeneralCaseParty[]
+  financialEntries         GeneralCaseFinancialEntry[]
 
   @@index([kind, status])
   @@index([stage])
@@ -538,6 +568,28 @@ model GeneralCaseParty {
   @@map("general_case_party")
 }
 
+model GeneralCaseFinancialEntry {
+  id          String                    @id @default(cuid())
+  caseId      String
+  type        GeneralFinancialEntryType
+  category    String                    @db.VarChar(100)
+  entryDate   DateTime                  @db.Date
+  amount      Decimal                   @db.Decimal(18, 2)
+  description String                    @db.VarChar(500)
+  createdById String
+  deletedById String?
+  createdAt   DateTime                  @default(now())
+  deletedAt   DateTime?
+  case        GeneralLegalCase          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdBy   User                      @relation("GeneralCaseFinancialEntryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  deletedBy   User?                     @relation("GeneralCaseFinancialEntryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([caseId, entryDate, createdAt])
+  @@index([caseId, deletedAt])
+  @@index([createdById, createdAt])
+  @@map("general_case_financial_entry")
+}
+
 model CaseTransaction {
   id              String                  @id @default(cuid())
   caseFileId      String
@@ -562,22 +614,22 @@ model CaseTransaction {
 }
 
 model CaseReminder {
-  id          String         @id @default(cuid())
-  caseFileId  String
-  createdById String
-  title       String
-  dueAt       DateTime
-  sendEmail   Boolean        @default(true)
-  sendSms     Boolean        @default(false)
-  status      ReminderStatus @default(PENDING)
-  sentAt      DateTime?
+  id                 String             @id @default(cuid())
+  caseFileId         String
+  createdById        String
+  title              String
+  dueAt              DateTime
+  sendEmail          Boolean            @default(true)
+  sendSms            Boolean            @default(false)
+  status             ReminderStatus     @default(PENDING)
+  sentAt             DateTime?
   deliveryPreparedAt DateTime?
-  nextPreparationAt DateTime @default(now())
-  deliveries ReminderDelivery[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  caseFile    CaseFile       @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
-  createdBy   User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  nextPreparationAt  DateTime           @default(now())
+  deliveries         ReminderDelivery[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  caseFile           CaseFile           @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  createdBy          User               @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([status, dueAt])
   @@index([caseFileId, dueAt])
@@ -596,20 +648,20 @@ enum ReminderDeliveryStatus {
 }
 
 model ReminderDelivery {
-  id String @id @default(cuid())
-  reminderId String
-  recipientId String
+  id             String                 @id @default(cuid())
+  reminderId     String
+  recipientId    String
   recipientEmail String
-  status ReminderDeliveryStatus @default(PENDING)
-  attempts Int @default(0)
-  nextAttemptAt DateTime @default(now())
-  startedAt DateTime?
-  sentAt DateTime?
-  failureCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  reminder CaseReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  status         ReminderDeliveryStatus @default(PENDING)
+  attempts       Int                    @default(0)
+  nextAttemptAt  DateTime               @default(now())
+  startedAt      DateTime?
+  sentAt         DateTime?
+  failureCode    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  reminder       CaseReminder           @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  recipient      User                   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@unique([reminderId, recipientId])
   @@index([status, nextAttemptAt])
