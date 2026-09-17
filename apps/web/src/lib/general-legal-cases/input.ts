@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createGeneralCaseFinanceSummarySchema, createGeneralCaseFinancialEntrySchema } from "./finance-input";
 import { createGeneralCaseHearingSchema, createGeneralCaseProcessEntrySchema } from "./process-input";
 import { createGeneralCaseTaskSchema } from "./task-input";
+import { createGeneralCaseNoteSchema } from "./note-input";
 
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -101,6 +102,7 @@ const rawGeneralLegalCaseInputSchema = z.object({
   processEntries: z.array(createGeneralCaseProcessEntrySchema).max(500, "Bir dosyada en fazla 500 başlangıç süreç işlemi olabilir.").optional().default([]),
   hearings: z.array(createGeneralCaseHearingSchema).max(100, "Bir dosyada en fazla 100 başlangıç duruşması olabilir.").optional().default([]),
   tasks: z.array(createGeneralCaseTaskSchema).max(500, "Bir dosyada en fazla 500 başlangıç görevi olabilir.").optional().default([]),
+  notes: z.array(createGeneralCaseNoteSchema).max(500, "Bir dosyada en fazla 500 başlangıç notu olabilir.").optional().default([]),
 }).strict();
 
 function validateGeneralLegalCase(value: z.infer<typeof rawGeneralLegalCaseInputSchema>, context: z.RefinementCtx) {

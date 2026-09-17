@@ -133,6 +133,12 @@ test("dosyayı başlangıç göreviyle tek seferde kabul eder", () => {
   if (result.success) assert.equal(result.data.tasks[0]?.dueAt.toISOString(), "2099-10-20T14:00:00.000Z");
 });
 
+test("dosyayı başlangıç notuyla tek seferde kabul eder", () => {
+  const result = createGeneralLegalCaseInputSchema.safeParse({ ...valid, notes: [{ content: "Dava stratejisi ekip toplantısında değerlendirildi.", noteType: "STRATEGY", visibility: "TEAM", important: true }] });
+  assert.equal(result.success, true);
+  if (result.success) assert.equal(result.data.notes[0]?.important, true);
+});
+
 test("dosya türüne uygun iki ana taraf bulunmadan kayıt oluşturmaz", () => {
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, parties: [party("PLAINTIFF"), party("INTERVENOR")] }).success, false);
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, kind: "MEDIATION", parties: [party("PLAINTIFF"), party("DEFENDANT")] }).success, false);

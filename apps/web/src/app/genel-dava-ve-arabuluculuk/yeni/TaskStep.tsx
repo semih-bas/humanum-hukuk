@@ -26,11 +26,10 @@ type Props = {
   setTasks: Dispatch<SetStateAction<TaskDraft[]>>;
   onBack: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  saving: boolean;
   error: string;
 };
 
-export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmit, saving, error }: Props) {
+export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmit, error }: Props) {
   const [draft, setDraft] = useState<TaskDraft>(() => emptyTask(currentUser.id));
   function addTask() {
     if (!draft.title.trim() || !draft.dueAt) return;
@@ -52,7 +51,7 @@ export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmi
       <section className={styles.panel}><h2>Hızlı Görev Şablonları</h2><div className={styles.templates}>{templates.map((template) => <button type="button" key={template} onClick={() => setDraft((current) => ({ ...current, title: template }))}>+ {template}</button>)}</div></section>
     </div>
     <section className={styles.list}><h2>Görev Listesi ({tasks.length})</h2>{tasks.length === 0 ? <p>Henüz görev eklenmedi. Bu alan zorunlu değildir.</p> : tasks.map((task) => <article key={task.clientId}><div><b>{task.title}</b><span>{task.taskType || "Genel"} · {formatDate(task.dueAt)}</span></div><em className={styles[task.priority.toLowerCase()]}>{priorityLabel(task.priority)}</em><button type="button" onClick={() => setTasks((current) => current.filter((item) => item.clientId !== task.clientId))}>Kaldır</button></article>)}</section>
-    <footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Görevler</span><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Dosyayı Kaydet"}</button></footer>
+    <footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Görevler</span><button type="submit">Notlara İlerle →</button></footer>
   </form>;
 }
 
