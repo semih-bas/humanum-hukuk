@@ -308,3 +308,46 @@
 @media (max-width: 680px) {
   .pageIdentity h1 { max-width: 43vw; }
 }
+
+/* Altın ışık imzası: ince, katmanlı ve okunabilirliği bozmayan çizgiler. */
+.sidebar {
+  background:
+    linear-gradient(118deg, transparent 0 13%, rgb(224 182 99 / 9%) 13.15% 13.38%, transparent 13.62% 100%),
+    linear-gradient(67deg, transparent 0 34%, rgb(217 171 86 / 7%) 34.15% 34.38%, transparent 34.62% 100%),
+    linear-gradient(126deg, transparent 0 61%, rgb(230 190 108 / 6%) 61.15% 61.38%, transparent 61.65% 100%),
+    linear-gradient(73deg, transparent 0 82%, rgb(207 158 72 / 6%) 82.15% 82.36%, transparent 82.62% 100%),
+    radial-gradient(ellipse at 4% 22%, rgb(214 169 84 / 13%), transparent 25%),
+    radial-gradient(ellipse at 92% 76%, rgb(210 162 75 / 9%), transparent 22%),
+    radial-gradient(circle at 12% 7%, rgb(47 98 139 / 24%), transparent 34%),
+    linear-gradient(180deg, #0a2036 0%, #06182a 52%, #041321 100%);
+}
+.sidebar::before,
+.sidebar::after { width: 2px; background: linear-gradient(transparent, rgb(235 197 122 / 42%), rgb(202 148 57 / 18%), transparent); filter: drop-shadow(0 0 5px rgb(215 169 80 / 25%)); }
+.sidebar::before { height: 168px; }
+.sidebar::after { height: 126px; opacity: .75; }
+
+.topbar {
+  overflow: hidden;
+  background:
+    linear-gradient(118deg, transparent 0 19%, rgb(225 183 99 / 8%) 19.15% 19.35%, transparent 19.58% 100%),
+    linear-gradient(64deg, transparent 0 58%, rgb(216 168 78 / 6%) 58.15% 58.35%, transparent 58.58% 100%),
+    linear-gradient(122deg, transparent 0 83%, rgb(231 194 119 / 7%) 83.12% 83.32%, transparent 83.55% 100%),
+    radial-gradient(ellipse at 17% 110%, rgb(218 171 84 / 12%), transparent 27%),
+    radial-gradient(circle at 72% -45%, rgb(58 108 149 / 22%), transparent 42%),
+    linear-gradient(105deg, #0a2036 0%, #0b2238 56%, #081a2c 100%);
+}
+.topbar::before { position: absolute; top: -46px; left: 42%; width: 2px; height: 165px; background: linear-gradient(transparent, rgb(233 195 121 / 36%), transparent); content: ""; pointer-events: none; transform: rotate(52deg); filter: drop-shadow(0 0 6px rgb(211 160 69 / 28%)); }
+.topbar::after { right: 13%; width: 260px; background: linear-gradient(90deg, transparent, rgb(235 198 126 / 72%), rgb(208 156 66 / 34%), transparent); box-shadow: 0 -2px 8px rgb(217 170 84 / 16%); }
+.topbar > * { position: relative; z-index: 1; }
+
+.teamPanel {
+  background:
+    linear-gradient(123deg, transparent 0 24%, rgb(226 185 103 / 8%) 24.15% 24.42%, transparent 24.7% 100%),
+    linear-gradient(69deg, transparent 0 67%, rgb(216 167 77 / 7%) 67.15% 67.42%, transparent 67.7% 100%),
+    radial-gradient(ellipse at 100% 8%, rgb(222 177 91 / 14%), transparent 31%),
+    radial-gradient(ellipse at 0 88%, rgb(201 150 61 / 8%), transparent 25%),
+    #10283d;
+}
+.teamPanel::before { height: 2px; background: linear-gradient(90deg, #c3913c, #f0cf8e 36%, rgb(213 165 77 / 34%) 72%, transparent); box-shadow: 0 2px 10px rgb(211 163 76 / 22%); }
+.teamPanel::after { position: absolute; z-index: 0; top: 92px; right: 32px; width: 2px; height: 170px; background: linear-gradient(transparent, rgb(235 197 123 / 34%), transparent); content: ""; pointer-events: none; transform: rotate(38deg); filter: drop-shadow(0 0 5px rgb(215 168 80 / 24%)); }
+.teamPanel > * { position: relative; z-index: 1; }
