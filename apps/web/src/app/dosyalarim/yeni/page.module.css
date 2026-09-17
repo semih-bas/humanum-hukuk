@@ -253,3 +253,51 @@
     width: 20px;
   }
 }
+
+/* Kalan yuksekligi kartlara dengeli dagitir; sayfa yine kaymaz. */
+@media (min-width: 1101px) {
+  .newCasePage > .sectionCard,
+  .newCasePage > .splitGrid,
+  .newCasePage > .bottomGrid {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+  .splitGrid > .sectionCard,
+  .bottomGrid > .sectionCard {
+    height: 100%;
+  }
+  .sectionCard {
+    display: flex;
+    flex-direction: column;
+    padding: 9px 15px;
+    border-color: #d2dce4;
+    background:
+      radial-gradient(circle at 96% 8%, rgb(202 153 72 / 5%), transparent 27%),
+      linear-gradient(135deg, #fff 0%, #fcfdfd 70%, #faf7f1 100%);
+    box-shadow:
+      0 7px 20px rgb(11 37 60 / 7%),
+      inset 0 1px rgb(255 255 255 / 92%);
+  }
+  .sectionCard > div,
+  .sectionCard > .field,
+  .sectionCard > fieldset {
+    margin-block: auto;
+  }
+  .sectionCard h2 {
+    flex: 0 0 auto;
+    margin-bottom: 5px;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  .amountInput,
+  .compactNumber input {
+    min-height: 40px;
+  }
+  .toggle {
+    min-height: 48px;
+  }
+  .operationGrid button {
+    min-height: 55px;
+  }
+}
