@@ -58,7 +58,7 @@ export default function DocumentsStep({ documents, setDocuments, onBack, onSubmi
   function removeFolder(folder: string) {
     setDocuments((current) => current.map((item) => item.folder === folder ? { ...item, folder: "DIGER", category: "DIGER" } : item));
     setFolderConfig((current) => folder.startsWith("CUSTOM:") ? current.filter((item) => item.key !== folder) : [...current.filter((item) => item.key !== folder), { key: folder, label: categories.find(([key]) => key === folder)?.[1] ?? folder, hidden: true }]);
-    void Promise.all(documents.filter((item) => item.folder === folder && item.persistedId && caseId).map((item) => persistMove(caseId!, item.persistedId!, "DIGER")));
+    void Promise.all(documents.filter((item) => item.folder === folder && item.persistedId && caseId).map((item) => persistMove(caseId!, item.persistedId!, "DIGER"))).catch(() => setDocumentError("Evraklardan biri Diğer Evraklar klasörüne taşınamadı."));
     setExpandedFolders((current) => current.filter((item) => item !== folder));
     if (selectedFolder === folder) setSelectedFolder("DIGER");
   }
@@ -88,7 +88,7 @@ export default function DocumentsStep({ documents, setDocuments, onBack, onSubmi
       {visibleDocuments.map((document) => <article draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", document.clientId)} key={document.clientId}>
         <div className={styles.icon}>{document.mimeType === "application/pdf" ? "PDF" : "IMG"}</div>
         <div className={styles.name}><b>{document.originalName}</b><span>{formatSize(document.sizeBytes)}{document.persistedId ? " · Kayıtlı" : " · Yeni"}</span></div>
-        <label><span>Klasör / Kategori</span><select value={document.folder} onChange={(event) => { const folder = event.target.value; setDocuments((current) => current.map((item) => item.clientId === document.clientId ? { ...item, folder, category: folder.startsWith("CUSTOM:") ? "DIGER" : folder } : item)); if (document.persistedId && caseId) void persistMove(caseId, document.persistedId, folder); }}>{folders.map(({ value, label }) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <label><span>Klasör / Kategori</span><select value={document.folder} onChange={(event) => { const folder = event.target.value; setDocuments((current) => current.map((item) => item.clientId === document.clientId ? { ...item, folder, category: folder.startsWith("CUSTOM:") ? "DIGER" : folder } : item)); if (document.persistedId && caseId) void persistMove(caseId, document.persistedId, folder).catch(() => setDocumentError("Evrak yeni klasörüne taşınamadı.")); }}>{folders.map(({ value, label }) => <option value={value} key={value}>{label}</option>)}</select></label>
         <button type="button" onClick={() => void removeDocument(document)}>{document.persistedId ? "Sil" : "Kaldır"}</button>
       </article>)}
     </section>}</section></div>
@@ -104,7 +104,8 @@ function moveDocument(event: React.DragEvent, folder: string, documents: Documen
 }
 
 async function persistMove(caseId: string, documentId: string, folderKey: string) {
-  await fetch(`/api/general-legal-cases/${caseId}/documents/${documentId}`, { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderKey }) });
+  const response = await fetch(`/api/general-legal-cases/${caseId}/documents/${documentId}`, { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderKey }) });
+  if (!response.ok) throw new Error("Document move failed");
 }
 
 function formatSize(bytes: number) {
