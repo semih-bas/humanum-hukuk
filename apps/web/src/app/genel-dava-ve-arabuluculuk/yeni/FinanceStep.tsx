@@ -25,6 +25,7 @@ export type FinancialEntryDraft = {
 };
 
 type Props = {
+  caseValue: string;
   finance: FinanceDraft;
   setFinance: Dispatch<SetStateAction<FinanceDraft>>;
   entries: FinancialEntryDraft[];
@@ -35,7 +36,9 @@ type Props = {
   error: string;
 };
 
-export default function FinanceStep({ finance, setFinance, entries, setEntries, onBack, onSubmit, saving, error }: Props) {
+const expenseFields = ["Başvuru Harcı", "Peşin Harç", "Bilirkişi Ücreti", "Tebligat Giderleri", "Keşif Giderleri", "Vekaletname Gideri", "Diğer Masraflar"] as const;
+
+export default function FinanceStep({ caseValue, finance, setFinance, entries, setEntries, onBack, onSubmit, saving, error }: Props) {
   const [draft, setDraft] = useState<FinancialEntryDraft>(() => emptyEntry());
   const totals = useMemo(() => calculatePreview(finance.expectedCollectionAmount, entries), [finance.expectedCollectionAmount, entries]);
 
@@ -49,38 +52,54 @@ export default function FinanceStep({ finance, setFinance, entries, setEntries, 
     setDraft(emptyEntry());
   }
 
+  function expenseValue(category: string) { return entries.find((item) => item.type === "EXPENSE" && item.category === category)?.amount ?? "0"; }
+  function updateExpense(category: string, value: string) {
+    const normalized = formatMoneyInput(value);
+    const amount = parseMoneyToCents(normalized) ?? 0n;
+    setEntries((current) => {
+      const existing = current.find((item) => item.type === "EXPENSE" && item.category === category);
+      if (amount === 0n) return current.filter((item) => item.clientId !== existing?.clientId);
+      if (existing) return current.map((item) => item.clientId === existing.clientId ? { ...item, amount: normalized } : item);
+      return [...current, { clientId: crypto.randomUUID(), type: "EXPENSE", category, entryDate: currentIstanbulDate(), amount: normalized, description: category }];
+    });
+  }
+
   return <form className={styles.form} onSubmit={onSubmit}>
     {error && <p className={styles.error}>{error}</p>}
     <div className={styles.topGrid}>
       <section className={styles.panel}>
-        <h2>Dava Değeri ve Talepler</h2>
-        <MoneyField label="Talep Tutarı" value={finance.claimAmount} onChange={(value) => update("claimAmount", value)} />
+        <h2><i>▥</i> Dava Değeri ve Talepler</h2>
+        <MoneyField label="Dava Değeri" value={caseValue} onChange={() => undefined} readOnly />
+        <MoneyField label="Talep Tutarı *" value={finance.claimAmount} onChange={(value) => update("claimAmount", value)} />
         <MoneyField label="Islah Tutarı" value={finance.amendmentAmount} onChange={(value) => update("amendmentAmount", value)} />
         <label><span>Faiz Talebi</span><select value={finance.interestRequested ? "YES" : "NO"} onChange={(event) => {
           const requested = event.target.value === "YES";
           setFinance((current) => ({ ...current, interestRequested: requested, interestStartDate: requested ? current.interestStartDate : "" }));
         }}><option value="NO">Yok</option><option value="YES">Var</option></select></label>
         {finance.interestRequested && <label><span>Faiz Başlangıç Tarihi *</span><input required type="date" max="9999-12-31" value={finance.interestStartDate} onChange={(event) => update("interestStartDate", limitDateYear(event.target.value, finance.interestStartDate))} /></label>}
+        <label><span>Talep Açıklaması</span><textarea maxLength={2000} value={finance.financeDescription} onChange={(event) => update("financeDescription", event.target.value)} placeholder="Talebin mali kapsamını açıklayın" /></label>
       </section>
 
       <section className={styles.panel}>
-        <h2>Tahsilat ve Alacak</h2>
+        <h2><i>▤</i> Masraflar</h2>
+        <div className={styles.expenseList}>{expenseFields.map((category) => <MoneyField compact key={category} label={category} value={expenseValue(category)} onChange={(value) => updateExpense(category, value)} />)}</div>
+        <div className={styles.expenseTotal}><span>Toplam Masraf</span><strong>{totals.expense}</strong></div>
+      </section>
+
+      <section className={styles.panel}>
+        <h2><i>◎</i> Tahsilat ve Alacak Bilgileri</h2>
         <MoneyField label="Karşı Taraftan Tahsil Edilecek" value={finance.expectedCollectionAmount} onChange={(value) => update("expectedCollectionAmount", value)} />
-        <MoneyField label="Karşı Vekâlet Ücreti" value={finance.opposingAttorneyFee} onChange={(value) => update("opposingAttorneyFee", value)} />
+        <MoneyField label="Karşı Vekâlet Ücreti (Yaklaşık)" value={finance.opposingAttorneyFee} onChange={(value) => update("opposingAttorneyFee", value)} />
         <div className={styles.result}><span>Tahsil Edilen</span><strong>{totals.collection}</strong></div>
         <div className={`${styles.result} ${styles.remaining}`}><span>Kalan Alacak</span><strong>{totals.remaining}</strong></div>
-      </section>
-
-      <section className={styles.panel}>
-        <h2>Ödeme Planı</h2>
-        <label><span>Plan</span><select value={finance.paymentPlan} onChange={(event) => update("paymentPlan", event.target.value as FinanceDraft["paymentPlan"])}><option value="CASH">Peşin</option><option value="INSTALLMENT">Taksitli</option></select></label>
+        <label><span>Tahsilat Durumu</span><select value={totals.collectionCents > 0n ? "PARTIAL" : "NONE"} onChange={() => undefined} aria-readonly="true"><option value="NONE">Tahsil Edilmedi</option><option value="PARTIAL">Kısmen Tahsil Edildi</option></select></label>
+        <label><span>Ödeme Planı</span><select value={finance.paymentPlan} onChange={(event) => update("paymentPlan", event.target.value as FinanceDraft["paymentPlan"])}><option value="CASH">Peşin</option><option value="INSTALLMENT">Taksitli</option></select></label>
         {finance.paymentPlan === "INSTALLMENT" && <label><span>Taksit Sayısı *</span><input required type="number" min={2} max={120} value={finance.installmentCount} onChange={(event) => update("installmentCount", event.target.value)} /></label>}
-        <label><span>Açıklama</span><textarea maxLength={4000} value={finance.financeDescription} onChange={(event) => update("financeDescription", event.target.value)} placeholder="Tahsilat veya ödeme planıyla ilgili not" /></label>
       </section>
     </div>
 
     <section className={styles.movements}>
-      <header><div><h2>Mali Hareketler</h2><p>Masraf, tahsilat ve ödeme kayıtlarını dosyayla birlikte oluşturun.</p></div><div className={styles.summary}><span>Masraf <b>{totals.expense}</b></span><span>Ödeme <b>{totals.payment}</b></span></div></header>
+      <header><div><h2>▣ Mali Hareketler</h2><p>Masraf, tahsilat ve ödeme kayıtlarını dosyayla birlikte oluşturun.</p></div><div className={styles.summary}><span>Masraf <b>{totals.expense}</b></span><span>Ödeme <b>{totals.payment}</b></span></div></header>
       <div className={styles.entryForm}>
         <label><span>Tür</span><select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value as FinancialEntryDraft["type"] }))}><option value="EXPENSE">Masraf</option><option value="COLLECTION">Tahsilat</option><option value="PAYMENT">Ödeme</option></select></label>
         <label><span>Kategori</span><input maxLength={100} value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Örn. Başvuru harcı" /></label>
@@ -96,8 +115,8 @@ export default function FinanceStep({ finance, setFinance, entries, setEntries, 
   </form>;
 }
 
-function MoneyField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return <label><span>{label}</span><div className={styles.money}><input inputMode="decimal" value={value} onChange={(event) => onChange(formatMoneyInput(event.target.value))} /><b>TL</b></div></label>;
+function MoneyField({ label, value, onChange, readOnly = false, compact = false }: { label: string; value: string; onChange: (value: string) => void; readOnly?: boolean; compact?: boolean }) {
+  return <label className={compact ? styles.compactMoney : ""}><span>{label}</span><div className={styles.money}><input readOnly={readOnly} inputMode="decimal" value={value} onChange={(event) => onChange(formatMoneyInput(event.target.value))} /><b>TL</b></div></label>;
 }
 
 function emptyEntry(): FinancialEntryDraft {
@@ -114,7 +133,7 @@ function calculatePreview(expected: string, entries: FinancialEntryDraft[]) {
   }
   const expectedCents = parseMoneyToCents(expected) ?? 0n;
   const remaining = expectedCents > collection ? expectedCents - collection : 0n;
-  return { expense: moneyLabelFromCents(expense), collection: moneyLabelFromCents(collection), payment: moneyLabelFromCents(payment), remaining: moneyLabelFromCents(remaining) };
+  return { expense: moneyLabelFromCents(expense), collection: moneyLabelFromCents(collection), payment: moneyLabelFromCents(payment), remaining: moneyLabelFromCents(remaining), collectionCents: collection };
 }
 
 function moneyLabel(value: string) { return moneyLabelFromCents(parseMoneyToCents(value) ?? 0n); }
