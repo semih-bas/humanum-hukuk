@@ -9,6 +9,7 @@ import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./Fina
 import DocumentsStep, { type DocumentDraft } from "./DocumentsStep";
 import partyStyles from "./PartyStep.module.css";
 import ProcessStep, { type HearingDraft, type ProcessEntryDraft } from "./ProcessStep";
+import TaskStep, { type TaskDraft } from "./TaskStep";
 import styles from "./page.module.css";
 
 const steps = ["Genel Bilgiler", "Taraflar", "Mali Bilgiler", "Dava Süreci", "Evraklar", "Görevler", "Notlar"];
@@ -46,6 +47,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>([]);
   const [hearings, setHearings] = useState<HearingDraft[]>([]);
   const [documents, setDocuments] = useState<DocumentDraft[]>([]);
+  const [tasks, setTasks] = useState<TaskDraft[]>([]);
   const [createdCase, setCreatedCase] = useState<{ id: string; referenceNumber: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -63,6 +65,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   }
   function continueToProcess(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(3); }
   function continueToDocuments(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(4); }
+  function continueToTasks(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(5); }
   function updateParty(clientId: string, name: keyof PartyDraft, value: string) { setParties((current) => current.map((party) => party.clientId === clientId ? { ...party, [name]: value } : party)); }
   function addParty() { setParties((current) => [...current, makeParty("THIRD_PARTY")]); }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
@@ -93,6 +96,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
           financialEntries: financialEntries.map(financialEntryPayload),
           processEntries: processEntries.map(processEntryPayload),
           hearings: hearings.map(hearingPayload),
+          tasks: tasks.map(taskPayload),
         }),
       });
         const body = await response.json();
@@ -117,7 +121,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
 
   return <AppShell><main className={styles.page}>
     <header className={styles.header}><div><Link href="/genel-dava-ve-arabuluculuk" aria-label="Listeye dön">←</Link><div><h1>Yeni Dosya</h1><p>Genel dava veya arabuluculuk kaydı oluşturun.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>Vazgeç</Link></header>
-    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase) || index > step || index > 4} onClick={() => !createdCase && index <= step && index <= 4 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase) || index > step || index > 5} onClick={() => !createdCase && index <= step && index <= 5 && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={styles.form} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
@@ -165,7 +169,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
       <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
     </form> : step === 2 ? <FinanceStep finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={continueToProcess} saving={false} error={error} />
       : step === 3 ? <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={continueToDocuments} error={error} />
-        : <DocumentsStep documents={documents} setDocuments={setDocuments} onBack={() => setStep(3)} onSubmit={submit} saving={saving} locked={Boolean(createdCase)} error={error} />}
+        : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
+          : <TaskStep currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={submit} saving={saving} error={error} />}
   </main></AppShell>;
 }
 
@@ -213,4 +218,8 @@ function processEntryPayload(entry: ProcessEntryDraft) {
 
 function hearingPayload(hearing: HearingDraft) {
   return { startsAt: new Date(hearing.startsAt).toISOString(), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom || null, attendeeUserId: hearing.attendeeUserId, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note || null, status: hearing.status };
+}
+
+function taskPayload(task: TaskDraft) {
+  return { title: task.title, description: task.description || null, assigneeUserId: task.assigneeUserId, priority: task.priority, dueAt: new Date(task.dueAt).toISOString(), taskType: task.taskType || null, reminderOffsetMinutes: task.reminderOffsetMinutes, status: task.status };
 }

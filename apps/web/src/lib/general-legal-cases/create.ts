@@ -16,7 +16,7 @@ export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput,
     if (!sequence) throw new Error("General legal case reference sequence unavailable.");
 
     const referenceNumber = formatGeneralCaseReference(input.kind, sequence.value, new Date());
-    const { parties, finance, financialEntries, processEntries, hearings, ...caseInput } = input;
+    const { parties, finance, financialEntries, processEntries, hearings, tasks, ...caseInput } = input;
     const totals = finance ? calculateGeneralCaseFinanceTotals(
       decimalToCents(finance.expectedCollectionAmount),
       financialEntries.map((entry) => ({ type: entry.type, amountCents: decimalToCents(entry.amount) })),
@@ -58,6 +58,9 @@ export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput,
         ...(hearings.length ? { hearings: { create: hearings.map((hearing) => ({
           ...hearing, createdById: actorUserId, updatedById: actorUserId,
         })) } } : {}),
+        ...(tasks.length ? { tasks: { create: tasks.map((task) => ({
+          ...task, createdById: actorUserId, updatedById: actorUserId,
+        })) } } : {}),
         createdById: actorUserId,
         updatedById: actorUserId,
       },
@@ -69,7 +72,7 @@ export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput,
         event: "general_legal_case.created",
         targetType: "general_legal_case",
         targetId: record.id,
-        context: { referenceNumber, kind: input.kind, confidentiality: input.confidentiality, initialFinancialEntryCount: financialEntries.length, initialProcessEntryCount: processEntries.length, initialHearingCount: hearings.length },
+        context: { referenceNumber, kind: input.kind, confidentiality: input.confidentiality, initialFinancialEntryCount: financialEntries.length, initialProcessEntryCount: processEntries.length, initialHearingCount: hearings.length, initialTaskCount: tasks.length },
       },
     });
     return record;

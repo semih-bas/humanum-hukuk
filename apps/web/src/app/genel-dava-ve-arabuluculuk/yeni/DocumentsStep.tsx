@@ -22,12 +22,10 @@ type Props = {
   setDocuments: Dispatch<SetStateAction<DocumentDraft[]>>;
   onBack: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  saving: boolean;
-  locked: boolean;
   error: string;
 };
 
-export default function DocumentsStep({ documents, setDocuments, onBack, onSubmit, saving, locked, error }: Props) {
+export default function DocumentsStep({ documents, setDocuments, onBack, onSubmit, error }: Props) {
   const input = useRef<HTMLInputElement>(null);
 
   function addFiles(files: FileList | null) {
@@ -41,18 +39,18 @@ export default function DocumentsStep({ documents, setDocuments, onBack, onSubmi
     {error && <p className={styles.error}>{error}</p>}
     <header className={styles.heading}><div><h2>Evraklar</h2><p>Dosyayla birlikte yüklenecek evrakları kategorilerine ayırın.</p></div><span>{documents.length} evrak</span></header>
     <label className={styles.dropzone}>
-      <input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple disabled={locked} onChange={(event) => addFiles(event.target.files)} />
+      <input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(event) => addFiles(event.target.files)} />
       <b>+ Evrak Seç</b><span>PDF, JPG veya PNG · Her dosya en fazla 20 MB</span>
     </label>
     {documents.length === 0 ? <section className={styles.empty}><b>Henüz evrak eklenmedi</b><span>Bu adım zorunlu değildir; evrakları dosya oluşturulduktan sonra da ekleyebilirsiniz.</span></section> : <section className={styles.list}>
       {documents.map((document) => <article key={document.clientId}>
         <div className={styles.icon}>{document.file.type === "application/pdf" ? "PDF" : "IMG"}</div>
         <div className={styles.name}><b>{document.file.name}</b><span>{formatSize(document.file.size)}</span></div>
-        <label><span>Kategori</span><select value={document.category} disabled={locked} onChange={(event) => setDocuments((current) => current.map((item) => item.clientId === document.clientId ? { ...item, category: event.target.value } : item))}>{categories.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-        <button type="button" disabled={locked} onClick={() => setDocuments((current) => current.filter((item) => item.clientId !== document.clientId))}>Kaldır</button>
+        <label><span>Kategori</span><select value={document.category} onChange={(event) => setDocuments((current) => current.map((item) => item.clientId === document.clientId ? { ...item, category: event.target.value } : item))}>{categories.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <button type="button" onClick={() => setDocuments((current) => current.filter((item) => item.clientId !== document.clientId))}>Kaldır</button>
       </article>)}
     </section>}
-    <footer><button type="button" className={styles.back} onClick={onBack} disabled={locked}>← Dava Süreci</button><span>5 / 7 · Evraklar</span><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Dosyayı Kaydet"}</button></footer>
+    <footer><button type="button" className={styles.back} onClick={onBack}>← Dava Süreci</button><span>5 / 7 · Evraklar</span><button type="submit">Görevlere İlerle →</button></footer>
   </form>;
 }
 

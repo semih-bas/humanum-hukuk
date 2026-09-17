@@ -115,6 +115,24 @@ test("dosyayı başlangıç süreç işlemi ve duruşmayla tek seferde kabul ede
   assert.equal(result.data.hearings[0]?.startsAt.toISOString(), "2099-10-20T07:30:00.000Z");
 });
 
+test("dosyayı başlangıç göreviyle tek seferde kabul eder", () => {
+  const result = createGeneralLegalCaseInputSchema.safeParse({
+    ...valid,
+    tasks: [{
+      title: "Cevap dilekçesini değerlendir",
+      description: null,
+      assigneeUserId: "admin-test",
+      priority: "HIGH",
+      dueAt: "2099-10-20T17:00:00.000+03:00",
+      taskType: "İnceleme",
+      reminderOffsetMinutes: 1440,
+      status: "PLANNED",
+    }],
+  });
+  assert.equal(result.success, true);
+  if (result.success) assert.equal(result.data.tasks[0]?.dueAt.toISOString(), "2099-10-20T14:00:00.000Z");
+});
+
 test("dosya türüne uygun iki ana taraf bulunmadan kayıt oluşturmaz", () => {
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, parties: [party("PLAINTIFF"), party("INTERVENOR")] }).success, false);
   assert.equal(createGeneralLegalCaseInputSchema.safeParse({ ...valid, kind: "MEDIATION", parties: [party("PLAINTIFF"), party("DEFENDANT")] }).success, false);
