@@ -141,3 +141,33 @@
 .rowActions > .viewAction:hover { background: #dfedfa; border-color: #a9c9e6; color: #305f89; }
 .rowActions > .editAction { background: #f2ecfa; border-color: #e1d5ef; color: #80609c; }
 .rowActions > .editAction:hover { background: #eae0f5; border-color: #cbb6e1; color: #684787; }
+
+/* İcra liste yerleşimi: sayfa sabit, kayıt alanı kendi içinde kayar. */
+.filesPage { display: flex; height: calc(100vh - 92px); min-height: 0; flex-direction: column; overflow: hidden; padding: 20px clamp(18px, 2.7vw, 42px) 26px; }
+.tableCard { min-height: 0; flex: 1; overflow: hidden; }
+.tableToolbar { min-height: 88px; padding: 18px 24px; }
+.tableToolbar h2 { font-size: 19px; }
+.tableToolbar > div:first-child span { padding: 6px 10px; font-size: 11px; }
+.listControls label > span { font-size: 9px; }
+.listControls select { height: 44px; min-width: 155px; font-size: 11px; }
+.newFileButton { min-height: 44px; font-size: 12px; }
+.tableViewport { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-color: #aab6c1 #edf1f4; scrollbar-width: thin; }
+.tableViewport thead { position: sticky; z-index: 2; top: 0; }
+.tableViewport th { height: 64px; font-size: 12px; }
+.tableViewport td { height: 68px; font-size: 12px; }
+.tableViewport td strong { font-size: 12px; }
+.tableViewport td > span + small, .tableViewport td > strong + small { font-size: 10px; }
+.status { min-height: 30px; padding-inline: 11px; font-size: 10px; }
+.rowActions > button { width: 36px; height: 36px; flex-basis: 36px; }
+.tableFooter { min-height: 70px; flex: 0 0 auto; }
+.tableFooter p, .rowsPerPage select { font-size: 11px; }
+
+@media (min-width: 1180px) {
+  .tableViewport { overflow: auto; }
+}
+
+@media (max-width: 899px) {
+  .filesPage { height: auto; min-height: calc(100vh - 68px); overflow: visible; padding-top: 18px; }
+  .tableCard { min-height: 560px; overflow: visible; }
+  .tableViewport { max-height: 65vh; overflow: auto; }
+}

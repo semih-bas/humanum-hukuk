@@ -171,13 +171,7 @@ export default function FilesClient() {
 
   return <AppShell headerContent={searchField}>
     <div className={styles.filesPage}>
-      <header className={styles.pageHeader}>
-        <div className={styles.pageIntro}>
-          <p className={styles.pageDescription}>Tüm dosyaları görüntüleyin, arayın ve işlemleri tek ekrandan yönetin.</p>
-        </div>
-        <div className={styles.recordSummary}><strong>{pagination.totalCount}</strong><span>{query.trim() || statusFilter !== "ALL" ? "Eşleşen dosya" : "Toplam dosya"}</span></div>
-        <div className={styles.mobileSearch}>{searchField}</div>
-      </header>
+      <div className={styles.mobileSearch}>{searchField}</div>
 
       <section className={styles.tableCard}>
         <header className={styles.tableToolbar}>
