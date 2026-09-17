@@ -69,6 +69,19 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   function continueToDocuments(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(4); }
   function continueToTasks(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(5); }
   function continueToNotes(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(6); }
+  function goToStep(target: number) {
+    if (createdCase || target === step) return;
+    setError("");
+    if (target < step) { setStep(target); return; }
+    if (!form.caseType.trim() || !form.subject.trim() || !form.openingDate || (form.kind === "GENERAL_LITIGATION" && (!form.courthouse.trim() || !form.courtType.trim() || !form.court.trim()))) {
+      setStep(0); setError("Önce yıldızlı genel bilgi alanlarını eksiksiz doldurun."); return;
+    }
+    if (target > 1 && parties.some((party) => !party.name.trim())) {
+      setStep(1); setError("Önce davacı/başvuran ve karşı taraf bilgilerini eksiksiz doldurun."); return;
+    }
+    if (target >= 2) setFinance((current) => current.claimAmount !== "0" || current.expectedCollectionAmount !== "0" ? current : { ...current, claimAmount: form.caseValue || "0", expectedCollectionAmount: form.caseValue || "0" });
+    setStep(target);
+  }
   function updateParty(clientId: string, name: keyof PartyDraft, value: string) { setParties((current) => current.map((party) => party.clientId === clientId ? { ...party, [name]: value } : party)); }
   function addParty() { setParties((current) => [...current, makeParty("THIRD_PARTY")]); }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
@@ -124,34 +137,34 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const litigation = form.kind === "GENERAL_LITIGATION";
 
   return <AppShell><main className={styles.page}>
-    <header className={styles.header}><div><Link href="/genel-dava-ve-arabuluculuk" aria-label="Listeye dön">←</Link><div><h1>Yeni Dosya</h1><p>Genel dava veya arabuluculuk kaydı oluşturun.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>Vazgeç</Link></header>
-    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase) || index > step} onClick={() => !createdCase && index <= step && setStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
-    {step === 0 ? <form className={styles.form} onSubmit={continueToParties}>
-      <section className={styles.panel}><h2>Dosya Bilgileri</h2><div className={styles.grid3}>
+    <header className={styles.header}><div><div><h1>Yeni Dosya Ekle</h1><p>Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
+    <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase)} onClick={() => goToStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
+      {error && <p className={styles.formError}>{error}</p>}
+      <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>
+        <label><span>CRM Dosya No</span><input value="Kaydedildiğinde otomatik oluşur" readOnly /></label>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
         <label><span>Dosya Türü *</span><input required maxLength={100} value={form.caseType} onChange={(event) => update("caseType", event.target.value)} placeholder={litigation ? "Örn. Tazminat" : "Örn. Ticari uyuşmazlık"} /></label>
+        <label className={styles.span2}><span>Dosya Konusu *</span><textarea required maxLength={4000} value={form.subject} onChange={(event) => update("subject", event.target.value)} placeholder="Uyuşmazlığın veya davanın kısa konusu" /></label>
         <label><span>Açılış Tarihi *</span><input required type="date" max="9999-12-31" value={form.openingDate} onChange={(event) => update("openingDate", limitDateYear(event.target.value, form.openingDate))} /></label>
-        <label className={styles.span2}><span>Dosya Konusu *</span><input required maxLength={4000} value={form.subject} onChange={(event) => update("subject", event.target.value)} placeholder="Uyuşmazlığın veya davanın kısa konusu" /></label>
         <label><span>Dosya Değeri</span><div className={styles.money}><input inputMode="decimal" value={form.caseValue} onChange={(event) => update("caseValue", formatMoneyInput(event.target.value))} /><b>TL</b></div></label>
-      </div></section>
-      <section className={styles.panel}><h2>{litigation ? "Mahkeme ve UYAP Bilgileri" : "Arabuluculuk Bilgileri"}</h2><div className={styles.grid3}>
-        {litigation && <><label><span>Adliye *</span><input required maxLength={150} value={form.courthouse} onChange={(event) => update("courthouse", event.target.value)} /></label><label><span>Mahkeme Türü *</span><input required maxLength={100} value={form.courtType} onChange={(event) => update("courtType", event.target.value)} placeholder="Örn. Asliye Hukuk" /></label><label><span>Mahkeme *</span><input required maxLength={150} value={form.court} onChange={(event) => update("court", event.target.value)} placeholder="Örn. İstanbul 8. Asliye Hukuk" /></label></>}
-        <label><span>{litigation ? "UYAP Esas No" : "Arabuluculuk Dosya No"}</span><input maxLength={80} value={form.uyapMainNumber} onChange={(event) => update("uyapMainNumber", event.target.value)} /></label>
-        <label><span>{litigation ? "UYAP Karar No" : "Son Tutanak No"}</span><input maxLength={80} value={form.uyapDecisionNumber} onChange={(event) => update("uyapDecisionNumber", event.target.value)} /></label>
-        <label><span>Takip Eden Ofis</span><input maxLength={100} value={form.office} onChange={(event) => update("office", event.target.value)} /></label>
-      </div></section>
-      <section className={styles.panel}><h2>Süreç ve Sorumluluk</h2><div className={styles.grid4}>
-        <label><span>Dosya Durumu *</span><select value={form.status} onChange={(event) => updateStatus(event.target.value)}><option value="DRAFT">Taslak</option><option value="ACTIVE">Devam Ediyor</option><option value="DECISION">Karar</option><option value="APPEAL">Kanun Yolu</option><option value="COMPLETED">Sonuçlandı</option><option value="CLOSED">Kapalı</option></select></label>
+        <label><span>{litigation ? "UYAP Esas No" : "Arabuluculuk Dosya No"}</span><input maxLength={80} value={form.uyapMainNumber} onChange={(event) => update("uyapMainNumber", event.target.value)} placeholder="Örn. 2026/184" /></label>
+        <label><span>{litigation ? "UYAP Karar No" : "Son Tutanak No"}</span><input maxLength={80} value={form.uyapDecisionNumber} onChange={(event) => update("uyapDecisionNumber", event.target.value)} placeholder="Örn. 2026/458" /></label>
+        {litigation && <><label><span>Adliye *</span><input required maxLength={150} value={form.courthouse} onChange={(event) => update("courthouse", event.target.value)} placeholder="Örn. İstanbul Adliyesi" /></label><label><span>Mahkeme Türü *</span><input required maxLength={100} value={form.courtType} onChange={(event) => update("courtType", event.target.value)} placeholder="Örn. Asliye Hukuk" /></label><label><span>Mahkeme *</span><input required maxLength={150} value={form.court} onChange={(event) => update("court", event.target.value)} placeholder="Örn. İstanbul 8. Asliye Hukuk" /></label></>}
+        <label><span>Sorumlu Avukat *</span><input value={currentUser.name} readOnly /></label>
+        <label><span>Dosya Personeli</span><input value="Henüz atanmadı" readOnly /></label>
+        <label><span>Takip Eden Ofis</span><input maxLength={100} value={form.office} onChange={(event) => update("office", event.target.value)} placeholder="Örn. İstanbul Ofis" /></label>
+        <label><span>Dosya Durumu *</span><select value={form.status} onChange={(event) => updateStatus(event.target.value)}><option value="DRAFT">Taslak</option><option value="ACTIVE">Derdest</option><option value="DECISION">Karar</option><option value="APPEAL">Kanun Yolu</option><option value="COMPLETED">Sonuçlandı</option><option value="CLOSED">Kapalı</option></select></label>
         <label><span>Dosya Aşaması *</span><select value={form.stage} onChange={(event) => updateStage(event.target.value)}>{stages.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-        <label><span>Sorumlu Kullanıcı</span><input value={currentUser.name} readOnly /></label>
-        <label><span>Tahmini Sonuç Tarihi</span><input type="date" max="9999-12-31" value={form.estimatedCompletionDate} onChange={(event) => update("estimatedCompletionDate", limitDateYear(event.target.value, form.estimatedCompletionDate))} /></label>
-        <label><span>Usul / Yöntem</span><input maxLength={100} value={form.procedure} onChange={(event) => update("procedure", event.target.value)} /></label>
+        <label><span>Dava Şekli / Usul</span><input maxLength={100} value={form.procedure} onChange={(event) => update("procedure", event.target.value)} placeholder="Örn. Yazılı yargılama" /></label>
         <label><span>Takip Grubu</span><input maxLength={100} value={form.trackingGroup} onChange={(event) => update("trackingGroup", event.target.value)} /></label>
-        <label><span>Gizlilik</span><select value={form.confidentiality} onChange={(event) => update("confidentiality", event.target.value)}><option value="NORMAL">Normal</option><option value="RESTRICTED">Kısıtlı</option></select></label>
-        <label className={styles.check}><input type="checkbox" checked={form.urgent} onChange={(event) => update("urgent", event.target.checked)} /><span>Acil dosya</span></label>
+        <label><span>Gizlilik Durumu</span><select value={form.confidentiality} onChange={(event) => update("confidentiality", event.target.value)}><option value="NORMAL">Normal</option><option value="RESTRICTED">Kısıtlı</option></select></label>
+        <label><span>Tahmini Sonuç Tarihi</span><input type="date" max="9999-12-31" value={form.estimatedCompletionDate} onChange={(event) => update("estimatedCompletionDate", limitDateYear(event.target.value, form.estimatedCompletionDate))} /></label>
+        <label><span>Etiketler</span><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="Virgülle ayırın: tazminat, ticari" /></label>
+        <label className={styles.check}><input type="checkbox" checked={form.urgent} onChange={(event) => update("urgent", event.target.checked)} /><span>Acil Dosya</span></label>
+        <label className={styles.span2}><span>Açıklama</span><textarea maxLength={4000} value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="Dosya ile ilgili genel açıklamalar" /></label>
       </div></section>
-      <section className={styles.panel}><h2>Etiket ve Açıklama</h2><div className={styles.grid2}><label><span>Etiketler</span><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="Virgülle ayırın: tazminat, ticari" /></label><label><span>Açıklama</span><textarea maxLength={4000} value={form.description} onChange={(event) => update("description", event.target.value)} /></label></div></section>
-      <footer><span>1 / 7 · Genel Bilgiler</span><button type="submit">Taraflara İlerle →</button></footer>
+      <footer><span>1 / 7 · Genel Bilgiler</span><button type="submit">Sonraki: Taraflar →</button></footer>
     </form> : step === 1 ? <form className={`${styles.form} ${partyStyles.form}`} onSubmit={continueToFinance}>
       <header className={partyStyles.heading}><div><h2>Dosya Tarafları</h2><p>Birden fazla kişi, şirket veya ilgili kurum ekleyebilirsiniz.</p></div><button type="button" onClick={addParty}>+ Diğer Taraf Ekle</button></header>
       {error && <p className={partyStyles.error}>{error}</p>}
