@@ -222,7 +222,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
       : step === 3 ? <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={continueToDocuments} error={error} />
         : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
           : step === 5 ? <TaskStep currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={continueToNotes} error={error} />
-            : <NoteStep notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
+            : <NoteStep currentUser={currentUser} notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
   </main></AppShell>;
 }
 

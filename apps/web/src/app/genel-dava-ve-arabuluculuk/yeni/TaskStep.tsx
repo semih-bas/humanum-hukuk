@@ -31,6 +31,7 @@ type Props = {
 
 export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmit, error }: Props) {
   const [draft, setDraft] = useState<TaskDraft>(() => emptyTask(currentUser.id));
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   function addTask() {
     if (!draft.title.trim() || !draft.dueAt) return;
     setTasks((current) => [...current, { ...draft, title: draft.title.trim(), description: draft.description.trim(), taskType: draft.taskType.trim() }]);
@@ -48,7 +49,7 @@ export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmi
         <label><span>Görev Türü</span><input maxLength={100} value={draft.taskType} onChange={(event) => setDraft((current) => ({ ...current, taskType: event.target.value }))} placeholder="Örn. İnceleme" /></label>
         <label><span>Hatırlatma</span><select value={draft.reminderOffsetMinutes ?? ""} onChange={(event) => setDraft((current) => ({ ...current, reminderOffsetMinutes: event.target.value ? Number(event.target.value) : null }))}><option value="">Yok</option><option value="1440">1 gün önce</option><option value="4320">3 gün önce</option><option value="10080">1 hafta önce</option></select></label>
       </div><button type="button" className={styles.add} onClick={addTask}>+ Görev Ekle</button></section>
-      <section className={styles.panel}><h2>Hızlı Görev Şablonları</h2><div className={styles.templates}>{templates.map((template) => <button type="button" key={template} onClick={() => setDraft((current) => ({ ...current, title: template }))}>+ {template}</button>)}</div></section>
+      <section className={styles.panel}><header className={styles.templateHeader}><div><h2>Hızlı Görev Şablonları</h2><p>Sık kullanılan görevleri tek tıkla forma aktarın.</p></div><button type="button" onClick={() => setTemplatesOpen((value) => !value)}>{templatesOpen ? "Gizle" : "Şablondan Ekle"}</button></header>{templatesOpen ? <div className={styles.templates}>{templates.map((template) => <button type="button" key={template} onClick={() => { setDraft((current) => ({ ...current, title: template })); setTemplatesOpen(false); }}>+ {template}</button>)}</div> : <div className={styles.templateHint}>Şablonlar isteğe bağlıdır; görev ekleme formunu kalabalıklaştırmadan hız kazandırır.</div>}</section>
     </div>
     <section className={styles.list}><h2>Görev Listesi ({tasks.length})</h2>{tasks.length === 0 ? <p>Henüz görev eklenmedi. Bu alan zorunlu değildir.</p> : tasks.map((task) => <article key={task.clientId}><div><b>{task.title}</b><span>{task.taskType || "Genel"} · {formatDate(task.dueAt)}</span></div><em className={styles[task.priority.toLowerCase()]}>{priorityLabel(task.priority)}</em><button type="button" onClick={() => setTasks((current) => current.filter((item) => item.clientId !== task.clientId))}>Kaldır</button></article>)}</section>
     <footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Görevler</span><button type="submit">Notlara İlerle →</button></footer>
