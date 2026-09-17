@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import { buildNewUserEnrollment } from "@/lib/new-user-enrollment";
@@ -12,6 +12,7 @@ import styles from "./AppShell.module.css";
 type IconName =
   | "bell"
   | "briefcase"
+  | "camera"
   | "chevron"
   | "close"
   | "folder"
@@ -51,6 +52,7 @@ function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
     briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></>,
+    camera: <><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3Z" /><circle cx="12" cy="13" r="3.5" /></>,
     chevron: <path d="m9 18 6-6-6-6" />,
     close: <><path d="m6 6 12 12M18 6 6 18" /></>,
     folder: <path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />,
@@ -75,6 +77,14 @@ function getInitials(name: string) {
     .toLocaleUpperCase("tr-TR") || "HU";
 }
 
+function UserAvatar({ image, initials, name }: { image?: string | null; initials: string; name: string }) {
+  return <span className={styles.avatar} aria-label={`${name} profil fotoğrafı`}>
+    {image
+      ? <Image className={styles.avatarImage} src={image} alt="" width={40} height={40} unoptimized />
+      : initials}
+  </span>;
+}
+
 export default function AppShell({ children, headerContent, hideTopbar = false }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -86,6 +96,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     name: displayName,
     fullName: displayName,
     email: session?.user.email ?? "",
+    image: session?.user.image ?? null,
     role: isManager ? "Yönetici" : "Kullanıcı",
     isManager,
   };
@@ -101,11 +112,17 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
   const [pendingStatusChange, setPendingStatusChange] = useState<TeamMember | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
+  const [avatarImageOverride, setAvatarImageOverride] = useState<string | null | undefined>(undefined);
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+  const [profileNotice, setProfileNotice] = useState("");
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [notificationState, setNotificationState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const menuAreaRef = useRef<HTMLDivElement>(null);
   const teamAreaRef = useRef<HTMLDivElement>(null);
+  const profileImageInputRef = useRef<HTMLInputElement>(null);
+
+  const avatarImage = avatarImageOverride === undefined ? currentUser.image : avatarImageOverride;
 
   const visibleTeamMembers = useMemo(() => {
     const query = teamQuery.trim().toLocaleLowerCase("tr-TR");
@@ -284,6 +301,52 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
     router.refresh();
   }
 
+  async function handleProfileImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const image = event.target.files?.[0];
+    event.target.value = "";
+    if (!image || isUpdatingAvatar) return;
+
+    if (!(["image/jpeg", "image/png", "image/webp"].includes(image.type)) || image.size > 1024 * 1024) {
+      setProfileNotice("JPG, PNG veya WEBP biçiminde, en fazla 1 MB bir fotoğraf seçin.");
+      return;
+    }
+
+    setIsUpdatingAvatar(true);
+    setProfileNotice("");
+    try {
+      const formData = new FormData();
+      formData.set("image", image);
+      const response = await fetch("/api/profile/image", { method: "POST", credentials: "same-origin", body: formData });
+      const result = await response.json() as { data?: { image: string }; error?: { message?: string } };
+      if (!response.ok || !result.data?.image) throw new Error(result.error?.message ?? "Profil fotoğrafı kaydedilemedi.");
+      setAvatarImageOverride(result.data.image);
+      setProfileNotice("Profil fotoğrafı güncellendi.");
+      router.refresh();
+    } catch (error) {
+      setProfileNotice(error instanceof Error ? error.message : "Profil fotoğrafı kaydedilemedi.");
+    } finally {
+      setIsUpdatingAvatar(false);
+    }
+  }
+
+  async function handleProfileImageRemove() {
+    if (isUpdatingAvatar) return;
+    setIsUpdatingAvatar(true);
+    setProfileNotice("");
+    try {
+      const response = await fetch("/api/profile/image", { method: "DELETE", credentials: "same-origin" });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) throw new Error(result.error?.message ?? "Profil fotoğrafı kaldırılamadı.");
+      setAvatarImageOverride(null);
+      setProfileNotice("Profil fotoğrafı kaldırıldı; baş harfler gösteriliyor.");
+      router.refresh();
+    } catch (error) {
+      setProfileNotice(error instanceof Error ? error.message : "Profil fotoğrafı kaldırılamadı.");
+    } finally {
+      setIsUpdatingAvatar(false);
+    }
+  }
+
   return (
     <div className={styles.shell}>
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
@@ -338,7 +401,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
               if (!teamOpen && teamState === "idle") void loadTeamMembers();
             }
           }}>
-            <span className={styles.avatar}>{currentUser.initials}</span>
+            <UserAvatar image={avatarImage} initials={currentUser.initials} name={currentUser.name} />
             <span className={styles.sidebarUserText}><strong title={currentUser.name}>{currentUser.name}</strong><small>{currentUser.role}</small></span>
             {currentUser.isManager && <span className={`${styles.teamChevron} ${teamOpen ? styles.teamChevronOpen : ""}`}><Icon name="chevron" /></span>}
           </button>
@@ -413,13 +476,17 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
 
             <div className={styles.menuWrapper}>
               <button className={styles.profileButton} type="button" aria-expanded={openMenu === "profile"} onClick={() => setOpenMenu((value) => value === "profile" ? null : "profile")}>
-                <span className={styles.avatar}>{currentUser.initials}</span>
+                <UserAvatar image={avatarImage} initials={currentUser.initials} name={currentUser.name} />
                 <span className={styles.profileText}><strong title={currentUser.name}>{currentUser.name}</strong><small>{currentUser.role}</small></span>
                 <Icon name="chevron" />
               </button>
               {openMenu === "profile" && (
                 <div className={`${styles.popover} ${styles.profilePopover}`}>
                   <p><b>{currentUser.fullName}</b><small>{currentUser.email}</small></p>
+                  <input ref={profileImageInputRef} className={styles.profileImageInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleProfileImageChange} />
+                  <button className={styles.profileAction} type="button" onClick={() => profileImageInputRef.current?.click()} disabled={isUpdatingAvatar}><Icon name="camera" /> {avatarImage ? "Fotoğrafı Değiştir" : "Fotoğraf Ekle"}</button>
+                  {avatarImage && <button className={`${styles.profileAction} ${styles.profileImageRemove}`} type="button" onClick={() => void handleProfileImageRemove()} disabled={isUpdatingAvatar}><Icon name="close" /> Fotoğrafı Kaldır</button>}
+                  {profileNotice && <span className={styles.profileNotice} role="status">{profileNotice}</span>}
                   <Link className={styles.profileAction} href="/sifre-degistir" onClick={() => setOpenMenu(null)}><Icon name="key" /> Şifremi Değiştir</Link>
                   {currentUser.isManager && <button className={styles.profileAction} type="button" onClick={() => {
                     setOpenMenu(null);
