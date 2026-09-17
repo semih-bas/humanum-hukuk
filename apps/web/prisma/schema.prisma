@@ -56,6 +56,7 @@ model User {
   assignedGeneralCaseTasks             GeneralCaseTask[]              @relation("GeneralCaseTaskAssignee")
   createdGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskCreatedBy")
   updatedGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskUpdatedBy")
+  authoredGeneralCaseNotes             GeneralCaseNote[]              @relation("GeneralCaseNoteAuthor")
   reminderDeliveries                   ReminderDelivery[]
 
   @@unique([email])
@@ -523,6 +524,11 @@ enum GeneralTaskStatus {
   CANCELLED
 }
 
+enum GeneralNoteVisibility {
+  TEAM
+  PRIVATE
+}
+
 model GeneralLegalCase {
   id                       String                      @id @default(cuid())
   referenceNumber          String                      @unique
@@ -576,6 +582,7 @@ model GeneralLegalCase {
   hearings                 GeneralCaseHearing[]
   documents                GeneralCaseDocument[]
   tasks                    GeneralCaseTask[]
+  notes                    GeneralCaseNote[]
 
   @@index([kind, status])
   @@index([stage])
@@ -743,6 +750,25 @@ model GeneralCaseTask {
   @@index([caseId, status, priority])
   @@index([assigneeUserId, status, dueAt])
   @@map("general_case_task")
+}
+
+model GeneralCaseNote {
+  id         String                @id @default(cuid())
+  caseId     String
+  authorId   String
+  content    String                @db.Text
+  noteType   String                @db.VarChar(50)
+  visibility GeneralNoteVisibility @default(TEAM)
+  important  Boolean               @default(false)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  case       GeneralLegalCase      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author     User                  @relation("GeneralCaseNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+  @@index([caseId, noteType, important])
+  @@index([authorId, createdAt])
+  @@map("general_case_note")
 }
 
 model CaseTransaction {
