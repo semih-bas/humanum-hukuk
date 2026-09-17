@@ -28,27 +28,43 @@ type Props = {
 
 export default function DocumentsStep({ documents, setDocuments, onBack, onSubmit, error }: Props) {
   const input = useRef<HTMLInputElement>(null);
+  const uploadFolder = useRef("DIGER");
   const [selectedFolder, setSelectedFolder] = useState("ALL");
   const [customFolders, setCustomFolders] = useState<string[]>([]);
   const [newFolder, setNewFolder] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const folders = useMemo(() => [...categories.map(([value, label]) => ({ value, label })), ...customFolders.map((label) => ({ value: `CUSTOM:${label}`, label }))], [customFolders]);
   const visibleDocuments = selectedFolder === "ALL" ? documents : documents.filter((item) => item.folder === selectedFolder);
 
   function addFiles(files: FileList | null) {
     if (!files) return;
     const accepted = Array.from(files).filter((file) => file.size > 0 && file.size <= 20 * 1024 * 1024 && ["application/pdf", "image/jpeg", "image/png"].includes(file.type));
-    setDocuments((current) => [...current, ...accepted.map((file) => ({ clientId: crypto.randomUUID(), file, category: selectedFolder !== "ALL" && !selectedFolder.startsWith("CUSTOM:") ? selectedFolder : "DIGER", folder: selectedFolder === "ALL" ? "DIGER" : selectedFolder }))]);
+    const folder = uploadFolder.current;
+    setDocuments((current) => [...current, ...accepted.map((file) => ({ clientId: crypto.randomUUID(), file, category: folder.startsWith("CUSTOM:") ? "DIGER" : folder, folder }))]);
     if (input.current) input.current.value = "";
+  }
+  function chooseFiles(folder = selectedFolder === "ALL" ? "DIGER" : selectedFolder) { uploadFolder.current = folder; input.current?.click(); }
+  function toggleFolder(folder: string) { setExpandedFolders((current) => current.includes(folder) ? current.filter((item) => item !== folder) : [...current, folder]); }
+  function removeFolder(folder: string) {
+    const label = folder.replace(/^CUSTOM:/, "");
+    setDocuments((current) => current.map((item) => item.folder === folder ? { ...item, folder: "DIGER", category: "DIGER" } : item));
+    setCustomFolders((current) => current.filter((item) => item !== label));
+    setExpandedFolders((current) => current.filter((item) => item !== folder));
+    if (selectedFolder === folder) setSelectedFolder("DIGER");
   }
 
   return <form className={styles.form} onSubmit={onSubmit}>
     {error && <p className={styles.error}>{error}</p>}
-    <header className={styles.heading}><div><h2>▣ Evraklar</h2><p>Dosyaları klasörlere ayırın; sürükleyerek farklı klasöre taşıyın.</p></div><label className={styles.upload}><input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(event) => addFiles(event.target.files)} />+ Evrak Yükle</label></header>
-    <div className={styles.workspace}><aside><header><b>Klasörler</b></header><button type="button" className={selectedFolder === "ALL" ? styles.activeFolder : ""} onClick={() => setSelectedFolder("ALL")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => moveDocument(event, "DIGER", setDocuments)}>▣ Tüm Evraklar <span>{documents.length}</span></button>{folders.map((folder) => <button type="button" key={folder.value} className={selectedFolder === folder.value ? styles.activeFolder : ""} onClick={() => setSelectedFolder(folder.value)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => moveDocument(event, folder.value, setDocuments)}>▰ {folder.label}<span>{documents.filter((item) => item.folder === folder.value).length}</span></button>)}<div className={styles.newFolder}><input maxLength={60} value={newFolder} onChange={(event) => setNewFolder(event.target.value)} placeholder="Yeni klasör" /><button type="button" onClick={() => { const name = newFolder.trim(); if (!name || customFolders.includes(name)) return; setCustomFolders((current) => [...current, name]); setSelectedFolder(`CUSTOM:${name}`); setNewFolder(""); }}>+</button></div></aside><section className={styles.documentArea}><div className={styles.filters}><input placeholder="Evrak adına göre ara" readOnly value="" /><span>{visibleDocuments.length} evrak gösteriliyor</span></div>
-    <label className={styles.dropzone}>
-      <input ref={input} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(event) => addFiles(event.target.files)} />
+    <input ref={input} className={styles.fileInput} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(event) => addFiles(event.target.files)} />
+    <header className={styles.heading}><div><h2>▣ Evraklar</h2><p>Dosyaları klasörlere ayırın; sürükleyerek farklı klasöre taşıyın.</p></div><button type="button" className={styles.upload} onClick={() => chooseFiles()}>+ Evrak Yükle</button></header>
+    <div className={styles.workspace}><aside><header><b>Klasörler</b></header><button type="button" className={selectedFolder === "ALL" ? styles.activeFolder : ""} onClick={() => setSelectedFolder("ALL")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => moveDocument(event, "DIGER", setDocuments)}>▣ Tüm Evraklar <span>{documents.length}</span></button>{folders.map((folder) => {
+      const folderDocuments = documents.filter((item) => item.folder === folder.value);
+      const expanded = expandedFolders.includes(folder.value);
+      return <div className={styles.folderGroup} key={folder.value}><div className={`${styles.folderRow} ${selectedFolder === folder.value ? styles.activeFolder : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => moveDocument(event, folder.value, setDocuments)}><button type="button" className={styles.chevron} aria-label={`${folder.label} içeriğini ${expanded ? "daralt" : "aç"}`} onClick={() => toggleFolder(folder.value)}>{expanded ? "⌄" : "›"}</button><button type="button" className={styles.folderName} onClick={() => setSelectedFolder(folder.value)}>▰ {folder.label}<span>{folderDocuments.length}</span></button><button type="button" className={styles.folderAdd} title="Bu klasöre evrak ekle" aria-label={`${folder.label} klasörüne evrak ekle`} onClick={() => chooseFiles(folder.value)}>＋</button>{folder.value.startsWith("CUSTOM:") && <button type="button" className={styles.folderDelete} title="Klasörü kaldır" aria-label={`${folder.label} klasörünü kaldır`} onClick={() => removeFolder(folder.value)}>⌫</button>}</div>{expanded && <div className={styles.folderChildren}>{folderDocuments.length ? folderDocuments.map((item) => <button type="button" key={item.clientId} title={item.file.name} onClick={() => setSelectedFolder(folder.value)}>↳ {item.file.name}</button>) : <span>Bu klasör boş</span>}</div>}</div>;
+    })}<div className={styles.newFolder}><input maxLength={60} value={newFolder} onChange={(event) => setNewFolder(event.target.value)} placeholder="Yeni klasör" /><button type="button" title="Klasör oluştur" onClick={() => { const name = newFolder.trim(); if (!name || customFolders.includes(name)) return; setCustomFolders((current) => [...current, name]); setSelectedFolder(`CUSTOM:${name}`); setExpandedFolders((current) => [...current, `CUSTOM:${name}`]); setNewFolder(""); }}>+</button></div></aside><section className={styles.documentArea}><div className={styles.filters}><input placeholder="Evrak adına göre ara" readOnly value="" /><span>{visibleDocuments.length} evrak gösteriliyor</span></div>
+    <button type="button" className={styles.dropzone} onClick={() => chooseFiles()}>
       <b>Dosyaları buraya bırakın veya seçin</b><span>PDF, JPG veya PNG · Her dosya en fazla 20 MB</span>
-    </label>
+    </button>
     {visibleDocuments.length === 0 ? <section className={styles.empty}><b>Bu klasörde evrak yok</b><span>Evrak yükleyebilir veya başka klasörden buraya sürükleyebilirsiniz.</span></section> : <section className={styles.list}>
       {visibleDocuments.map((document) => <article draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", document.clientId)} key={document.clientId}>
         <div className={styles.icon}>{document.file.type === "application/pdf" ? "PDF" : "IMG"}</div>

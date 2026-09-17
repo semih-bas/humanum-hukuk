@@ -58,12 +58,18 @@ const optionalIdentity = z.union([
   z.null(),
 ]).transform((value) => value || null);
 
+const optionalPhone = z.union([
+  z.string().trim().regex(/^\d{10,11}$/, "Telefon numarası 10 veya 11 rakam olmalıdır."),
+  z.literal(""),
+  z.null(),
+]).transform((value) => value || null);
+
 export const generalCasePartyInputSchema = z.object({
   role: z.enum(["PLAINTIFF", "DEFENDANT", "APPLICANT", "RESPONDENT", "INTERVENOR", "THIRD_PARTY", "RELATED_INSTITUTION"]),
   kind: z.enum(["INDIVIDUAL", "ORGANIZATION"]),
   name: requiredText("Taraf adı", 200),
   identityOrTaxNumber: optionalIdentity,
-  phone: optionalText("Telefon", 30),
+  phone: optionalPhone,
   email: optionalEmail,
   address: optionalText("Adres", 2_000),
   representativeUserId: z.union([resourceIdSchema, z.literal(""), z.null()]).transform((value) => value || null),
