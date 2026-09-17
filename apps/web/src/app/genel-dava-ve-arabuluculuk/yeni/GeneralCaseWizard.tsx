@@ -38,12 +38,26 @@ type PartyDraft = {
   phone: string; email: string; address: string; representativeName: string; clientType: string; description: string;
 };
 
-export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: string; name: string } }) {
+export type WizardInitialData = {
+  legalCase: GeneralCaseDraft & {
+    id: string; version: number; referenceNumber: string; tags: string[]; responsibleUserId: string; fileStaffUserId: string | null;
+    parties: Array<Omit<PartyDraft, "clientId"> & { id: string; identityOrTaxNumber: string | null; phone: string | null; email: string | null; address: string | null; representativeName: string | null; clientType: string | null; description: string | null }>;
+  };
+  finance: FinanceDraft & { installmentCount: number | null; financeDescription: string | null; interestStartDate: string | null };
+};
+
+export default function GeneralCaseWizard({ currentUser, initialData = null }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null }) {
   const router = useRouter();
-  const [form, setForm] = useState(initialForm);
+  const editingCase = initialData?.legalCase ?? null;
+  const [form, setForm] = useState<GeneralCaseDraft>(() => editingCase ? {
+    ...initialForm, ...editingCase, openingDate: editingCase.openingDate ?? initialForm.openingDate, tags: editingCase.tags.join(", "), estimatedCompletionDate: editingCase.estimatedCompletionDate ?? "",
+    uyapMainNumber: editingCase.uyapMainNumber ?? "", uyapDecisionNumber: editingCase.uyapDecisionNumber ?? "", courthouse: editingCase.courthouse ?? "",
+    courtType: editingCase.courtType ?? "", court: editingCase.court ?? "", procedure: editingCase.procedure ?? "", trackingGroup: editingCase.trackingGroup ?? "",
+    office: editingCase.office ?? "", description: editingCase.description ?? "",
+  } : initialForm);
   const [step, setStep] = useState(0);
-  const [parties, setParties] = useState<PartyDraft[]>(() => primaryParties("GENERAL_LITIGATION"));
-  const [finance, setFinance] = useState<FinanceDraft>(initialFinance);
+  const [parties, setParties] = useState<PartyDraft[]>(() => editingCase ? editingCase.parties.map((party) => ({ ...party, clientId: party.id, identityOrTaxNumber: party.identityOrTaxNumber ?? "", phone: (party.phone ?? "").replace(/\D/g, "").slice(0, 11), email: party.email ?? "", address: party.address ?? "", representativeName: party.representativeName ?? "", clientType: party.clientType ?? "", description: party.description ?? "" })) : primaryParties("GENERAL_LITIGATION"));
+  const [finance, setFinance] = useState<FinanceDraft>(() => initialData ? { ...initialFinance, ...initialData.finance, installmentCount: String(initialData.finance.installmentCount ?? 3), financeDescription: initialData.finance.financeDescription ?? "", interestStartDate: initialData.finance.interestStartDate ?? "" } : initialFinance);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>([]);
   const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>([]);
   const [hearings, setHearings] = useState<HearingDraft[]>([]);
@@ -116,8 +130,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
     try {
       let record = createdCase;
       if (!record) {
-        const response = await fetch("/api/general-legal-cases", {
-        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        const response = await fetch(editingCase ? `/api/general-legal-cases/${editingCase.id}` : "/api/general-legal-cases", {
+        method: editingCase ? "PATCH" : "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
           uyapMainNumber: form.uyapMainNumber || null, uyapDecisionNumber: form.uyapDecisionNumber || null,
@@ -140,6 +154,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
           hearings: hearings.map(hearingPayload),
           tasks: tasks.map(taskPayload),
           notes: notes.map(notePayload),
+          ...(editingCase ? { version: editingCase.version } : {}),
         }),
       });
         const body = await response.json();
@@ -165,7 +180,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
         if (!upload.ok) throw new Error(`Dosya oluşturuldu ancak ${document.file.name} yüklenemedi: ${uploadBody.error?.message ?? "Bilinmeyen hata"}. Tekrar deneyebilirsiniz.`);
         setDocuments((current) => current.filter((item) => item.clientId !== document.clientId));
       }
-      router.push(`/genel-dava-ve-arabuluculuk?created=${encodeURIComponent(record.referenceNumber)}`);
+      router.push(`/genel-dava-ve-arabuluculuk?${editingCase ? "updated" : "created"}=${encodeURIComponent(record.referenceNumber)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Dosya kaydedilemedi."); setSaving(false);
     }
@@ -173,11 +188,11 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const litigation = form.kind === "GENERAL_LITIGATION";
 
   return <AppShell><main className={styles.page}>
-    <header className={styles.header}><div><div><h1>Yeni Dosya Ekle</h1><p>Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
+    <header className={styles.header}><div><div><h1>{editingCase ? `${editingCase.referenceNumber} Dosyasını Düzenle` : "Yeni Dosya Ekle"}</h1><p>{editingCase ? "Dosyanın mevcut bilgilerini aynı adımlı yapı üzerinden güncelleyin." : "Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin."}</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
     <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase)} onClick={() => goToStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>
-        <label><span>CRM Dosya No</span><input value="Kaydedildiğinde otomatik oluşur" readOnly /></label>
+        <label><span>CRM Dosya No</span><input value={editingCase?.referenceNumber ?? "Kaydedildiğinde otomatik oluşur"} readOnly /></label>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
         <label className={missingFields.includes("Dosya Türü") ? styles.invalid : ""}><span>Dosya Türü *</span><input aria-invalid={missingFields.includes("Dosya Türü")} maxLength={100} value={form.caseType} onChange={(event) => update("caseType", event.target.value)} placeholder={litigation ? "Örn. Tazminat" : "Örn. Ticari uyuşmazlık"} />{missingFields.includes("Dosya Türü") && <small style={{ color: "#b72f3b" }}>Dosya türünü yazın.</small>}</label>
         <label className={`${styles.span2} ${missingFields.includes("Dosya Konusu") ? styles.invalid : ""}`}><span>Dosya Konusu *</span><textarea aria-invalid={missingFields.includes("Dosya Konusu")} maxLength={4000} value={form.subject} onChange={(event) => update("subject", event.target.value)} placeholder="Uyuşmazlığın veya davanın kısa konusu" />{missingFields.includes("Dosya Konusu") && <small style={{ color: "#b72f3b" }}>Dosya konusunu açıklayın.</small>}</label>
