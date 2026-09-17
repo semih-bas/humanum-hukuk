@@ -398,9 +398,14 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
                     <span className={styles.memberAvatar}>{getInitials(member.name)}</span>
                     <span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.role === "admin" ? "Yönetici" : "Kullanıcı"}</small></span>
                     <span className={`${styles.memberStatus} ${member.banned ? styles.memberStatusBanned : !member.emailVerified ? styles.memberStatusUnverified : ""}`}><i />{member.banned ? "Pasif" : member.emailVerified ? "Aktif" : "Doğrulama Bekliyor"}</span>
-                    {member.id !== session?.user.id && <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
-                      {changingUserId === member.id ? "..." : member.banned ? "Tekrar Aktifleştir" : "Pasifleştir"}
-                    </button>}
+                    {member.id !== session?.user.id && <details className={styles.memberActions}>
+                      <summary className={styles.memberActionsTrigger} aria-label={`${member.name} için işlemleri aç`}>•••</summary>
+                      <div className={styles.memberActionsMenu}>
+                        <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
+                          {changingUserId === member.id ? "İşleniyor…" : member.banned ? "Tekrar aktifleştir" : "Kullanıcıyı pasifleştir"}
+                        </button>
+                      </div>
+                    </details>}
                   </div>
                 ))}
                 {teamState === "ready" && visibleTeamMembers.length === 0 && <p className={styles.teamEmpty}>Bu isimle eşleşen kullanıcı bulunamadı.</p>}
