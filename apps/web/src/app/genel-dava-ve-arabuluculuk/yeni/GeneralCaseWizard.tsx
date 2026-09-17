@@ -57,11 +57,12 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   const [partyModalOpen, setPartyModalOpen] = useState(false);
   const [editingPartyId, setEditingPartyId] = useState<string | null>(null);
   const [partyDraft, setPartyDraft] = useState<PartyDraft>(() => makeParty("THIRD_PARTY"));
-  function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); }
+  const [partyModalErrors, setPartyModalErrors] = useState<string[]>([]);
+  function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); setMissingFields((current) => current.filter((label) => generalFieldLabel(name) !== label)); }
   function updateKind(value: string) { setForm((current) => ({ ...current, kind: value })); setParties(primaryParties(value)); }
   function updateStatus(value: string) { setForm((current) => ({ ...current, status: value, stage: value === "CLOSED" ? "CLOSED" : current.stage === "CLOSED" ? "CASE_OPENING" : current.stage })); }
   function updateStage(value: string) { setForm((current) => ({ ...current, stage: value, status: value === "CLOSED" ? "CLOSED" : current.status === "CLOSED" ? "ACTIVE" : current.status })); }
-  function continueToParties(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setStep(1); }
+  function continueToParties(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const missing = generalMissingFields(form); if (missing.length) { setMissingFields(missing); setError(""); return; } setMissingFields([]); setError(""); setStep(1); }
   function continueToFinance(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFinance((current) => current.claimAmount !== "0" || current.expectedCollectionAmount !== "0"
@@ -77,12 +78,7 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
     if (createdCase || target === step) return;
     setError(""); setMissingFields([]);
     if (target < step) { setStep(target); return; }
-    const generalMissing = [
-      !form.caseType.trim() && "Dosya Türü", !form.subject.trim() && "Dosya Konusu", !form.openingDate && "Açılış Tarihi",
-      form.kind === "GENERAL_LITIGATION" && !form.courthouse.trim() && "Adliye",
-      form.kind === "GENERAL_LITIGATION" && !form.courtType.trim() && "Mahkeme Türü",
-      form.kind === "GENERAL_LITIGATION" && !form.court.trim() && "Mahkeme",
-    ].filter((item): item is string => Boolean(item));
+    const generalMissing = generalMissingFields(form);
     if (generalMissing.length) {
       setStep(0); setMissingFields(generalMissing); setError(`Eksik zorunlu alanlar: ${generalMissing.join(", ")}.`); return;
     }
@@ -97,10 +93,12 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
   function openPartyModal(party?: PartyDraft) {
     setEditingPartyId(party?.clientId ?? null);
     setPartyDraft(party ? { ...party } : makeParty("THIRD_PARTY"));
+    setPartyModalErrors([]);
     setPartyModalOpen(true);
   }
   function savePartyDraft() {
-    if (!partyDraft.name.trim()) { setError("Diğer taraf için ad / ünvan alanını doldurun."); return; }
+    const required = [!partyDraft.name.trim() && "Ad / Ünvan", !validIdentityNumber(partyDraft.identityOrTaxNumber, partyDraft.kind) && (partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No" : "Vergi No")].filter((item): item is string => Boolean(item));
+    if (required.length) { setPartyModalErrors(required); return; }
     setParties((current) => editingPartyId
       ? current.map((party) => party.clientId === editingPartyId ? partyDraft : party)
       : [...current, partyDraft]);
@@ -162,16 +160,15 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
     <header className={styles.header}><div><div><h1>Yeni Dosya Ekle</h1><p>Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin.</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
     <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase)} onClick={() => goToStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
-      {error && <p className={styles.formError}>{error}{missingFields.length > 0 && <span> Lütfen kırmızı işaretli alanları tamamlayın.</span>}</p>}
       <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>CRM Dosya No</span><input value="Kaydedildiğinde otomatik oluşur" readOnly /></label>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
-        <label className={missingFields.includes("Dosya Türü") ? styles.invalid : ""}><span>Dosya Türü *</span><input aria-invalid={missingFields.includes("Dosya Türü")} required maxLength={100} value={form.caseType} onChange={(event) => update("caseType", event.target.value)} placeholder={litigation ? "Örn. Tazminat" : "Örn. Ticari uyuşmazlık"} /></label>
-        <label className={`${styles.span2} ${missingFields.includes("Dosya Konusu") ? styles.invalid : ""}`}><span>Dosya Konusu *</span><textarea aria-invalid={missingFields.includes("Dosya Konusu")} required maxLength={4000} value={form.subject} onChange={(event) => update("subject", event.target.value)} placeholder="Uyuşmazlığın veya davanın kısa konusu" /></label>
-        <label className={missingFields.includes("Açılış Tarihi") ? styles.invalid : ""}><span>Açılış Tarihi *</span><input aria-invalid={missingFields.includes("Açılış Tarihi")} required type="date" max="9999-12-31" value={form.openingDate} onChange={(event) => update("openingDate", limitDateYear(event.target.value, form.openingDate))} /></label>
+        <label className={missingFields.includes("Dosya Türü") ? styles.invalid : ""}><span>Dosya Türü *</span><input aria-invalid={missingFields.includes("Dosya Türü")} maxLength={100} value={form.caseType} onChange={(event) => update("caseType", event.target.value)} placeholder={litigation ? "Örn. Tazminat" : "Örn. Ticari uyuşmazlık"} />{missingFields.includes("Dosya Türü") && <small className={styles.fieldError}>Dosya türünü yazın.</small>}</label>
+        <label className={`${styles.span2} ${missingFields.includes("Dosya Konusu") ? styles.invalid : ""}`}><span>Dosya Konusu *</span><textarea aria-invalid={missingFields.includes("Dosya Konusu")} maxLength={4000} value={form.subject} onChange={(event) => update("subject", event.target.value)} placeholder="Uyuşmazlığın veya davanın kısa konusu" />{missingFields.includes("Dosya Konusu") && <small className={styles.fieldError}>Dosya konusunu açıklayın.</small>}</label>
+        <label className={missingFields.includes("Açılış Tarihi") ? styles.invalid : ""}><span>Açılış Tarihi *</span><input aria-invalid={missingFields.includes("Açılış Tarihi")} type="date" max="9999-12-31" value={form.openingDate} onChange={(event) => update("openingDate", limitDateYear(event.target.value, form.openingDate))} />{missingFields.includes("Açılış Tarihi") && <small className={styles.fieldError}>Açılış tarihini seçin.</small>}</label>
         <label><span>Dosya Değeri</span><div className={styles.money}><input inputMode="decimal" value={form.caseValue} onChange={(event) => update("caseValue", formatMoneyInput(event.target.value))} /><b>TL</b></div></label>
-        <label><span>{litigation ? "UYAP Esas No" : "Arabuluculuk Dosya No"}</span><input maxLength={80} value={form.uyapMainNumber} onChange={(event) => update("uyapMainNumber", event.target.value)} placeholder="Örn. 2026/184" /></label>
-        <label><span>{litigation ? "UYAP Karar No" : "Son Tutanak No"}</span><input maxLength={80} value={form.uyapDecisionNumber} onChange={(event) => update("uyapDecisionNumber", event.target.value)} placeholder="Örn. 2026/458" /></label>
+        <label><span>{litigation ? "UYAP Esas No" : "Arabuluculuk Dosya No"}</span><input inputMode="numeric" maxLength={17} value={form.uyapMainNumber} onChange={(event) => update("uyapMainNumber", formatFileNumber(event.target.value))} placeholder="Örn. 2026/184" /></label>
+        <label><span>{litigation ? "UYAP Karar No" : "Son Tutanak No"}</span><input inputMode="numeric" maxLength={17} value={form.uyapDecisionNumber} onChange={(event) => update("uyapDecisionNumber", formatFileNumber(event.target.value))} placeholder="Örn. 2026/458" /></label>
         {litigation && <><label className={missingFields.includes("Adliye") ? styles.invalid : ""}><span>Adliye *</span><input aria-invalid={missingFields.includes("Adliye")} required maxLength={150} value={form.courthouse} onChange={(event) => update("courthouse", event.target.value)} placeholder="Örn. İstanbul Adliyesi" /></label><label className={missingFields.includes("Mahkeme Türü") ? styles.invalid : ""}><span>Mahkeme Türü *</span><input aria-invalid={missingFields.includes("Mahkeme Türü")} required maxLength={100} value={form.courtType} onChange={(event) => update("courtType", event.target.value)} placeholder="Örn. Asliye Hukuk" /></label><label className={missingFields.includes("Mahkeme") ? styles.invalid : ""}><span>Mahkeme *</span><input aria-invalid={missingFields.includes("Mahkeme")} required maxLength={150} value={form.court} onChange={(event) => update("court", event.target.value)} placeholder="Örn. İstanbul 8. Asliye Hukuk" /></label></>}
         <label><span>Sorumlu Avukat *</span><input value={currentUser.name} readOnly /></label>
         <label><span>Dosya Personeli</span><input value="Henüz atanmadı" readOnly /></label>
@@ -194,8 +191,8 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
         <article className={`${partyStyles.card} ${index === 0 ? partyStyles.claimant : partyStyles.respondent}`} key={party.clientId}><header><strong>{partyRoleLabel(party.role)}</strong><span>{party.kind === "INDIVIDUAL" ? "Gerçek kişi" : "Tüzel kişi / kurum"}</span></header><div className={partyStyles.kindTabs}><button type="button" className={party.kind === "INDIVIDUAL" ? partyStyles.selected : ""} onClick={() => updateParty(party.clientId, "kind", "INDIVIDUAL")}>Gerçek Kişi</button><button type="button" className={party.kind === "ORGANIZATION" ? partyStyles.selected : ""} onClick={() => updateParty(party.clientId, "kind", "ORGANIZATION")}>Tüzel Kişi (Şirket)</button></div><div className={partyStyles.grid}>
           <label><span>Kişi Türü *</span><select value={party.kind} onChange={(event) => updateParty(party.clientId, "kind", event.target.value)}><option value="INDIVIDUAL">Gerçek Kişi</option><option value="ORGANIZATION">Tüzel Kişi / Kurum</option></select></label>
           <label className={partyStyles.wide}><span>{party.kind === "INDIVIDUAL" ? "Ad Soyad" : "Ünvan"} *</span><input required maxLength={200} value={party.name} onChange={(event) => updateParty(party.clientId, "name", event.target.value)} /></label>
-          <label><span>T.C. / Vergi No</span><input inputMode="numeric" maxLength={11} value={party.identityOrTaxNumber} onChange={(event) => updateParty(party.clientId, "identityOrTaxNumber", event.target.value.replace(/\D/g, "").slice(0, 11))} /></label>
-          <label><span>Telefon</span><input maxLength={30} value={party.phone} onChange={(event) => updateParty(party.clientId, "phone", event.target.value)} /></label>
+          <label><span>{party.kind === "INDIVIDUAL" ? "T.C. Kimlik No *" : "Vergi No *"}</span><input required inputMode="numeric" minLength={party.kind === "INDIVIDUAL" ? 11 : 10} maxLength={party.kind === "INDIVIDUAL" ? 11 : 10} value={party.identityOrTaxNumber} onChange={(event) => updateParty(party.clientId, "identityOrTaxNumber", event.target.value.replace(/\D/g, "").slice(0, party.kind === "INDIVIDUAL" ? 11 : 10))} /></label>
+          <label><span>Telefon</span><input inputMode="tel" maxLength={20} value={party.phone} onChange={(event) => updateParty(party.clientId, "phone", event.target.value.replace(/[^\d+()\s-]/g, ""))} /></label>
           <label><span>E-posta</span><input type="email" maxLength={254} value={party.email} onChange={(event) => updateParty(party.clientId, "email", event.target.value)} /></label>
           <label><span>Vekil / Temsilci</span><input maxLength={200} value={party.representativeName} onChange={(event) => updateParty(party.clientId, "representativeName", event.target.value)} /></label>
           <label><span>Müvekkil Türü</span><input maxLength={100} value={party.clientType} onChange={(event) => updateParty(party.clientId, "clientType", event.target.value)} placeholder="Örn. Asıl taraf" /></label>
@@ -206,11 +203,11 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
         {parties.length === 2 ? <p className={partyStyles.empty}>Henüz başka taraf eklenmedi.</p> : <div className={partyStyles.tableWrap}><table><thead><tr><th>Taraf Türü</th><th>Ad / Ünvan</th><th>T.C. / Vergi No</th><th>Vekil</th><th>Açıklama</th><th>İşlemler</th></tr></thead><tbody>{parties.slice(2).map((party) => <tr key={party.clientId}><td>{partyRoleLabel(party.role)}</td><td><strong>{party.name}</strong><small>{party.kind === "INDIVIDUAL" ? "Gerçek kişi" : "Tüzel kişi"}</small></td><td>{party.identityOrTaxNumber || "—"}</td><td>{party.representativeName || "—"}</td><td>{party.description || "—"}</td><td><button type="button" onClick={() => openPartyModal(party)}>Düzenle</button><button type="button" className={partyStyles.delete} onClick={() => removeParty(party.clientId)}>Sil</button></td></tr>)}</tbody></table></div>}
       </section>
       <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
-      {partyModalOpen && <div className={partyStyles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPartyModalOpen(false); }}><section className={partyStyles.modal} role="dialog" aria-modal="true" aria-labelledby="party-modal-title"><header><div><h2 id="party-modal-title">{editingPartyId ? "Diğer Tarafı Düzenle" : "Diğer Taraf Ekle"}</h2><p>Kişi veya kurumun dosyadaki rolünü ve iletişim bilgilerini girin.</p></div><button type="button" aria-label="Kapat" onClick={() => setPartyModalOpen(false)}>×</button></header><div className={partyStyles.modalGrid}>
+      {partyModalOpen && <div className={partyStyles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPartyModalOpen(false); }}><section className={partyStyles.modal} role="dialog" aria-modal="true" aria-labelledby="party-modal-title"><header><div><h2 id="party-modal-title">{editingPartyId ? "Diğer Tarafı Düzenle" : "Diğer Taraf Ekle"}</h2><p>Kişi veya kurumun dosyadaki rolünü ve iletişim bilgilerini girin.</p></div><button type="button" aria-label="Kapat" onClick={() => setPartyModalOpen(false)}>×</button></header>{partyModalErrors.length > 0 && <p className={partyStyles.modalNotice}>Lütfen işaretli zorunlu alanları tamamlayın.</p>}<div className={partyStyles.modalGrid}>
         <label><span>Taraf Rolü *</span><select value={partyDraft.role} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))}>{availableRoles(form.kind).filter(([role]) => !["PLAINTIFF", "DEFENDANT", "APPLICANT", "RESPONDENT"].includes(role)).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
         <label><span>Kişi Türü *</span><select value={partyDraft.kind} onChange={(event) => setPartyDraft((current) => ({ ...current, kind: event.target.value as PartyDraft["kind"] }))}><option value="INDIVIDUAL">Gerçek Kişi</option><option value="ORGANIZATION">Tüzel Kişi / Kurum</option></select></label>
-        <label className={partyStyles.modalWide}><span>{partyDraft.kind === "INDIVIDUAL" ? "Ad Soyad" : "Şirket / Kurum Ünvanı"} *</span><input autoFocus maxLength={200} value={partyDraft.name} onChange={(event) => setPartyDraft((current) => ({ ...current, name: event.target.value }))} /></label>
-        <label><span>T.C. / Vergi No</span><input inputMode="numeric" maxLength={11} value={partyDraft.identityOrTaxNumber} onChange={(event) => setPartyDraft((current) => ({ ...current, identityOrTaxNumber: event.target.value.replace(/\D/g, "").slice(0, 11) }))} /></label>
+        <label className={`${partyStyles.modalWide} ${partyModalErrors.includes("Ad / Ünvan") ? partyStyles.invalid : ""}`}><span>{partyDraft.kind === "INDIVIDUAL" ? "Ad Soyad" : "Şirket / Kurum Ünvanı"} *</span><input autoFocus maxLength={200} value={partyDraft.name} onChange={(event) => { setPartyDraft((current) => ({ ...current, name: event.target.value })); setPartyModalErrors((current) => current.filter((item) => item !== "Ad / Ünvan")); }} />{partyModalErrors.includes("Ad / Ünvan") && <small>Ad veya ünvan zorunludur.</small>}</label>
+        <label className={partyModalErrors.some((item) => item.includes("No")) ? partyStyles.invalid : ""}><span>{partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No *" : "Vergi No *"}</span><input inputMode="numeric" maxLength={partyDraft.kind === "INDIVIDUAL" ? 11 : 10} value={partyDraft.identityOrTaxNumber} onChange={(event) => { setPartyDraft((current) => ({ ...current, identityOrTaxNumber: event.target.value.replace(/\D/g, "").slice(0, current.kind === "INDIVIDUAL" ? 11 : 10) })); setPartyModalErrors((current) => current.filter((item) => !item.includes("No"))); }} />{partyModalErrors.some((item) => item.includes("No")) && <small>{partyDraft.kind === "INDIVIDUAL" ? "11 haneli T.C. kimlik numarası girin." : "10 haneli vergi numarası girin."}</small>}</label>
         <label><span>Telefon</span><input inputMode="tel" maxLength={30} value={partyDraft.phone} onChange={(event) => setPartyDraft((current) => ({ ...current, phone: event.target.value.replace(/[^\d+()\s-]/g, "") }))} /></label>
         <label><span>E-posta</span><input type="email" maxLength={254} value={partyDraft.email} onChange={(event) => setPartyDraft((current) => ({ ...current, email: event.target.value }))} /></label>
         <label><span>Vekil / Temsilci</span><input maxLength={200} value={partyDraft.representativeName} onChange={(event) => setPartyDraft((current) => ({ ...current, representativeName: event.target.value }))} /></label>
@@ -229,6 +226,26 @@ export default function GeneralCaseWizard({ currentUser }: { currentUser: { id: 
 function currentIstanbulDate() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
+
+function generalMissingFields(form: GeneralCaseDraft) {
+  return [
+    !form.caseType.trim() && "Dosya Türü", !form.subject.trim() && "Dosya Konusu", !form.openingDate && "Açılış Tarihi",
+    form.kind === "GENERAL_LITIGATION" && !form.courthouse.trim() && "Adliye",
+    form.kind === "GENERAL_LITIGATION" && !form.courtType.trim() && "Mahkeme Türü",
+    form.kind === "GENERAL_LITIGATION" && !form.court.trim() && "Mahkeme",
+  ].filter((item): item is string => Boolean(item));
+}
+
+function generalFieldLabel(name: keyof GeneralCaseDraft) {
+  return ({ caseType: "Dosya Türü", subject: "Dosya Konusu", openingDate: "Açılış Tarihi", courthouse: "Adliye", courtType: "Mahkeme Türü", court: "Mahkeme" } as Partial<Record<keyof GeneralCaseDraft, string>>)[name];
+}
+
+function formatFileNumber(value: string) {
+  const clean = value.replace(/[^\d/]/g, ""); const [year = "", ...rest] = clean.split("/");
+  return rest.length ? `${year.slice(0, 4)}/${rest.join("").slice(0, 12)}` : year.slice(0, 16);
+}
+
+function validIdentityNumber(value: string, kind: PartyDraft["kind"]) { return /^\d+$/.test(value) && value.length === (kind === "INDIVIDUAL" ? 11 : 10); }
 
 function makeParty(role: string, clientId = crypto.randomUUID()): PartyDraft {
   return { clientId, role, kind: "INDIVIDUAL", name: "", identityOrTaxNumber: "", phone: "", email: "", address: "", representativeName: "", clientType: "", description: "" };
