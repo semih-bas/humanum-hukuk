@@ -7,6 +7,7 @@ import { createGeneralCaseFinanceSummarySchema, createGeneralCaseFinancialEntryS
 import { createGeneralCaseHearingSchema, createGeneralCaseProcessEntrySchema } from "./process-input";
 import { createGeneralCaseTaskSchema } from "./task-input";
 import { createGeneralCaseNoteSchema } from "./note-input";
+import { generalCaseDocumentFolderConfigSchema } from "./document-input";
 
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -100,6 +101,7 @@ const rawGeneralLegalCaseInputSchema = z.object({
     .transform((values) => [...new Set(values.map((value) => value.toLocaleLowerCase("tr-TR")))]),
   office: optionalText("Ofis", 100),
   description: optionalText("Açıklama", 4_000),
+  documentFolders: generalCaseDocumentFolderConfigSchema.optional().default([]),
   responsibleUserId: resourceIdSchema,
   fileStaffUserId: z.union([resourceIdSchema, z.literal(""), z.null()]).transform((value) => value || null),
   parties: z.array(generalCasePartyInputSchema).min(2, "En az iki taraf eklenmelidir.").max(100, "Bir dosyada en fazla 100 taraf olabilir."),

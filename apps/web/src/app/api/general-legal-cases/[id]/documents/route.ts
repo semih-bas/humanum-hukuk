@@ -2,7 +2,7 @@ import { ApiRequestError, assertSameOrigin, requireApiSession } from "@/lib/api-
 import { documentStorageLimits, documentUploadRateLimitKey, DocumentQuotaExceededError } from "@/lib/document-limits";
 import { DocumentValidationError, MAX_MULTIPART_BYTES } from "@/lib/document-validation";
 import { consumeDurableRateLimit } from "@/lib/email-rate-limit";
-import { generalCaseDocumentCategorySchema } from "@/lib/general-legal-cases/document-input";
+import { generalCaseDocumentCategorySchema, generalCaseDocumentFolderKeySchema } from "@/lib/general-legal-cases/document-input";
 import { GeneralCaseDocumentNotFoundError, listGeneralCaseDocuments, storeGeneralCaseDocument } from "@/lib/general-legal-cases/document-storage";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
@@ -31,9 +31,12 @@ export async function POST(request: Request, { params }: Context) {
 
     const data = await request.formData(); const file = data.get("file");
     const category = generalCaseDocumentCategorySchema.safeParse(data.get("category"));
+    const rawFolderKey = data.get("folderKey");
+    const folderKey = rawFolderKey ? generalCaseDocumentFolderKeySchema.safeParse(rawFolderKey) : null;
     if (!(file instanceof File)) throw new DocumentValidationError("Yüklenecek evrak bulunamadı.");
     if (!category.success) throw new DocumentValidationError(category.error.issues[0]?.message ?? "Evrak kategorisi geçerli değildir.");
-    return json({ data: await storeGeneralCaseDocument(id.data, file, category.data, { id: session.user.id, role: session.user.role }) }, 201);
+    if (folderKey && !folderKey.success) throw new DocumentValidationError(folderKey.error.issues[0]?.message ?? "Evrak klasörü geçerli değildir.");
+    return json({ data: await storeGeneralCaseDocument(id.data, file, category.data, folderKey?.data ?? null, { id: session.user.id, role: session.user.role }) }, 201);
   } catch (error) { return handleError(error, "Evrak yüklenemedi."); }
 }
 

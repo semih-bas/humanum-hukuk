@@ -53,6 +53,7 @@ model User {
   updatedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingUpdatedBy")
   deletedGeneralCaseHearings           GeneralCaseHearing[]           @relation("GeneralCaseHearingDeletedBy")
   uploadedGeneralCaseDocuments         GeneralCaseDocument[]          @relation("GeneralCaseDocumentUploadedBy")
+  deletedGeneralCaseDocuments          GeneralCaseDocument[]          @relation("GeneralCaseDocumentDeletedBy")
   assignedGeneralCaseTasks             GeneralCaseTask[]              @relation("GeneralCaseTaskAssignee")
   createdGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskCreatedBy")
   updatedGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskUpdatedBy")
@@ -564,6 +565,7 @@ model GeneralLegalCase {
   tags                     String[]                    @default([])
   office                   String?                     @db.VarChar(100)
   description              String?                     @db.Text
+  documentFolders          Json                        @default("[]")
   responsibleUserId        String
   fileStaffUserId          String?
   version                  Int                         @default(1)
@@ -712,18 +714,24 @@ model GeneralCaseDocument {
   id           String           @id @default(cuid())
   caseId       String
   uploadedById String
+  deletedById  String?
   originalName String           @db.VarChar(255)
   category     String           @db.VarChar(100)
+  folderKey    String?          @db.VarChar(80)
   storageKey   String           @unique
   mimeType     String           @db.VarChar(100)
   sizeBytes    Int
   sha256       String           @db.Char(64)
   createdAt    DateTime         @default(now())
+  deletedAt    DateTime?
   case         GeneralLegalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   uploadedBy   User             @relation("GeneralCaseDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  deletedBy    User?            @relation("GeneralCaseDocumentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseId, category, createdAt])
+  @@index([caseId, folderKey])
   @@index([uploadedById, createdAt])
+  @@index([caseId, deletedAt])
   @@map("general_case_document")
 }
 

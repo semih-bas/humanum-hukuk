@@ -33,7 +33,7 @@ export async function updateGeneralLegalCase(id: string, input: UpdateGeneralLeg
       courthouse: input.courthouse, courtType: input.courtType, court: input.court,
       status: input.status, stage: input.stage, procedure: input.procedure, urgent: input.urgent,
       confidentiality: input.confidentiality, trackingGroup: input.trackingGroup, tags: input.tags,
-      office: input.office, description: input.description, responsibleUserId: input.responsibleUserId,
+      office: input.office, description: input.description, documentFolders: input.documentFolders, responsibleUserId: input.responsibleUserId,
       fileStaffUserId: input.fileStaffUserId,
     };
     const updated = await transaction.generalLegalCase.updateMany({

@@ -21,14 +21,14 @@ export async function listGeneralCaseDocuments(caseId: string, actor: GeneralCas
   });
   if (!activeCase) throw new GeneralCaseDocumentNotFoundError();
   const documents = await prisma.generalCaseDocument.findMany({
-    where: { caseId },
+    where: { caseId, deletedAt: null },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { id: true, originalName: true, category: true, mimeType: true, sizeBytes: true, createdAt: true, uploadedBy: { select: { id: true, name: true } } },
+    select: { id: true, originalName: true, category: true, folderKey: true, mimeType: true, sizeBytes: true, createdAt: true, uploadedBy: { select: { id: true, name: true } } },
   });
   return documents.map((document) => ({ ...document, createdAt: document.createdAt.toISOString() }));
 }
 
-export async function storeGeneralCaseDocument(caseId: string, file: File, category: GeneralCaseDocumentCategory, actor: GeneralCaseActor) {
+export async function storeGeneralCaseDocument(caseId: string, file: File, category: GeneralCaseDocumentCategory, folderKey: string | null, actor: GeneralCaseActor) {
   const inspected = await inspectDocumentUpload(file);
   const token = randomBytes(32).toString("hex");
   const storageKey = `general/${token.slice(0, 2)}/${token}.${inspected.extension}`;
@@ -62,8 +62,8 @@ export async function storeGeneralCaseDocument(caseId: string, file: File, categ
       try { await handle.writeFile(inspected.buffer); } finally { await handle.close(); }
 
       const created = await transaction.generalCaseDocument.create({
-        data: { caseId, uploadedById: actor.id, originalName: inspected.originalName, category, storageKey, mimeType: inspected.mimeType, sizeBytes: inspected.buffer.byteLength, sha256: inspected.sha256 },
-        select: { id: true, originalName: true, category: true, mimeType: true, sizeBytes: true, createdAt: true },
+        data: { caseId, uploadedById: actor.id, originalName: inspected.originalName, category, folderKey, storageKey, mimeType: inspected.mimeType, sizeBytes: inspected.buffer.byteLength, sha256: inspected.sha256 },
+        select: { id: true, originalName: true, category: true, folderKey: true, mimeType: true, sizeBytes: true, createdAt: true },
       });
       await transaction.auditLog.create({
         data: { actorUserId: actor.id, event: "general_legal_case.document_uploaded", targetType: "general_legal_case", targetId: caseId, context: { referenceNumber: activeCase.referenceNumber, documentId: created.id, category, mimeType: created.mimeType, sizeBytes: created.sizeBytes } },
@@ -77,9 +77,20 @@ export async function storeGeneralCaseDocument(caseId: string, file: File, categ
   }
 }
 
+export async function moveGeneralCaseDocument(caseId: string, documentId: string, folderKey: string | null, actor: GeneralCaseActor) {
+  return prisma.$transaction(async (transaction) => {
+    const activeCase = await transaction.generalLegalCase.findFirst({ where: { id: caseId, archivedAt: null, ...generalCaseAccessWhere(actor) }, select: { referenceNumber: true } });
+    if (!activeCase) throw new GeneralCaseDocumentNotFoundError();
+    const result = await transaction.generalCaseDocument.updateMany({ where: { id: documentId, caseId, deletedAt: null }, data: { folderKey } });
+    if (result.count !== 1) throw new GeneralCaseDocumentNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId: actor.id, event: "general_legal_case.document_moved", targetType: "general_legal_case", targetId: caseId, context: { referenceNumber: activeCase.referenceNumber, documentId, folderKey } } });
+    return { id: documentId, folderKey };
+  });
+}
+
 export async function readGeneralCaseDocument(caseId: string, documentId: string, actor: GeneralCaseActor) {
   const document = await prisma.generalCaseDocument.findFirst({
-    where: { id: documentId, caseId, case: { archivedAt: null, ...generalCaseAccessWhere(actor) } },
+    where: { id: documentId, caseId, deletedAt: null, case: { archivedAt: null, ...generalCaseAccessWhere(actor) } },
     select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true },
   });
   if (!document) throw new GeneralCaseDocumentNotFoundError();
@@ -88,6 +99,23 @@ export async function readGeneralCaseDocument(caseId: string, documentId: string
     if (data.byteLength !== document.sizeBytes || !hasExpectedDocumentDigest(data, document.sha256)) throw new Error("Invalid document data");
     return { ...document, data };
   } catch { throw new GeneralCaseDocumentNotFoundError(); }
+}
+
+export async function deleteGeneralCaseDocument(caseId: string, documentId: string, actor: GeneralCaseActor) {
+  const document = await prisma.$transaction(async (transaction) => {
+    const record = await transaction.generalCaseDocument.findFirst({
+      where: { id: documentId, caseId, deletedAt: null, case: { archivedAt: null, ...generalCaseAccessWhere(actor) } },
+      select: { id: true, originalName: true, storageKey: true, case: { select: { referenceNumber: true } } },
+    });
+    if (!record) throw new GeneralCaseDocumentNotFoundError();
+    const result = await transaction.generalCaseDocument.updateMany({ where: { id: documentId, caseId, deletedAt: null }, data: { deletedAt: new Date(), deletedById: actor.id } });
+    if (result.count !== 1) throw new GeneralCaseDocumentNotFoundError();
+    await transaction.auditLog.create({
+      data: { actorUserId: actor.id, event: "general_legal_case.document_deleted", targetType: "general_legal_case", targetId: caseId, context: { referenceNumber: record.case.referenceNumber, documentId, originalName: record.originalName } },
+    });
+    return record;
+  });
+  return { id: document.id };
 }
 
 async function storedFileBytes(directory: string): Promise<number> {

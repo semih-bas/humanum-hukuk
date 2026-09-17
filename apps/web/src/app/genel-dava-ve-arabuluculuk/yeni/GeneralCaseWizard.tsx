@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
-import DocumentsStep, { type DocumentDraft } from "./DocumentsStep";
+import DocumentsStep, { type DocumentDraft, type DocumentFolderConfig } from "./DocumentsStep";
 import partyStyles from "./PartyStep.module.css";
 import ProcessStep, { type HearingDraft, type ProcessEntryDraft } from "./ProcessStep";
 import TaskStep, { type TaskDraft } from "./TaskStep";
@@ -41,6 +41,7 @@ type PartyDraft = {
 export type WizardInitialData = {
   legalCase: GeneralCaseDraft & {
     id: string; version: number; referenceNumber: string; tags: string[]; responsibleUserId: string; fileStaffUserId: string | null;
+    documentFolders: DocumentFolderConfig[];
     parties: Array<Omit<PartyDraft, "clientId"> & { id: string; identityOrTaxNumber: string | null; phone: string | null; email: string | null; address: string | null; representativeName: string | null; clientType: string | null; description: string | null }>;
   };
   finance: FinanceDraft & {
@@ -53,6 +54,7 @@ export type WizardInitialData = {
   };
   tasks: Array<{ id: string; title: string; description: string | null; priority: TaskDraft["priority"]; dueAt: string; taskType: string | null; reminderOffsetMinutes: number | null; status: TaskDraft["status"]; assignee: { id: string; name: string } | null }>;
   notes: Array<{ id: string; content: string; noteType: NoteDraft["noteType"]; visibility: NoteDraft["visibility"]; important: boolean }>;
+  documents: Array<{ id: string; originalName: string; category: string; folderKey: string | null; mimeType: string; sizeBytes: number }>;
 };
 
 export default function GeneralCaseWizard({ currentUser, initialData = null }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null }) {
@@ -70,7 +72,8 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>(() => initialData?.finance.entries?.map((entry: { id: string; type: FinancialEntryDraft["type"]; category: string; entryDate: string; amount: string; description: string }) => ({ clientId: entry.id, type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description })) ?? []);
   const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>(() => initialData?.process.processEntries.map((entry) => ({ clientId: entry.id, type: entry.type, stage: entry.stage, eventDate: entry.eventDate, action: entry.action, description: entry.description ?? "", responsibleUserId: entry.responsibleUser?.id ?? null })) ?? []);
   const [hearings, setHearings] = useState<HearingDraft[]>(() => initialData?.process.hearings.map((hearing) => ({ clientId: hearing.id, startsAt: toLocalDateTime(hearing.startsAt), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom ?? "", attendeeUserId: hearing.attendeeUser?.id ?? null, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note ?? "", status: hearing.status })) ?? []);
-  const [documents, setDocuments] = useState<DocumentDraft[]>([]);
+  const [documents, setDocuments] = useState<DocumentDraft[]>(() => initialData?.documents.map((document) => ({ clientId: document.id, persistedId: document.id, file: null, originalName: document.originalName, mimeType: document.mimeType, sizeBytes: document.sizeBytes, category: document.category, folder: document.folderKey ?? document.category })) ?? []);
+  const [documentFolders, setDocumentFolders] = useState<DocumentFolderConfig[]>(() => initialData?.legalCase.documentFolders ?? []);
   const [tasks, setTasks] = useState<TaskDraft[]>(() => initialData?.tasks.map((task) => ({ clientId: task.id, title: task.title, description: task.description ?? "", assigneeUserId: task.assignee?.id ?? null, priority: task.priority, dueAt: toLocalDateTime(task.dueAt), taskType: task.taskType ?? "", reminderOffsetMinutes: task.reminderOffsetMinutes, status: task.status })) ?? []);
   const [notes, setNotes] = useState<NoteDraft[]>(() => initialData?.notes.map((note) => ({ clientId: note.id, content: note.content, noteType: note.noteType, visibility: note.visibility, important: note.important })) ?? []);
   const [createdCase, setCreatedCase] = useState<{ id: string; referenceNumber: string } | null>(null);
@@ -150,6 +153,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
           procedure: form.procedure || null, estimatedCompletionDate: form.estimatedCompletionDate || null,
           trackingGroup: form.trackingGroup || null, tags: form.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
           office: form.office || null, description: form.description || null, responsibleUserId: currentUser.id,
+          documentFolders,
           fileStaffUserId: null,
           parties: parties.map(partyPayload),
           finance: {
@@ -183,10 +187,11 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
       }
       if (!record) throw new Error("Dosya kaydı doğrulanamadı.");
       for (const document of documents) {
-        const data = new FormData(); data.append("file", document.file); data.append("category", document.category);
+        if (!document.file) continue;
+        const data = new FormData(); data.append("file", document.file); data.append("category", document.category); data.append("folderKey", document.folder);
         const upload = await fetch(`/api/general-legal-cases/${record!.id}/documents`, { method: "POST", credentials: "same-origin", body: data });
         const uploadBody = await upload.json();
-        if (!upload.ok) throw new Error(`Dosya oluşturuldu ancak ${document.file.name} yüklenemedi: ${uploadBody.error?.message ?? "Bilinmeyen hata"}. Tekrar deneyebilirsiniz.`);
+        if (!upload.ok) throw new Error(`Dosya oluşturuldu ancak ${document.originalName} yüklenemedi: ${uploadBody.error?.message ?? "Bilinmeyen hata"}. Tekrar deneyebilirsiniz.`);
         setDocuments((current) => current.filter((item) => item.clientId !== document.clientId));
       }
       router.push(`/genel-dava-ve-arabuluculuk?${editingCase ? "updated" : "created"}=${encodeURIComponent(record.referenceNumber)}`);
@@ -257,7 +262,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
       </div><footer><button type="button" className={partyStyles.back} onClick={() => setPartyModalOpen(false)}>Vazgeç</button><button type="button" onClick={savePartyDraft}>{editingPartyId ? "Değişiklikleri Kaydet" : "Tarafı Ekle"}</button></footer></section></div>}
     </form> : step === 2 ? <FinanceStep caseValue={form.caseValue} finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={continueToProcess} saving={false} error={error} />
       : step === 3 ? <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={continueToDocuments} error={error} />
-        : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
+        : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} caseId={editingCase?.id} folderConfig={documentFolders} setFolderConfig={setDocumentFolders} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
           : step === 5 ? <TaskStep currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={continueToNotes} error={error} />
             : <NoteStep currentUser={currentUser} notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
   </main></AppShell>;

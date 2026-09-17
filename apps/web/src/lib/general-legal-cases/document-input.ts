@@ -11,6 +11,15 @@ export const generalCaseDocumentCategorySchema = z.enum(generalCaseDocumentCateg
   error: "Evrak kategorisi geçerli değildir.",
 });
 
+export const generalCaseDocumentFolderKeySchema = z.string().trim().max(80)
+  .regex(/^(?:[A-Z_]+|CUSTOM:[a-f0-9-]{36})$/, "Evrak klasörü geçerli değildir.");
+
+export const generalCaseDocumentFolderConfigSchema = z.array(z.object({
+  key: generalCaseDocumentFolderKeySchema,
+  label: z.string().trim().min(1).max(60).refine((value) => !hasControlCharacter(value), "Klasör adı geçersiz karakter içeriyor.").transform(normalizeText),
+  hidden: z.boolean(),
+}).strict()).max(50, "En fazla 50 evrak klasörü tanımlanabilir.");
+
 export const generalCaseDocumentNameSchema = z.string()
   .trim()
   .min(1, "Evrak adı zorunludur.")
@@ -19,3 +28,4 @@ export const generalCaseDocumentNameSchema = z.string()
   .transform(normalizeText);
 
 export type GeneralCaseDocumentCategory = z.infer<typeof generalCaseDocumentCategorySchema>;
+export type GeneralCaseDocumentFolderConfig = z.infer<typeof generalCaseDocumentFolderConfigSchema>[number];
