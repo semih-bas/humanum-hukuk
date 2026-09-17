@@ -416,3 +416,6 @@
   .pageIdentity { padding-left: 12px; }
   .pageIdentity::after { display: none; }
 }
+
+.pageIdentity { padding-left: 0; }
+.pageIdentity::before { display: none; }
