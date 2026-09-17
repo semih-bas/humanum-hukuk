@@ -125,3 +125,131 @@
 @media (min-width: 1101px) and (min-height: 820px) {
   .newCasePage { overflow: hidden; }
 }
+
+/* Masaustunde tek sayfa: metin olcegini koruyup bosluk ve kart buyumesini azaltir. */
+@media (min-width: 1101px) {
+  .newCasePage {
+    height: calc(100vh - 92px);
+    min-height: 0;
+    gap: 4px;
+    padding: 10px clamp(18px, 2.7vw, 42px) 8px;
+  }
+  .pageHeader {
+    min-height: 50px;
+    flex: 0 0 50px;
+    margin: 0;
+    padding: 4px 14px;
+  }
+  .pageActions a,
+  .pageActions button {
+    height: 38px;
+  }
+  .newCasePage > .sectionCard,
+  .newCasePage > .splitGrid,
+  .newCasePage > .bottomGrid {
+    flex: 0 0 auto;
+    margin-top: 0;
+  }
+  .sectionCard {
+    margin-top: 0;
+    padding: 6px 14px;
+  }
+  .sectionCard h2 {
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .sectionCard h2 > span {
+    width: 24px;
+    height: 24px;
+  }
+  .partyColumns,
+  .twoColumns,
+  .financialGrid,
+  .installmentGrid {
+    gap: 8px;
+  }
+  .field {
+    gap: 3px;
+  }
+  .field > span {
+    font-size: 11px;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  .amountInput {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  .caseInfoGrid {
+    grid-template-columns: 310px 310px;
+    gap: 10px;
+  }
+  .choiceGroup legend {
+    margin-bottom: 3px;
+    font-size: 11px;
+  }
+  .choiceGroup label {
+    min-height: 19px;
+    font-size: 11px;
+  }
+  .choicePanel,
+  .radioRow {
+    min-height: 58px;
+  }
+  .choicePanel {
+    padding: 1px 11px;
+  }
+  .radioRow {
+    gap: 30px;
+    padding-inline: 14px;
+  }
+  .financialGrid {
+    row-gap: 6px;
+  }
+  .profitLossBlock {
+    gap: 2px;
+    padding: 4px 9px;
+  }
+  .profitLossBlock > span,
+  .compactNumber span {
+    font-size: 11px;
+  }
+  .compactNumber,
+  .profitFormula .field {
+    gap: 2px;
+  }
+  .compactNumber input {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  .profitFormula > b {
+    padding-top: 13px;
+  }
+  .splitGrid,
+  .bottomGrid {
+    gap: 4px;
+  }
+  .toggle {
+    min-height: 44px;
+    padding: 3px 9px;
+  }
+  .toggle > span {
+    font-size: 11px;
+  }
+  .toggle small {
+    padding-block: 1px;
+    font-size: 9px;
+  }
+  .operationGrid {
+    gap: 7px;
+  }
+  .operationGrid button {
+    min-height: 50px;
+    gap: 2px;
+    font-size: 11px;
+  }
+  .operationGrid svg {
+    width: 20px;
+  }
+}
