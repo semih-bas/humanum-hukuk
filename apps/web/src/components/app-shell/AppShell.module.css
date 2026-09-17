@@ -458,3 +458,23 @@
   z-index: 1;
   background: transparent !important;
 }
+
+/* Panel arkasini bilincli olarak gorunur kilan daha belirgin ortak zemin. */
+.content {
+  background:
+    radial-gradient(ellipse at 4% 3%, rgb(14 57 88 / 22%), transparent 34%),
+    radial-gradient(ellipse at 96% 92%, rgb(190 136 43 / 19%), transparent 32%),
+    linear-gradient(140deg, #d8e3e9 0%, #eef2f4 45%, #dde6eb 100%);
+}
+.content::before {
+  background:
+    linear-gradient(122deg, transparent 0 13%, rgb(205 154 62 / 14%) 13.1% 13.28%, transparent 13.46% 100%),
+    linear-gradient(67deg, transparent 0 39%, rgb(18 63 95 / 11%) 39.1% 39.28%, transparent 39.46% 100%),
+    linear-gradient(126deg, transparent 0 69%, rgb(211 163 72 / 13%) 69.1% 69.28%, transparent 69.46% 100%),
+    linear-gradient(73deg, transparent 0 89%, rgb(20 68 100 / 10%) 89.1% 89.28%, transparent 89.46% 100%);
+}
+.content::after {
+  background-image: radial-gradient(circle, rgb(14 49 74 / 16%) .7px, transparent .85px);
+  background-size: 22px 22px;
+  opacity: .52;
+}

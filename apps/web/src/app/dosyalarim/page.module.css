@@ -171,3 +171,82 @@
   .tableCard { min-height: 560px; overflow: visible; }
   .tableViewport { max-height: 65vh; overflow: auto; }
 }
+
+/* Icra ana paneli: kirik beyaz yuzey, lacivert derinlik ve ince altin kenar. */
+.filesPage {
+  padding: 28px clamp(24px, 3.2vw, 50px) 32px;
+}
+.tableCard {
+  position: relative;
+  border: 1px solid #c5d1da;
+  border-top: 2px solid #c79848;
+  border-radius: 10px;
+  background: rgb(255 253 248 / 97%);
+  box-shadow:
+    0 24px 58px rgb(8 31 52 / 17%),
+    0 4px 10px rgb(8 31 52 / 7%),
+    inset 0 1px rgb(255 255 255 / 90%);
+}
+.tableCard::before {
+  position: absolute;
+  z-index: 3;
+  top: -2px;
+  right: 8%;
+  left: 8%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f0d79f 24%, #bc8735 52%, #efd69a 78%, transparent);
+  box-shadow: 0 2px 13px rgb(203 151 61 / 42%);
+  content: "";
+  pointer-events: none;
+}
+.tableToolbar {
+  border-bottom: 1px solid #ccd7df;
+  border-radius: 8px 8px 0 0;
+  background:
+    radial-gradient(circle at 94% 20%, rgb(199 151 72 / 13%), transparent 25%),
+    linear-gradient(108deg, #fffdf8 0%, #f7fafb 62%, #f3ead9 100%);
+  box-shadow: inset 0 -1px rgb(19 48 73 / 4%);
+}
+.tableToolbar h2 {
+  color: #102b44;
+  font-size: 20px;
+  font-weight: 760;
+}
+.tableToolbar h2::after {
+  display: block;
+  width: 42px;
+  height: 2px;
+  margin-top: 7px;
+  background: linear-gradient(90deg, #bd8530, transparent);
+  content: "";
+}
+.listControls select {
+  border-color: #c7d2db;
+  border-radius: 7px;
+  background-color: rgb(255 255 255 / 88%);
+  box-shadow: 0 3px 10px rgb(14 43 68 / 5%);
+}
+.tableViewport {
+  border-color: #d0dae2;
+  background: #fffefb;
+}
+.tableViewport th {
+  border-bottom-color: #c8d3dc;
+  background: #e8eef2;
+  color: #1d3951;
+}
+.tableViewport tbody tr:nth-child(even) {
+  background: #fafcfc;
+}
+.tableViewport tbody tr:hover {
+  background: #f4f8fa;
+}
+.tableFooter {
+  border-top: 1px solid #d3dce3;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(105deg, #fffdf8, #f4f7f8);
+}
+
+@media (max-width: 899px) {
+  .filesPage { padding: 18px 14px 22px; }
+}
