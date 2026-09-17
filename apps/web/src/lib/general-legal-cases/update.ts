@@ -20,7 +20,16 @@ export async function updateGeneralLegalCase(id: string, input: UpdateGeneralLeg
     if (existing.version !== input.version) throw new GeneralLegalCaseVersionConflictError();
     if (!canRetainRestrictedAccess(actor, existing.createdById, input)) throw new GeneralLegalCaseRestrictedAccessError();
 
-    const { parties, version, ...caseInput } = input;
+    const { parties, version } = input;
+    const caseInput = {
+      kind: input.kind, caseType: input.caseType, subject: input.subject, caseValue: input.caseValue,
+      uyapMainNumber: input.uyapMainNumber, uyapDecisionNumber: input.uyapDecisionNumber,
+      courthouse: input.courthouse, courtType: input.courtType, court: input.court,
+      status: input.status, stage: input.stage, procedure: input.procedure, urgent: input.urgent,
+      confidentiality: input.confidentiality, trackingGroup: input.trackingGroup, tags: input.tags,
+      office: input.office, description: input.description, responsibleUserId: input.responsibleUserId,
+      fileStaffUserId: input.fileStaffUserId,
+    };
     const updated = await transaction.generalLegalCase.updateMany({
       where: { id, version, archivedAt: null },
       data: {

@@ -37,10 +37,15 @@ export async function listGeneralLegalCases(input: GeneralLegalCaseListQuery, ac
   };
 
   return prisma.$transaction(async (transaction) => {
-    const [totalCount, statusGroups, kindGroups] = await Promise.all([
+    const [totalCount, statusGroups, kindGroups, upcomingHearings] = await Promise.all([
       transaction.generalLegalCase.count({ where }),
       transaction.generalLegalCase.groupBy({ by: ["status"], where: baseWhere, _count: { _all: true } }),
       transaction.generalLegalCase.groupBy({ by: ["kind"], where: baseWhere, _count: { _all: true } }),
+      transaction.generalCaseHearing.findMany({
+        where: { deletedAt: null, status: "PLANNED", startsAt: { gte: new Date() }, case: baseWhere },
+        distinct: ["caseId"],
+        select: { caseId: true },
+      }),
     ]);
     const pageCount = Math.max(1, Math.ceil(totalCount / input.pageSize));
     const page = Math.min(input.page, pageCount);
@@ -54,6 +59,18 @@ export async function listGeneralLegalCases(input: GeneralLegalCaseListQuery, ac
         parties: {
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
           select: { id: true, role: true, kind: true, name: true },
+        },
+        processEntries: {
+          where: { deletedAt: null },
+          orderBy: [{ eventDate: "desc" }, { createdAt: "desc" }],
+          take: 1,
+          select: { action: true, eventDate: true },
+        },
+        hearings: {
+          where: { deletedAt: null, status: "PLANNED", startsAt: { gte: new Date() } },
+          orderBy: [{ startsAt: "asc" }],
+          take: 1,
+          select: { startsAt: true, court: true, hearingType: true },
         },
       },
     });
@@ -72,6 +89,8 @@ export async function listGeneralLegalCases(input: GeneralLegalCaseListQuery, ac
         estimatedCompletionDate: dateString(record.estimatedCompletionDate),
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),
+        lastProcess: record.processEntries[0] ? { ...record.processEntries[0], eventDate: dateString(record.processEntries[0].eventDate) } : null,
+        nextHearing: record.hearings[0] ? { ...record.hearings[0], startsAt: record.hearings[0].startsAt.toISOString() } : null,
       })),
       pagination: { page, pageSize: input.pageSize, pageCount, totalCount },
       summary: {
@@ -79,6 +98,9 @@ export async function listGeneralLegalCases(input: GeneralLegalCaseListQuery, ac
         active: (statusCounts.ACTIVE ?? 0) + (statusCounts.DECISION ?? 0) + (statusCounts.APPEAL ?? 0),
         drafts: statusCounts.DRAFT ?? 0,
         completed: (statusCounts.COMPLETED ?? 0) + (statusCounts.CLOSED ?? 0),
+        decision: statusCounts.DECISION ?? 0,
+        appeal: statusCounts.APPEAL ?? 0,
+        upcomingHearings: upcomingHearings.length,
         generalLitigation: kindCounts.GENERAL_LITIGATION ?? 0,
         mediation: kindCounts.MEDIATION ?? 0,
       },
