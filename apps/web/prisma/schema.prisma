@@ -56,7 +56,9 @@ model User {
   assignedGeneralCaseTasks             GeneralCaseTask[]              @relation("GeneralCaseTaskAssignee")
   createdGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskCreatedBy")
   updatedGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskUpdatedBy")
+  deletedGeneralCaseTasks              GeneralCaseTask[]              @relation("GeneralCaseTaskDeletedBy")
   authoredGeneralCaseNotes             GeneralCaseNote[]              @relation("GeneralCaseNoteAuthor")
+  deletedGeneralCaseNotes              GeneralCaseNote[]              @relation("GeneralCaseNoteDeletedBy")
   reminderDeliveries                   ReminderDelivery[]
 
   @@unique([email])
@@ -738,17 +740,21 @@ model GeneralCaseTask {
   status                GeneralTaskStatus   @default(PLANNED)
   createdById           String
   updatedById           String
+  deletedById           String?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
+  deletedAt             DateTime?
   version               Int                 @default(1)
   case                  GeneralLegalCase    @relation(fields: [caseId], references: [id], onDelete: Cascade)
   assignee              User?               @relation("GeneralCaseTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   createdBy             User                @relation("GeneralCaseTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy             User                @relation("GeneralCaseTaskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy             User?               @relation("GeneralCaseTaskDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseId, dueAt])
   @@index([caseId, status, priority])
   @@index([assigneeUserId, status, dueAt])
+  @@index([caseId, deletedAt])
   @@map("general_case_task")
 }
 
@@ -760,14 +766,18 @@ model GeneralCaseNote {
   noteType   String                @db.VarChar(50)
   visibility GeneralNoteVisibility @default(TEAM)
   important  Boolean               @default(false)
+  deletedById String?
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
+  deletedAt  DateTime?
   case       GeneralLegalCase      @relation(fields: [caseId], references: [id], onDelete: Cascade)
   author     User                  @relation("GeneralCaseNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  deletedBy  User?                 @relation("GeneralCaseNoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseId, createdAt])
   @@index([caseId, noteType, important])
   @@index([authorId, createdAt])
+  @@index([caseId, deletedAt])
   @@map("general_case_note")
 }
 

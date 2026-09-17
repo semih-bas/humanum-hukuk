@@ -13,11 +13,11 @@ export async function getGeneralCaseOverview(caseId: string, actor: GeneralCaseA
     getGeneralCaseProcess(caseId, actor),
     listGeneralCaseDocuments(caseId, actor),
     prisma.generalCaseTask.findMany({
-      where: { caseId }, orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-      select: { id: true, title: true, description: true, priority: true, dueAt: true, taskType: true, status: true, assignee: { select: { id: true, name: true } } },
+      where: { caseId, deletedAt: null }, orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+      select: { id: true, title: true, description: true, priority: true, dueAt: true, taskType: true, reminderOffsetMinutes: true, status: true, assignee: { select: { id: true, name: true } } },
     }),
     prisma.generalCaseNote.findMany({
-      where: { caseId, OR: [{ visibility: "TEAM" }, { authorId: actor.id }] }, orderBy: [{ createdAt: "desc" }],
+      where: { caseId, deletedAt: null, OR: [{ visibility: "TEAM" }, { authorId: actor.id }] }, orderBy: [{ createdAt: "desc" }],
       select: { id: true, content: true, noteType: true, visibility: true, important: true, createdAt: true, author: { select: { id: true, name: true } } },
     }),
   ]);

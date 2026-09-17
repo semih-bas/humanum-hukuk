@@ -43,7 +43,16 @@ export type WizardInitialData = {
     id: string; version: number; referenceNumber: string; tags: string[]; responsibleUserId: string; fileStaffUserId: string | null;
     parties: Array<Omit<PartyDraft, "clientId"> & { id: string; identityOrTaxNumber: string | null; phone: string | null; email: string | null; address: string | null; representativeName: string | null; clientType: string | null; description: string | null }>;
   };
-  finance: FinanceDraft & { installmentCount: number | null; financeDescription: string | null; interestStartDate: string | null };
+  finance: FinanceDraft & {
+    installmentCount: number | null; financeDescription: string | null; interestStartDate: string | null;
+    entries: Array<{ id: string; type: FinancialEntryDraft["type"]; category: string; entryDate: string; amount: string; description: string }>;
+  };
+  process: {
+    processEntries: Array<{ id: string; type: ProcessEntryDraft["type"]; stage: string; eventDate: string; action: string; description: string | null; responsibleUser: { id: string; name: string } | null }>;
+    hearings: Array<{ id: string; startsAt: string; court: string; hearingType: string; courtroom: string | null; attendeeUser: { id: string; name: string } | null; reminderOffsetMinutes: number | null; note: string | null; status: HearingDraft["status"] }>;
+  };
+  tasks: Array<{ id: string; title: string; description: string | null; priority: TaskDraft["priority"]; dueAt: string; taskType: string | null; reminderOffsetMinutes: number | null; status: TaskDraft["status"]; assignee: { id: string; name: string } | null }>;
+  notes: Array<{ id: string; content: string; noteType: NoteDraft["noteType"]; visibility: NoteDraft["visibility"]; important: boolean }>;
 };
 
 export default function GeneralCaseWizard({ currentUser, initialData = null }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null }) {
@@ -58,12 +67,12 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
   const [step, setStep] = useState(0);
   const [parties, setParties] = useState<PartyDraft[]>(() => editingCase ? editingCase.parties.map((party) => ({ ...party, clientId: party.id, identityOrTaxNumber: party.identityOrTaxNumber ?? "", phone: (party.phone ?? "").replace(/\D/g, "").slice(0, 11), email: party.email ?? "", address: party.address ?? "", representativeName: party.representativeName ?? "", clientType: party.clientType ?? "", description: party.description ?? "" })) : primaryParties("GENERAL_LITIGATION"));
   const [finance, setFinance] = useState<FinanceDraft>(() => initialData ? { ...initialFinance, ...initialData.finance, installmentCount: String(initialData.finance.installmentCount ?? 3), financeDescription: initialData.finance.financeDescription ?? "", interestStartDate: initialData.finance.interestStartDate ?? "" } : initialFinance);
-  const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>([]);
-  const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>([]);
-  const [hearings, setHearings] = useState<HearingDraft[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>(() => initialData?.finance.entries?.map((entry: { id: string; type: FinancialEntryDraft["type"]; category: string; entryDate: string; amount: string; description: string }) => ({ clientId: entry.id, type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description })) ?? []);
+  const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>(() => initialData?.process.processEntries.map((entry) => ({ clientId: entry.id, type: entry.type, stage: entry.stage, eventDate: entry.eventDate, action: entry.action, description: entry.description ?? "", responsibleUserId: entry.responsibleUser?.id ?? null })) ?? []);
+  const [hearings, setHearings] = useState<HearingDraft[]>(() => initialData?.process.hearings.map((hearing) => ({ clientId: hearing.id, startsAt: toLocalDateTime(hearing.startsAt), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom ?? "", attendeeUserId: hearing.attendeeUser?.id ?? null, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note ?? "", status: hearing.status })) ?? []);
   const [documents, setDocuments] = useState<DocumentDraft[]>([]);
-  const [tasks, setTasks] = useState<TaskDraft[]>([]);
-  const [notes, setNotes] = useState<NoteDraft[]>([]);
+  const [tasks, setTasks] = useState<TaskDraft[]>(() => initialData?.tasks.map((task) => ({ clientId: task.id, title: task.title, description: task.description ?? "", assigneeUserId: task.assignee?.id ?? null, priority: task.priority, dueAt: toLocalDateTime(task.dueAt), taskType: task.taskType ?? "", reminderOffsetMinutes: task.reminderOffsetMinutes, status: task.status })) ?? []);
+  const [notes, setNotes] = useState<NoteDraft[]>(() => initialData?.notes.map((note) => ({ clientId: note.id, content: note.content, noteType: note.noteType, visibility: note.visibility, important: note.important })) ?? []);
   const [createdCase, setCreatedCase] = useState<{ id: string; referenceNumber: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -326,4 +335,11 @@ function taskPayload(task: TaskDraft) {
 
 function notePayload(note: NoteDraft) {
   return { content: note.content, noteType: note.noteType, visibility: note.visibility, important: note.important };
+}
+
+function toLocalDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
