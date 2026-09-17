@@ -201,8 +201,8 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
   }
   const litigation = form.kind === "GENERAL_LITIGATION";
 
-  return <AppShell><main className={styles.page}>
-    <header className={styles.header}><div><div><h1>{editingCase ? `${editingCase.referenceNumber} Dosyasını Düzenle` : "Yeni Dosya Ekle"}</h1><p>{editingCase ? "Dosyanın mevcut bilgilerini aynı adımlı yapı üzerinden güncelleyin." : "Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin."}</p></div></div><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
+  return <AppShell pageTitle={editingCase ? `${editingCase.referenceNumber} Dosyasını Düzenle` : "Yeni Dosya Ekle"} pageSubtitle="Genel Dava ve Arabuluculuk"><main className={styles.page}>
+    <header className={styles.header}><p>{editingCase ? "Dosyanın mevcut bilgilerini aynı adımlı yapı üzerinden güncelleyin." : "Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin."}</p><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
     <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase)} onClick={() => goToStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
     {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>

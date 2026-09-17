@@ -242,11 +242,10 @@ export default function NewCaseForm() {
     }
   }
 
-  return <AppShell hideTopbar>
+  return <AppShell pageTitle="Yeni Dosya Kaydı" pageSubtitle="İcra">
     <form className={styles.newCasePage} onSubmit={handleSubmit} noValidate={false}>
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <h1>Yeni Dosya Kaydı</h1>
           <p>Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
         <div className={styles.pageActions}>

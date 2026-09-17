@@ -27,6 +27,8 @@ type AppShellProps = {
   children: ReactNode;
   headerContent?: ReactNode;
   hideTopbar?: boolean;
+  pageTitle?: string;
+  pageSubtitle?: string;
 };
 
 type TeamMember = {
@@ -85,8 +87,20 @@ function UserAvatar({ image, initials, name }: { image?: string | null; initials
   </span>;
 }
 
-export default function AppShell({ children, headerContent, hideTopbar = false }: AppShellProps) {
+function getPageIdentity(pathname: string) {
+  if (pathname.startsWith("/sigorta-ve-tahkim/yeni")) return { title: "Yeni Dosya", subtitle: "Sigorta ve Tahkim" };
+  if (pathname.startsWith("/sigorta-ve-tahkim")) return { title: "Sigorta ve Tahkim", subtitle: "Dosya Yönetimi" };
+  if (pathname.startsWith("/dosyalarim/yeni")) return { title: "Yeni Dosya Kaydı", subtitle: "İcra" };
+  if (pathname.startsWith("/dosyalarim")) return { title: "İcra", subtitle: "Dosya Yönetimi" };
+  if (pathname.startsWith("/genel-dava-ve-arabuluculuk/yeni")) return { title: "Yeni Dosya Ekle", subtitle: "Genel Dava ve Arabuluculuk" };
+  if (pathname.startsWith("/genel-dava-ve-arabuluculuk")) return { title: "Genel Dava ve Arabuluculuk", subtitle: "Dosya Yönetimi" };
+  if (pathname.startsWith("/hatirlatmalar")) return { title: "Hatırlatmalar", subtitle: "Görev ve Bildirimler" };
+  return { title: "Dashboard", subtitle: "Genel Bakış" };
+}
+
+export default function AppShell({ children, headerContent, hideTopbar = false, pageTitle, pageSubtitle }: AppShellProps) {
   const pathname = usePathname();
+  const routeIdentity = getPageIdentity(pathname);
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const displayName = session?.user.name || "Kullanıcı";
@@ -445,6 +459,11 @@ export default function AppShell({ children, headerContent, hideTopbar = false }
           <button className={styles.menuButton} type="button" aria-label="Menüyü aç" onClick={() => setSidebarOpen(true)}>
             <Icon name="menu" />
           </button>
+
+          <div className={styles.pageIdentity}>
+            <span>{pageSubtitle ?? routeIdentity.subtitle}</span>
+            <h1>{pageTitle ?? routeIdentity.title}</h1>
+          </div>
 
           {headerContent && <div className={styles.headerContent}>{headerContent}</div>}
 

@@ -13,3 +13,7 @@
 .drawerBody{padding:12px}
 .recordList{display:grid;gap:8px}.recordList article{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;padding:11px;border:1px solid #e0e7ed;border-radius:7px;background:#fff}.recordList article>header{display:flex;grid-column:1/-1;align-items:flex-start;justify-content:space-between;gap:8px}.recordList article>header strong{font-size:10px}.recordList article>header span{padding:3px 6px;border-radius:999px;background:#edf4fa;color:#2d6eaa;font-size:8px;font-weight:750}.recordList article>p{grid-column:1/-1;margin:0;color:#677b8e;font-size:9px;line-height:1.5;overflow-wrap:anywhere}.recordList .wideInfo{grid-column:1/-1}.recordList article>div{display:grid;gap:3px}.recordList article>div span{color:#8090a0;font-size:8px}.recordList article>div strong{font-size:9px;overflow-wrap:anywhere}.drawerEmpty{margin:0;padding:45px 16px;border:1px dashed #d8e1e8;border-radius:8px;color:#77899a;text-align:center;font-size:10px}
 .editParties{display:grid;gap:9px;padding-top:3px}.editParties h4{margin:2px 0;font-size:11px}.editParties>div{display:grid;gap:9px;padding:10px;border:1px solid #e0e7ed;border-radius:7px;background:#f9fbfc}.editParties>div>strong{font-size:10px;color:#245b8c}
+/* Başlık ortak navigasyona taşındı. */
+.page{height:calc(100vh - 92px);padding-top:20px}.intro{align-items:center!important}.intro>p{margin:0;color:#6e8196;font-size:12px}.drawer{top:92px}
+@media(max-width:1250px){.page{min-height:calc(100vh - 92px)}}
+@media(max-width:899px){.page{min-height:calc(100vh - 68px)}.drawer{top:68px}}

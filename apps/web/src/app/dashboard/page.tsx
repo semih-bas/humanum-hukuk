@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   return <AppShell>
     <div className={styles.dashboard}>
       <header className={styles.pageHeader}>
-        <div><p className={styles.eyebrow}>Genel Bakış</p><h1>Dashboard</h1><p>Genel durum özetinizi buradan görüntüleyebilirsiniz.</p></div>
+        <p>Genel durum özetinizi buradan görüntüleyebilirsiniz.</p>
         <p className={styles.today}>{formatToday()}</p>
       </header>
 

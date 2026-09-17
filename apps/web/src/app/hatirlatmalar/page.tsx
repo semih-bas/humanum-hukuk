@@ -25,7 +25,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
 
   return <AppShell>
     <div className={styles.page}>
-      <header><div><p>YÖNETİCİ</p><h1>Hatırlatmalar</h1><span>Gecikmiş görevler önce, tarih sırasıyla eskiden yeniye gösterilir.</span></div><Link href="/dashboard">Dashboard&apos;a Dön</Link></header>
+      <header><span>Gecikmiş görevler önce, tarih sırasıyla eskiden yeniye gösterilir.</span><Link href="/dashboard">Dashboard&apos;a Dön</Link></header>
       <section className={styles.card}>
         <div className={styles.cardHeader}><div><h2>Tüm Hatırlatmalar</h2><small>E-postalar yalnızca aktif ve e-postası doğrulanmış yöneticilere gönderilir.</small></div><span>{reminders.totalCount} kayıt</span></div>
         <div className={styles.tableViewport}><table>
