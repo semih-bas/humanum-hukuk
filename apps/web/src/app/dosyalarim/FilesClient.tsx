@@ -32,6 +32,15 @@ type Pagination = {
   totalCount: number;
 };
 
+type CaseSummary = {
+  total: number;
+  open: number;
+  enforcement: number;
+  installment: number;
+  pending: number;
+  closed: number;
+};
+
 type SortField = "createdAt" | "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorName" | "enforcementOffice" | "status";
 type StatusFilter = "ALL" | CaseStatus;
 
@@ -77,6 +86,7 @@ export default function FilesClient() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
+  const [summary, setSummary] = useState<CaseSummary>({ total: 0, open: 0, enforcement: 0, installment: 0, pending: 0, closed: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" | "edit" | "reminder" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
   const [paymentCaseId, setPaymentCaseId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -114,7 +124,7 @@ export default function FilesClient() {
           signal: controller.signal,
         });
         const result = await response.json() as {
-          data?: { items: CaseRecord[]; pagination: Pagination };
+          data?: { items: CaseRecord[]; pagination: Pagination; summary: CaseSummary };
           error?: { message?: string };
         };
 
@@ -129,6 +139,7 @@ export default function FilesClient() {
 
         setRecords(result.data.items);
         setPagination(result.data.pagination);
+        setSummary(result.data.summary);
 
         if (result.data.pagination.page !== currentPage) {
           setCurrentPage(result.data.pagination.page);
@@ -161,6 +172,14 @@ export default function FilesClient() {
   }
 
   const controlsActive = query.trim() !== "" || statusFilter !== "ALL" || sortOption !== "newest";
+  const summaryCards: Array<{ status: StatusFilter; label: string; hint: string; value: number; tone: string }> = [
+    { status: "ALL", label: "Toplam Dosya", hint: "Tüm icra dosyaları", value: summary.total, tone: "blue" },
+    { status: "OPEN", label: "Devam Eden", hint: "Aktif işlemler", value: summary.open, tone: "green" },
+    { status: "ENFORCEMENT", label: "İcra Takibinde", hint: "Takibi süren", value: summary.enforcement, tone: "gold" },
+    { status: "INSTALLMENT", label: "Taksitli Ödeme", hint: "Ödeme planı olan", value: summary.installment, tone: "purple" },
+    { status: "PENDING", label: "Beklemede", hint: "İşlem bekleyen", value: summary.pending, tone: "orange" },
+    { status: "CLOSED", label: "Sonuçlanan", hint: "Kapanan dosyalar", value: summary.closed, tone: "cyan" },
+  ];
 
   const searchField = <div className={styles.searchField}>
     <label className={styles.srOnly} htmlFor="case-search">Dosyalarda ara</label>
@@ -172,6 +191,16 @@ export default function FilesClient() {
   return <AppShell headerContent={searchField}>
     <div className={styles.filesPage}>
       <div className={styles.mobileSearch}>{searchField}</div>
+
+      <section className={styles.summaryCards} aria-label="İcra dosyası özetleri">
+        {summaryCards.map((card) => <button
+          type="button"
+          key={card.status}
+          aria-pressed={statusFilter === card.status}
+          className={`${styles.summaryCard} ${styles[`summary${card.tone}`]} ${statusFilter === card.status ? styles.activeSummaryCard : ""}`}
+          onClick={() => { setStatusFilter(card.status); setCurrentPage(1); }}
+        ><span className={styles.summaryMark} aria-hidden="true" /><span><strong>{card.value}</strong><b>{card.label}</b><small>{card.hint}</small></span></button>)}
+      </section>
 
       <section className={styles.tableCard}>
         <header className={styles.tableToolbar}>

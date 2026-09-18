@@ -24,3 +24,6 @@
 @media(max-width:1250px){.cards{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.cards{grid-template-columns:1fr}}
+.workspaceToolbar{display:flex;min-height:66px;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #d8e2e9;padding:11px 16px;background:linear-gradient(100deg,#fff 0%,#fff 70%,#fff8e9 100%)}
+.workspaceToolbar>div{display:flex;align-items:center;gap:10px}.workspaceToolbar strong{color:#0b2945;font-size:17px}.workspaceToolbar span{border-radius:999px;background:#eef4f8;padding:5px 9px;color:#60778d;font-size:11px}
+.workspaceToolbar>a{display:inline-flex;height:42px;align-items:center;gap:8px;border-radius:8px;background:#092a47;padding:0 17px;color:#fff;font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 8px 18px rgb(8 40 67/18%)}.workspaceToolbar svg{width:17px;fill:none;stroke:currentColor;stroke-width:1.8}

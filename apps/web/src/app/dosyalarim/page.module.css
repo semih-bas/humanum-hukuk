@@ -199,6 +199,24 @@
   content: "";
   pointer-events: none;
 }
+
+/* Icra ozetleri: kartlar ayni zamanda durum filtresidir. */
+.summaryCards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 11px; }
+.summaryCard { --card-accent: #2f80c9; position: relative; display: flex; min-width: 0; align-items: center; gap: 11px; border: 1px solid #d7e1e9; border-radius: 10px; background: rgb(255 255 255 / 94%); padding: 12px 13px; color: #0b2945; text-align: left; box-shadow: 0 7px 20px rgb(17 40 64 / 6%); cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.summaryCard::before { position: absolute; inset: 0 0 auto; height: 2px; border-radius: 10px 10px 0 0; background: var(--card-accent); content: ""; }
+.summaryCard:hover { border-color: color-mix(in srgb, var(--card-accent) 48%, #d7e1e9); box-shadow: 0 10px 25px rgb(17 40 64 / 10%); transform: translateY(-1px); }
+.summaryCard:focus-visible { outline: 3px solid rgb(42 128 201 / 22%); outline-offset: 2px; }
+.summaryMark { width: 10px; height: 10px; flex: 0 0 auto; border: 3px solid color-mix(in srgb, var(--card-accent) 25%, white); border-radius: 50%; background: var(--card-accent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--card-accent) 10%, transparent); }
+.summaryCard > span:last-child { display: grid; min-width: 0; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 7px; }
+.summaryCard strong { color: #081f35; font-size: 20px; line-height: 1; }
+.summaryCard b { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.summaryCard small { grid-column: 1 / -1; margin-top: 4px; color: #74869a; font-size: 9px; white-space: nowrap; }
+.activeSummaryCard { border-color: var(--card-accent); background: linear-gradient(135deg, color-mix(in srgb, var(--card-accent) 8%, white), #fff 72%); box-shadow: 0 10px 25px color-mix(in srgb, var(--card-accent) 16%, transparent); }
+.summarygreen { --card-accent: #20986c; }.summarygold { --card-accent: #ce9231; }.summarypurple { --card-accent: #8061c5; }.summaryorange { --card-accent: #d77436; }.summarycyan { --card-accent: #318eac; }
+
+@media (max-width: 1250px) { .summaryCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .summaryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .summaryCards { grid-template-columns: 1fr; } }
 .tableToolbar {
   border-bottom: 1px solid #ccd7df;
   border-radius: 8px 8px 0 0;

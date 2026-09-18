@@ -28,6 +28,14 @@ export type CaseListItem = {
 
 export type CaseListResult = {
   items: CaseListItem[];
+  summary: {
+    total: number;
+    open: number;
+    enforcement: number;
+    installment: number;
+    pending: number;
+    closed: number;
+  };
   pagination: {
     page: number;
     pageSize: number;
@@ -45,7 +53,14 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
   };
 
   return prisma.$transaction(async (transaction) => {
-    const totalCount = await transaction.caseFile.count({ where });
+    const [totalCount, statusGroups] = await Promise.all([
+      transaction.caseFile.count({ where }),
+      transaction.caseFile.groupBy({
+        by: ["status"],
+        where: { archivedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
     const pageCount = Math.max(1, Math.ceil(totalCount / input.pageSize));
     const page = Math.min(input.page, pageCount);
     const records = await transaction.caseFile.findMany({
@@ -69,6 +84,8 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
       },
     });
 
+    const counts = Object.fromEntries(statusGroups.map((group) => [group.status, group._count._all]));
+
     return {
       items: records.map((record) => ({
         ...record,
@@ -76,6 +93,14 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),
       })),
+      summary: {
+        total: statusGroups.reduce((sum, group) => sum + group._count._all, 0),
+        open: counts.OPEN ?? 0,
+        enforcement: counts.ENFORCEMENT ?? 0,
+        installment: counts.INSTALLMENT ?? 0,
+        pending: counts.PENDING ?? 0,
+        closed: counts.CLOSED ?? 0,
+      },
       pagination: {
         page,
         pageSize: input.pageSize,
