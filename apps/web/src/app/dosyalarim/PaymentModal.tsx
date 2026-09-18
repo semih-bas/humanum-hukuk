@@ -7,7 +7,8 @@ import styles from "./PaymentModal.module.css";
 
 type TransactionType = "INCOME" | "EXPENSE";
 type Category = keyof typeof categoryLabels;
-type TransactionItem = { id: string; type: TransactionType; category: Category; transactionDate: string; amount: string; description: string; documents: Array<{ id: string; originalName: string }> };
+export type DraftTransaction = { id: string; type: TransactionType; category: Category; transactionDate: string; amount: string; description: string; documents: Array<{ id: string; originalName: string }>; files?: File[] };
+type TransactionItem = DraftTransaction;
 type Data = {
   items: TransactionItem[];
   totals: { income: string; expense: string; net: string };
@@ -40,8 +41,8 @@ const expenseCategories: Category[] = ["FEE", "NOTIFICATION", "EXPERT_FEE", "ATT
 
 const emptyData: Data = { items: [], totals: { income: "0.00", expense: "0.00", net: "0.00" }, caseNote: "" };
 
-export default function PaymentModal({ caseId, onClose, embedded = false }: { caseId: string; onClose?: () => void; embedded?: boolean }) {
-  const [data, setData] = useState<Data>(emptyData);
+export default function PaymentModal({ caseId, onClose, embedded = false, draftItems = [], onDraftItemsChange }: { caseId?: string; onClose?: () => void; embedded?: boolean; draftItems?: DraftTransaction[]; onDraftItemsChange?: (items: DraftTransaction[]) => void }) {
+  const [data, setData] = useState<Data>(() => caseId ? emptyData : draftData(draftItems));
   const [type, setType] = useState<TransactionType>("INCOME");
   const [date, setDate] = useState("");
   const [category, setCategory] = useState<Category | "">("");
@@ -50,7 +51,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(caseId));
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -70,6 +71,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
   }
 
   useEffect(() => {
+    if (!caseId) return;
     const controller = new AbortController();
     fetch(`/api/cases/${encodeURIComponent(caseId)}/transactions`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -88,6 +90,11 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
     setSaving(true);
     setMessage("");
     try {
+      if (!caseId) {
+        const item: DraftTransaction = { id: editingId || crypto.randomUUID(), type, category, transactionDate: date, amount: amount.trim() || "0", description, documents: [], files };
+        const next = editingId ? data.items.map((current) => current.id === editingId ? item : current) : [item, ...data.items];
+        setData(draftData(next)); onDraftItemsChange?.(next); resetEntry(); setMessage(editingId ? "Taslak kayıt güncellendi." : "Taslak kayıt eklendi."); setSaving(false); return;
+      }
       const response = await fetch(editingId ? `/api/cases/${encodeURIComponent(caseId)}/transactions/${encodeURIComponent(editingId)}` : `/api/cases/${encodeURIComponent(caseId)}/transactions`, {
         method: editingId ? "PATCH" : "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, category, transactionDate: date, amount: amount.trim() || "0", description }),
@@ -122,6 +129,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
 
   async function remove(id: string) {
     if (!window.confirm("Bu gelir/gider kaydını silmek istediğinize emin misiniz?")) return;
+    if (!caseId) { const next = data.items.filter((item) => item.id !== id); setData(draftData(next)); onDraftItemsChange?.(next); if (editingId === id) resetEntry(); setMessage("Taslak kayıt silindi."); return; }
     setDeletingId(id); setMessage("");
     try {
       const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/transactions/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "same-origin" });
@@ -152,7 +160,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
           {message && <p className={styles.message}>{message}</p>}
         </form>
         <aside className={styles.side}>
-          <section className={styles.records}><h3>ⓘ <span>Önceki Kayıtlar (Aynı Dosya)</span></h3><div className={styles.tableWrap}><table><thead><tr><th>Tarih</th><th>Tür</th><th>Kategori / Belge</th><th>Tutar (TL)</th><th /></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}><td>{formatDate(item.transactionDate)}</td><td><span className={`${item.type === "INCOME" ? styles.incomeBadge : styles.expenseBadge} ${styles.transactionBadge}`} data-tooltip={item.description} title={item.description} tabIndex={0}>{item.type === "INCOME" ? "↑ Gelir" : "↓ Gider"}</span></td><td><span>{categoryLabels[item.category]}</span>{item.documents.length === 1 && <a className={styles.documentDownload} href={`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(item.documents[0].id)}`} download={item.documents[0].originalName} title={`${item.documents[0].originalName} belgesini indir`}>◫ Belgeyi indir</a>}{item.documents.length > 1 && <details className={styles.documents}><summary>◫ {item.documents.length} belge</summary><div>{item.documents.map((document) => <a key={document.id} href={`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(document.id)}`} download={document.originalName} title={`${document.originalName} belgesini indir`}>↓ {document.originalName}</a>)}</div></details>}</td><td className={item.type === "INCOME" ? styles.incomeAmount : styles.expenseAmount}>{money(item.amount)}</td><td><div className={styles.rowActions}><button type="button" disabled={saving || deletingId === item.id} aria-label="Kaydı düzenle" title="Kaydı düzenle" onClick={() => edit(item)}><ActionIcon name="edit" /></button><button type="button" disabled={saving || deletingId === item.id} aria-label="Kaydı sil" title="Kaydı sil" onClick={() => void remove(item.id)}><ActionIcon name="delete" /></button></div></td></tr>)}{!loading && data.items.length === 0 && <tr><td colSpan={5} className={styles.empty}>Henüz gelir/gider kaydı yok.</td></tr>}</tbody></table></div></section>
+          <section className={styles.records}><h3>ⓘ <span>{caseId ? "Önceki Kayıtlar (Aynı Dosya)" : "Taslak Ödeme Kayıtları"}</span></h3><div className={styles.tableWrap}><table><thead><tr><th>Tarih</th><th>Tür</th><th>Kategori / Belge</th><th>Tutar (TL)</th><th /></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}><td>{formatDate(item.transactionDate)}</td><td><span className={`${item.type === "INCOME" ? styles.incomeBadge : styles.expenseBadge} ${styles.transactionBadge}`} data-tooltip={item.description} title={item.description} tabIndex={0}>{item.type === "INCOME" ? "↑ Gelir" : "↓ Gider"}</span></td><td><span>{categoryLabels[item.category]}</span>{caseId && item.documents.length === 1 && <a className={styles.documentDownload} href={`/api/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(item.documents[0].id)}`}>◫ Belgeyi indir</a>}{!caseId && item.files?.length ? <small> · {item.files.length} belge</small> : null}</td><td className={item.type === "INCOME" ? styles.incomeAmount : styles.expenseAmount}>{money(item.amount)}</td><td><div className={styles.rowActions}><button type="button" disabled={saving || deletingId === item.id} aria-label="Kaydı düzenle" title="Kaydı düzenle" onClick={() => edit(item)}><ActionIcon name="edit" /></button><button type="button" disabled={saving || deletingId === item.id} aria-label="Kaydı sil" title="Kaydı sil" onClick={() => void remove(item.id)}><ActionIcon name="delete" /></button></div></td></tr>)}{!loading && data.items.length === 0 && <tr><td colSpan={5} className={styles.empty}>Henüz gelir/gider kaydı yok.</td></tr>}</tbody></table></div></section>
           <section className={styles.totals}><h3>▦ <span>Güncel Toplamlar</span></h3><div><article><span>Toplam Gelir</span><b className={styles.incomeAmount}>{money(data.totals.income)} TL</b></article><article><span>Toplam Gider</span><b className={styles.expenseAmount}>{money(data.totals.expense)} TL</b></article><article><span>Net Tutar</span><b>{money(data.totals.net)} TL</b></article></div></section>
         </aside>
       </div>
@@ -168,6 +176,8 @@ function money(value: string) {
   if (cents === null) return "0,00";
   return `${negative && cents > 0n ? "-" : ""}${centsToMoneyString(cents)}`;
 }
+function draftData(items: DraftTransaction[]): Data { let income=0n,expense=0n; for(const item of items){const value=parseMoneyToCents(item.amount)??0n;if(item.type==="INCOME")income+=value;else expense+=value;} return {items,caseNote:"",totals:{income:decimal(income),expense:decimal(expense),net:decimal(income-expense)}}; }
+function decimal(value: bigint){const negative=value<0n;const absolute=negative?-value:value;return `${negative?"-":""}${absolute/100n}.${String(absolute%100n).padStart(2,"0")}`;}
 function formatDate(value: string) { const [year, month, day] = value.split("-"); return `${day}.${month}.${year}`; }
 function ActionIcon({ name }: { name: "edit" | "delete" }) { return <svg viewBox="0 0 24 24" aria-hidden="true">{name === "edit" ? <path d="M4 20h4l11-11-4-4L4 16v4Zm10-13 4 4m-2-6 2-2 4 4-2 2" /> : <path d="M4 7h16M9 7V4h6v3m-8 0 1 14h8l1-14M10 11v6m4-6v6" />}</svg>; }
 function SelectedFileRow({ file, onRemove }: { file: File; onRemove: () => void }) {

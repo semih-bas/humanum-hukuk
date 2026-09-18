@@ -294,3 +294,4 @@
 .tableViewport { background: #fff; }
 .tableViewport table, .tableViewport tbody, .emptyState { background: #fff; }
 @media (max-width: 1050px) { .toolbarSearch { width: 100%; max-width: none; flex: 1 1 100%; } }
+.rowActions > a{display:grid;width:36px;height:36px;flex:0 0 36px;place-items:center;box-sizing:border-box;border:1px solid #e1e6ea;border-radius:8px;color:#44566a;text-decoration:none;cursor:pointer;transition:.16s ease}.rowActions > a:hover{transform:translateY(-1px)}.rowActions > a:focus-visible{outline:2px solid #315e87;outline-offset:3px}

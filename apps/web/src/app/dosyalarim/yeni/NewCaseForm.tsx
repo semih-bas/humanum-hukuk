@@ -8,8 +8,8 @@ import AppShell from "@/components/app-shell/AppShell";
 import { centsToMoneyString, formatMoneyInput, INSTALLMENT_OPTIONS, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import type { CaseStatus } from "@/lib/case-presentation";
-import PaymentModal from "../PaymentModal";
-import { DocumentsTab, NotesTab, NotificationsTab } from "./CaseActivityTabs";
+import PaymentModal, { type DraftTransaction } from "../PaymentModal";
+import { DocumentsTab, NotesTab, NotificationsTab, type DraftDocument, type DraftNote, type DraftReminder } from "./CaseActivityTabs";
 
 import styles from "./page.module.css";
 
@@ -105,6 +105,10 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const [notice, setNotice] = useState<Notice>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draftTransactions, setDraftTransactions] = useState<DraftTransaction[]>([]);
+  const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
+  const [draftReminders, setDraftReminders] = useState<DraftReminder[]>([]);
+  const [draftDocuments, setDraftDocuments] = useState<DraftDocument[]>([]);
 
   const profitLoss = hasProfitLossClaim && profitLossDays
     ? centsToInput(BigInt(profitLossDays) * toCents(dailyRental))
@@ -135,13 +139,16 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
 
     if (isSubmitting) {
       return;
     }
 
-    if (!event.currentTarget.checkValidity()) {
-      event.currentTarget.reportValidity();
+    if (!formElement.checkValidity()) {
+      setTab("general");
+      setNotice({ tone: "error", message: "Kaydetmeden önce işaretlenen zorunlu alanları tamamlayın." });
+      requestAnimationFrame(() => formElement.reportValidity());
       return;
     }
 
@@ -196,6 +203,8 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
         return;
       }
 
+      if (!caseId) await persistDraftActivity(result.data.id, draftTransactions, draftNotes, draftReminders, draftDocuments);
+
       setNotice({ tone: "success", message: `${result.data.referenceNumber} numaralı dosya ${caseId ? "güncellendi" : "oluşturuldu"}.` });
       router.push(caseId ? `/dosyalarim?updated=${encodeURIComponent(result.data.referenceNumber)}` : `/dosyalarim/${encodeURIComponent(result.data.id)}/duzenle?created=${encodeURIComponent(result.data.referenceNumber)}`);
       router.refresh();
@@ -229,13 +238,12 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
       <nav className={styles.workspaceTabs}>{([["general", "Genel Bilgiler"], ["payments", "Ödemeler"], ["notifications", "Bildirimler"], ["notes", "Notlar"], ["documents", "Evraklar"]] as Array<[EnforcementCaseTab, string]>).map(([key, label]) => <button type="button" key={key} className={tab === key ? styles.activeWorkspaceTab : ""} onClick={() => setTab(key)}>{label}</button>)}</nav>
 
-      {!caseId && tab !== "general" && <section className={styles.unsavedTab}><h2>Önce dosyayı kaydedin</h2><p>Ödeme, bildirim, not ve evrak kayıtları dosya numarası oluştuktan sonra eklenebilir.</p><button type="button" onClick={() => setTab("general")}>Genel Bilgilere Dön</button></section>}
-      {caseId && tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded /></div>}
-      {caseId && initialData && tab === "notifications" && <div className={styles.embeddedTab}><NotificationsTab caseId={caseId} initialItems={initialData.reminders} /></div>}
-      {caseId && initialData && tab === "notes" && <div className={styles.embeddedTab}><NotesTab caseId={caseId} initialItems={initialData.notes} /></div>}
-      {caseId && initialData && tab === "documents" && <div className={styles.embeddedTab}><DocumentsTab caseId={caseId} initialItems={initialData.documents} /></div>}
+      {tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded draftItems={draftTransactions} onDraftItemsChange={setDraftTransactions} /></div>}
+      {tab === "notifications" && <div className={styles.embeddedTab}><NotificationsTab caseId={caseId} initialItems={initialData?.reminders ?? draftReminders} onDraftItemsChange={setDraftReminders} /></div>}
+      {tab === "notes" && <div className={styles.embeddedTab}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} /></div>}
+      {tab === "documents" && <div className={styles.embeddedTab}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} onDraftItemsChange={setDraftDocuments} /></div>}
 
-      <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate={false}>
+      <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate>
 
       <section className={styles.sectionCard}>
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
@@ -359,4 +367,15 @@ function todayDate(): string {
   const now = new Date();
   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return localDate.toISOString().slice(0, 10);
+}
+
+async function persistDraftActivity(caseId: string, transactions: DraftTransaction[], notes: DraftNote[], reminders: DraftReminder[], documents: DraftDocument[]) {
+  for (const item of transactions) {
+    const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/transactions`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: item.type, category: item.category, transactionDate: item.transactionDate, amount: item.amount, description: item.description }) });
+    const body = await response.json(); if (!response.ok) throw new Error(body.error?.message ?? "Taslak ödeme kaydedilemedi.");
+    for (const file of item.files ?? []) { const data = new FormData(); data.set("file", file); data.set("documentName", file.name.replace(/\.[^.]+$/, "")); if(body.data?.createdTransactionId)data.set("transactionId",body.data.createdTransactionId); const upload=await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`,{method:"POST",credentials:"same-origin",body:data}); if(!upload.ok)throw new Error(`${file.name} yüklenemedi.`); }
+  }
+  for (const item of notes) { const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:item.content})});if(!response.ok)throw new Error("Taslak not kaydedilemedi."); }
+  for (const item of reminders) { const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/reminders`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:item.title,dueAt:item.dueAt})});if(!response.ok)throw new Error("Taslak bildirim kaydedilemedi."); }
+  for (const item of documents) { if(!item.file)continue;const data=new FormData();data.set("file",item.file);data.set("documentName",item.originalName.replace(/\.[^.]+$/, ""));data.set("category",item.category);const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`,{method:"POST",credentials:"same-origin",body:data});if(!response.ok)throw new Error(`${item.originalName} yüklenemedi.`); }
 }
