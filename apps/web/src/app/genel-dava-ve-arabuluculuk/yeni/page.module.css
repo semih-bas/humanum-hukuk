@@ -11,3 +11,4 @@
 .page{height:calc(100vh - 92px);padding-top:16px}.header{min-height:48px}.header>p{margin:0;color:#6b7d8e;font-size:11px}
 @media(max-width:1100px){.page{min-height:calc(100vh - 92px)}}
 @media(max-width:899px){.page{min-height:calc(100vh - 68px)}}
+.steps{border-color:#d5e0e9;background:linear-gradient(180deg,#f6f9fc,#eef3f7);box-shadow:0 5px 16px rgb(13 42 67 / 5%)}.form{border-color:#d5e0e9;box-shadow:0 12px 30px rgb(13 42 67 / 7%)}.panel{box-shadow:0 4px 12px rgb(21 56 82 / 4%)}.steps .activeStep{box-shadow:inset 0 8px 18px rgb(38 128 213 / 5%)}
