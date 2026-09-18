@@ -40,7 +40,7 @@ const expenseCategories: Category[] = ["FEE", "NOTIFICATION", "EXPERT_FEE", "ATT
 
 const emptyData: Data = { items: [], totals: { income: "0.00", expense: "0.00", net: "0.00" }, caseNote: "" };
 
-export default function PaymentModal({ caseId, onClose }: { caseId: string; onClose: () => void }) {
+export default function PaymentModal({ caseId, onClose, embedded = false }: { caseId: string; onClose?: () => void; embedded?: boolean }) {
   const [data, setData] = useState<Data>(emptyData);
   const [type, setType] = useState<TransactionType>("INCOME");
   const [date, setDate] = useState("");
@@ -137,9 +137,8 @@ export default function PaymentModal({ caseId, onClose }: { caseId: string; onCl
     finally { setDeletingId(""); }
   }
 
-  return createPortal(<div className={styles.backdrop} onMouseDown={onClose}>
-    <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-title" onMouseDown={(event) => event.stopPropagation()}>
-      <header><div className={styles.headerIcon}>▱</div><div><h2 id="payment-title">Gelir / Gider Kaydı</h2><p>Gelir veya gider kalemini ekleyin, düzenleyin.</p></div><button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button></header>
+  const panel = <section className={`${styles.modal} ${embedded ? styles.embedded : ""}`} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : true} aria-labelledby="payment-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div className={styles.headerIcon}>▱</div><div><h2 id="payment-title">Gelir / Gider Kaydı</h2><p>Gelir veya gider kalemini ekleyin, düzenleyin.</p></div>{!embedded && <button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button>}</header>
       <div className={styles.content}>
         <form className={styles.form} onSubmit={submit}>
           <h3>▤ <span>Gelir / Gider Bilgileri</span></h3>
@@ -150,7 +149,7 @@ export default function PaymentModal({ caseId, onClose }: { caseId: string; onCl
             <label>Tutar *<div className={styles.money}><input required inputMode="decimal" value={amount} onChange={(event) => setAmount(formatMoneyInput(event.target.value))} placeholder="0,00" /><b>TL</b></div></label>
             <label>Açıklama *<input required maxLength={500} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Açıklama giriniz" /></label>
           </div>
-          <div className={styles.actions}><button type="button" onClick={editingId ? resetEntry : onClose}>{editingId ? "Düzenlemeden Vazgeç" : "Vazgeç"}</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor..." : editingId ? "▣ Değişikliği Kaydet" : "▣ Kaydet"}</button></div>
+          <div className={styles.actions}><button type="button" onClick={editingId ? resetEntry : onClose}>{editingId ? "Düzenlemeden Vazgeç" : "Temizle"}</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor..." : editingId ? "▣ Değişikliği Kaydet" : "▣ Kaydet"}</button></div>
           <div className={styles.fileLabel}><span>Belge Ekle (Opsiyonel)</span><label className={styles.fileBox} htmlFor="payment-document"><input id="payment-document" key={fileKey} multiple type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFiles((current) => mergeFiles(current, Array.from(event.target.files ?? [])))} /><b>⌕ {files.length > 0 ? `${files.length} belge seçildi` : "Dosyaları sürükleyin veya seçin"}</b><small>PDF, JPG, PNG (Belge başına maks. 20 MB)</small></label>{files.length > 0 && <div className={styles.selectedFiles}>{files.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}`}><SelectedFileRow file={file} onRemove={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} /></div>)}</div>}</div>
           <label className={styles.note}>▧ <b>Dosya Notu</b><textarea maxLength={2000} value={caseNote} onChange={(event) => setCaseNote(event.target.value)} placeholder="Bu dosyaya ait kalıcı not" /><small>{caseNote.length} / 2000</small></label>
           {message && <p className={styles.message}>{message}</p>}
@@ -160,8 +159,9 @@ export default function PaymentModal({ caseId, onClose }: { caseId: string; onCl
           <section className={styles.totals}><h3>▦ <span>Güncel Toplamlar</span></h3><div><article><span>Toplam Gelir</span><b className={styles.incomeAmount}>{money(data.totals.income)} TL</b></article><article><span>Toplam Gider</span><b className={styles.expenseAmount}>{money(data.totals.expense)} TL</b></article><article><span>Net Tutar</span><b>{money(data.totals.net)} TL</b></article></div></section>
         </aside>
       </div>
-    </section>
-  </div>, document.body);
+    </section>;
+  if (embedded) return panel;
+  return createPortal(<div className={styles.backdrop} onMouseDown={onClose}>{panel}</div>, document.body);
 }
 
 function money(value: string) {

@@ -5,31 +5,28 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { centsToMoneyString, formatMoneyInput, formatTimeInput, INSTALLMENT_OPTIONS, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
+import { centsToMoneyString, formatMoneyInput, INSTALLMENT_OPTIONS, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
+import type { CaseStatus } from "@/lib/case-presentation";
+import PaymentModal from "../PaymentModal";
 
 import styles from "./page.module.css";
 
-type Operation = "note" | "reminder" | "document" | null;
 type Notice = { tone: "error" | "success"; message: string } | null;
 type FieldErrors = Record<string, string[] | undefined>;
-
-type ReminderDraft = {
-  title: string;
-  dueAt: string;
+export type EnforcementCaseTab = "general" | "payments" | "notifications" | "notes" | "documents";
+export type ExistingEnforcementCase = {
+  id: string; referenceNumber: string; version: number; licenseHolder: string; vehiclePlate: string; accidentDate: string;
+  debtorType: "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY"; debtorName: string | null;
+  hasDamageClaim: boolean; hasDepreciationClaim: boolean; hasProfitLossClaim: boolean; judgmentStatus: "WITHOUT_JUDGMENT" | "WITH_JUDGMENT";
+  damageAmount: string; depreciationAmount: string; profitLossDays: number | null; dailyRentalAmount: string | null; discountAmount: string;
+  enforcementOffice: string | null; enforcementFileNumber: string | null; vehicleLien: boolean; bankLien: boolean; titleDeedLien: boolean; salaryLien: boolean;
+  installmentCount: number | null; status: CaseStatus;
 };
 
-const emptyReminder: ReminderDraft = {
-  title: "",
-  dueAt: "",
-};
-
-function Icon({ name }: { name: "bell" | "check" | "document" | "note" | "x" }) {
+function Icon({ name }: { name: "check" | "x" }) {
   const paths = {
-    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
     check: <path d="m5 12 4 4L19 6" />,
-    document: <><path d="M6 3h9l3 3v15H6Z" /><path d="M14 3v4h4M9 12h6M9 16h4" /></>,
-    note: <><path d="M4 4h12v16H4Z" /><path d="m14 4 4 4M8 9h5M8 13h5" /></>,
     x: <><path d="m6 6 12 12M18 6 6 18" /></>,
   };
 
@@ -75,38 +72,32 @@ function AmountInput({
   </label>;
 }
 
-export default function NewCaseForm() {
+export default function NewCaseForm({ caseId, initialData, initialTab = "general" }: { caseId?: string; initialData?: ExistingEnforcementCase; initialTab?: EnforcementCaseTab } = {}) {
   const router = useRouter();
-  const [licenseHolder, setLicenseHolder] = useState("");
-  const [vehiclePlate, setVehiclePlate] = useState("");
-  const [accidentDate, setAccidentDate] = useState("");
-  const [debtorType, setDebtorType] = useState("");
-  const [debtorName, setDebtorName] = useState("");
-  const [hasDamageClaim, setHasDamageClaim] = useState(false);
-  const [hasDepreciationClaim, setHasDepreciationClaim] = useState(false);
-  const [hasProfitLossClaim, setHasProfitLossClaim] = useState(false);
-  const [judgmentStatus, setJudgmentStatus] = useState<"WITHOUT_JUDGMENT" | "WITH_JUDGMENT">("WITHOUT_JUDGMENT");
-  const [damage, setDamage] = useState("");
-  const [depreciation, setDepreciation] = useState("");
-  const [profitLossDays, setProfitLossDays] = useState("");
-  const [dailyRental, setDailyRental] = useState("");
-  const [discount, setDiscount] = useState("");
-  const [enforcementOffice, setEnforcementOffice] = useState("");
-  const [enforcementFileNumber, setEnforcementFileNumber] = useState("");
-  const [vehicleLien, setVehicleLien] = useState(false);
-  const [bankLien, setBankLien] = useState(false);
-  const [titleDeedLien, setTitleDeedLien] = useState(false);
-  const [salaryLien, setSalaryLien] = useState(false);
-  const [installmentEnabled, setInstallmentEnabled] = useState(false);
-  const [installmentCount, setInstallmentCount] = useState<InstallmentCount>(3);
-  const [status, setStatus] = useState("");
-  const [note, setNote] = useState("");
-  const [noteDraft, setNoteDraft] = useState("");
-  const [reminder, setReminder] = useState<ReminderDraft | null>(null);
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [documentName, setDocumentName] = useState("");
-  const [reminderDraft, setReminderDraft] = useState<ReminderDraft>(emptyReminder);
-  const [operation, setOperation] = useState<Operation>(null);
+  const [tab, setTab] = useState<EnforcementCaseTab>(initialTab);
+  const [licenseHolder, setLicenseHolder] = useState(initialData?.licenseHolder ?? "");
+  const [vehiclePlate, setVehiclePlate] = useState(initialData?.vehiclePlate ?? "");
+  const [accidentDate, setAccidentDate] = useState(initialData?.accidentDate ?? "");
+  const [debtorType, setDebtorType] = useState(initialData?.debtorType ?? "");
+  const [debtorName, setDebtorName] = useState(initialData?.debtorName ?? "");
+  const [hasDamageClaim, setHasDamageClaim] = useState(initialData?.hasDamageClaim ?? false);
+  const [hasDepreciationClaim, setHasDepreciationClaim] = useState(initialData?.hasDepreciationClaim ?? false);
+  const [hasProfitLossClaim, setHasProfitLossClaim] = useState(initialData?.hasProfitLossClaim ?? false);
+  const [judgmentStatus, setJudgmentStatus] = useState<"WITHOUT_JUDGMENT" | "WITH_JUDGMENT">(initialData?.judgmentStatus ?? "WITHOUT_JUDGMENT");
+  const [damage, setDamage] = useState(() => inputMoney(initialData?.damageAmount));
+  const [depreciation, setDepreciation] = useState(() => inputMoney(initialData?.depreciationAmount));
+  const [profitLossDays, setProfitLossDays] = useState(initialData?.profitLossDays ? String(initialData.profitLossDays) : "");
+  const [dailyRental, setDailyRental] = useState(() => inputMoney(initialData?.dailyRentalAmount));
+  const [discount, setDiscount] = useState(() => inputMoney(initialData?.discountAmount));
+  const [enforcementOffice, setEnforcementOffice] = useState(initialData?.enforcementOffice ?? "");
+  const [enforcementFileNumber, setEnforcementFileNumber] = useState(initialData?.enforcementFileNumber ?? "");
+  const [vehicleLien, setVehicleLien] = useState(initialData?.vehicleLien ?? false);
+  const [bankLien, setBankLien] = useState(initialData?.bankLien ?? false);
+  const [titleDeedLien, setTitleDeedLien] = useState(initialData?.titleDeedLien ?? false);
+  const [salaryLien, setSalaryLien] = useState(initialData?.salaryLien ?? false);
+  const [installmentEnabled, setInstallmentEnabled] = useState(Boolean(initialData?.installmentCount));
+  const [installmentCount, setInstallmentCount] = useState<InstallmentCount>((initialData?.installmentCount as InstallmentCount | null) ?? 3);
+  const [status, setStatus] = useState(initialData?.status ?? "");
   const [notice, setNotice] = useState<Notice>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,16 +119,6 @@ export default function NewCaseForm() {
       final: centsToInput(monthly + remainder),
     };
   }, [damage, depreciation, profitLoss, discount, installmentEnabled, installmentCount]);
-
-  function openNote() {
-    setNoteDraft(note);
-    setOperation("note");
-  }
-
-  function openReminder() {
-    setReminderDraft(reminder ?? emptyReminder);
-    setOperation("reminder");
-  }
 
   function changeInstallment(enabled: boolean) {
     setInstallmentEnabled(enabled);
@@ -165,8 +146,8 @@ export default function NewCaseForm() {
     setFieldErrors({});
 
     try {
-      const response = await fetch("/api/cases", {
-        method: "POST",
+      const response = await fetch(caseId ? `/api/cases/${encodeURIComponent(caseId)}` : "/api/cases", {
+        method: caseId ? "PATCH" : "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,11 +174,7 @@ export default function NewCaseForm() {
           salaryLien,
           installmentCount: installmentEnabled ? installmentCount : null,
           status,
-          note: note || null,
-          reminder: reminder ? {
-            ...reminder,
-            dueAt: new Date(reminder.dueAt).toISOString(),
-          } : null,
+          ...(caseId ? { version: initialData?.version } : { note: null, reminder: null }),
         }),
       });
       const result = await response.json() as {
@@ -215,21 +192,8 @@ export default function NewCaseForm() {
         return;
       }
 
-      let documentFailed = false;
-      if (documentFile) {
-        const documentBody = new FormData();
-        documentBody.set("file", documentFile);
-        documentBody.set("documentName", documentName.trim());
-        const documentResponse = await fetch(`/api/cases/${encodeURIComponent(result.data.id)}/documents`, {
-          method: "POST",
-          credentials: "same-origin",
-          body: documentBody,
-        });
-        documentFailed = !documentResponse.ok;
-      }
-
-      setNotice({ tone: "success", message: `${result.data.referenceNumber} numaralı dosya oluşturuldu.` });
-      router.push(`/dosyalarim?created=${encodeURIComponent(result.data.referenceNumber)}${documentFailed ? "&document=failed" : ""}`);
+      setNotice({ tone: "success", message: `${result.data.referenceNumber} numaralı dosya ${caseId ? "güncellendi" : "oluşturuldu"}.` });
+      router.push(caseId ? `/dosyalarim?updated=${encodeURIComponent(result.data.referenceNumber)}` : `/dosyalarim/${encodeURIComponent(result.data.id)}/duzenle?created=${encodeURIComponent(result.data.referenceNumber)}`);
       router.refresh();
     } catch {
       setNotice({
@@ -242,15 +206,15 @@ export default function NewCaseForm() {
     }
   }
 
-  return <AppShell pageTitle="Yeni Dosya Kaydı" pageSubtitle="İcra">
-    <form className={styles.newCasePage} onSubmit={handleSubmit} noValidate={false}>
+  return <AppShell pageTitle={caseId ? "Dosyayı Düzenle" : "Yeni Dosya Kaydı"} pageSubtitle="İcra">
+    <main className={styles.newCasePage}>
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
-          <p>Dosya bilgilerini eksiksiz şekilde giriniz.</p>
+          <p>{initialData?.referenceNumber ? `${initialData.referenceNumber} · ` : ""}Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
         <div className={styles.pageActions}>
           <Link href="/dosyalarim">İptal</Link>
-          <button type="submit" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : "Kaydet"}</button>
+          <button type="submit" form="enforcement-case-form" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : caseId ? "Değişiklikleri Kaydet" : "Kaydet"}</button>
         </div>
       </header>
 
@@ -258,6 +222,14 @@ export default function NewCaseForm() {
         {notice.message}
         <button type="button" aria-label="Bildirimi kapat" onClick={() => setNotice(null)}><Icon name="x" /></button>
       </p>}
+
+      <nav className={styles.workspaceTabs}>{([["general", "Genel Bilgiler"], ["payments", "Ödemeler"], ["notifications", "Bildirimler"], ["notes", "Notlar"], ["documents", "Evraklar"]] as Array<[EnforcementCaseTab, string]>).map(([key, label]) => <button type="button" key={key} className={tab === key ? styles.activeWorkspaceTab : ""} onClick={() => setTab(key)}>{label}</button>)}</nav>
+
+      {!caseId && tab !== "general" && <section className={styles.unsavedTab}><h2>Önce dosyayı kaydedin</h2><p>Ödeme, bildirim, not ve evrak kayıtları dosya numarası oluştuktan sonra eklenebilir.</p><button type="button" onClick={() => setTab("general")}>Genel Bilgilere Dön</button></section>}
+      {caseId && tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded /></div>}
+      {caseId && tab !== "general" && tab !== "payments" && <section className={styles.pendingTab}><h2>{tab === "notifications" ? "Bildirimler" : tab === "notes" ? "Notlar" : "Evraklar"}</h2><p>Bu bölüm dosyaya bağlı kayıtlarla birlikte hazırlanıyor.</p></section>}
+
+      <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate={false}>
 
       <section className={styles.sectionCard}>
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
@@ -348,72 +320,10 @@ export default function NewCaseForm() {
             </>}
           </div>
         </section>
-        <section className={styles.sectionCard}>
-          <h2><span>8</span>Dosya İşlemleri</h2>
-          <div className={styles.operationGrid}>
-            <button type="button" className={note ? styles.operationAdded : ""} onClick={openNote}><Icon name="note" /><span>{note ? "Not Eklendi" : "Not Ekle"}</span></button>
-            <button type="button" className={documentFile ? styles.operationAdded : ""} onClick={() => setOperation("document")}><Icon name="document" /><span>{documentFile ? "Evrak Eklendi" : "Evrak Ekle"}</span></button>
-            <button type="button" className={reminder ? styles.operationAdded : ""} onClick={openReminder}><Icon name="bell" /><span>{reminder ? "Hatırlatma Eklendi" : "Hatırlatma Ekle"}</span></button>
-          </div>
-          <FieldError errors={fieldErrors} name="reminder" />
-          <FieldError errors={fieldErrors} name="note" />
-        </section>
       </div>
-    </form>
+      </form>
+    </main>
 
-    {operation && <div className={styles.modalBackdrop} onMouseDown={() => setOperation(null)}>
-      <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="operation-title" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2 id="operation-title">{operation === "note" ? "Not Ekle" : operation === "reminder" ? "Hatırlatma Ekle" : "Evrak Ekle"}</h2><button type="button" aria-label="Pencereyi kapat" onClick={() => setOperation(null)}><Icon name="x" /></button></header>
-        <div className={styles.modalBody}>
-          {operation === "note" && <label className={styles.field}><span>Dosya Notu</span><textarea maxLength={2_000} rows={6} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Dosyayla ilgili notunuzu yazın..." /></label>}
-          {operation === "document" && <>
-            <label className={styles.field}><span>PDF, JPG veya PNG · En fazla 20 MB</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setDocumentFile(file);
-              if (file) setDocumentName(file.name.replace(/\.[^.]+$/, ""));
-            }} /></label>
-            <label className={styles.field}><span>Evrak Adı</span><div className={styles.documentNameInput}><input required disabled={!documentFile} maxLength={240} value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder={documentFile ? "Evrak adını yazın" : "Önce evrak seçin"} />{documentFile && <b>.{documentExtension(documentFile)}</b>}</div></label>
-          </>}
-          {operation === "reminder" && <>
-            <small>Belirlediğiniz tarih ve saatte aktif, e-postası doğrulanmış yöneticilere e-posta gönderilir.</small>
-            <label className={styles.field}><span>Hatırlatma Başlığı</span><input required maxLength={500} value={reminderDraft.title} onChange={(event) => setReminderDraft({ ...reminderDraft, title: event.target.value })} placeholder="Örn: Duruşma tarihi" /></label>
-            <div className={styles.reminderDateTime}>
-              <label className={styles.field}><span>Tarih</span><input required type="date" max="9999-12-31" value={datePart(reminderDraft.dueAt)} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: combineDateTime(limitDateYear(event.target.value, datePart(reminderDraft.dueAt)), timePart(reminderDraft.dueAt)) })} /></label>
-              <label className={styles.field}><span>Saat</span><input required type="text" inputMode="numeric" maxLength={5} placeholder="SS:DD" value={timePart(reminderDraft.dueAt)} onChange={(event) => setReminderDraft({ ...reminderDraft, dueAt: combineDateTime(datePart(reminderDraft.dueAt), formatTimeInput(event.target.value, timePart(reminderDraft.dueAt))) })} /></label>
-            </div>
-          </>}
-        </div>
-        <footer>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={() => setOperation(null)}>Vazgeç</button>
-            <button type="button" onClick={() => {
-            if (operation === "note") {
-              setNote(noteDraft.trim());
-              setOperation(null);
-              return;
-            }
-
-            if (operation === "document") {
-              if (!documentFile || !documentName.trim()) {
-                setNotice({ tone: "error", message: "Lütfen yüklenecek evrakı seçin ve evrak adını yazın." });
-                return;
-              }
-              setOperation(null);
-              return;
-            }
-
-            if (!reminderDraft.title.trim() || !isCompleteDateTime(reminderDraft.dueAt)) {
-              setNotice({ tone: "error", message: "Hatırlatma başlığı ve tarihi zorunludur." });
-              return;
-            }
-
-            setReminder({ ...reminderDraft, title: reminderDraft.title.trim() });
-            setOperation(null);
-            }}>Forma Ekle</button>
-          </div>
-        </footer>
-      </section>
-    </div>}
   </AppShell>;
 }
 
@@ -425,33 +335,18 @@ function normalizeMoney(value: string): string {
   return value.trim() || "0";
 }
 
+function inputMoney(value?: string | null): string {
+  if (!value) return "";
+  const cents = parseMoneyToCents(value);
+  return cents === null ? "" : centsToMoneyString(cents);
+}
+
 function toCents(value: string): bigint {
   return parseMoneyToCents(value) ?? 0n;
 }
 
 function centsToInput(value: bigint): string {
   return centsToMoneyString(value);
-}
-
-function datePart(value: string): string {
-  return value.split("T")[0] ?? "";
-}
-
-function timePart(value: string): string {
-  return value.includes("T") ? (value.split("T")[1] ?? "") : "";
-}
-
-function combineDateTime(date: string, time: string): string {
-  return date || time ? `${date}T${time}` : "";
-}
-
-function isCompleteDateTime(value: string): boolean {
-  const [date, time = ""] = value.split("T");
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && isValidTime(time);
-}
-
-function documentExtension(file: File): string {
-  return file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg";
 }
 
 function todayDate(): string {
