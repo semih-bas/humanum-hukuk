@@ -3,3 +3,4 @@
 /* Ortak 92px navigasyon yüksekliği. */
 .page{height:calc(100vh - 92px);padding-top:16px}.header>div:first-child{grid-template-columns:auto 1fr}.header>div:first-child p{grid-column:2;margin:0}
 @media(max-width:899px){.page{height:auto;min-height:calc(100vh - 68px)}}
+.emptyTab{display:grid;min-height:360px;place-content:center;text-align:center}.emptyTab h2{margin-bottom:8px}.emptyTab p{margin:0;color:#718397}
