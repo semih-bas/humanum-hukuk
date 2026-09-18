@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { centsToMoneyString, formatMoneyInput, parseMoneyToCents } from "@/lib/form-input";
 import styles from "./PaymentModal.module.css";
 
@@ -136,7 +137,7 @@ export default function PaymentModal({ caseId, onClose }: { caseId: string; onCl
     finally { setDeletingId(""); }
   }
 
-  return <div className={styles.backdrop} onMouseDown={onClose}>
+  return createPortal(<div className={styles.backdrop} onMouseDown={onClose}>
     <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-title" onMouseDown={(event) => event.stopPropagation()}>
       <header><div className={styles.headerIcon}>▱</div><div><h2 id="payment-title">Gelir / Gider Kaydı</h2><p>Gelir veya gider kalemini ekleyin, düzenleyin.</p></div><button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button></header>
       <div className={styles.content}>
@@ -160,7 +161,7 @@ export default function PaymentModal({ caseId, onClose }: { caseId: string; onCl
         </aside>
       </div>
     </section>
-  </div>;
+  </div>, document.body);
 }
 
 function money(value: string) {

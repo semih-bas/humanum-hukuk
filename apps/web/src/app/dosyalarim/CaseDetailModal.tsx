@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { centsToMoneyString, formatMoneyInput, formatTimeInput, INSTALLMENT_OPTIONS, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, formatIstanbulDateTime as formatDateTime, formatMoneyAmount as formatMoney, type CaseStatus } from "@/lib/case-presentation";
@@ -273,7 +274,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
     }
   }
 
-  return <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
+  return createPortal(<div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
     <section className={`${styles.detailModal} ${styles.fullDetailModal}`} role="dialog" aria-modal="true" aria-labelledby="detail-title" onMouseDown={(event) => event.stopPropagation()}>
       <header>
         <div><p>{detail?.referenceNumber ?? "Dosya ayrıntısı"}</p><h2 id="detail-title">{detail?.vehiclePlate ?? (loading ? "Yükleniyor…" : "Dosya açılamadı")}</h2></div>
@@ -405,7 +406,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         </div>
       </>)}
     </section>
-  </div>;
+  </div>, document.body);
 }
 
 function EditActivityIcon({ name }: { name: "note" | "document" }) {
