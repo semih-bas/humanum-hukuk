@@ -45,7 +45,7 @@ export async function getCaseFile(id: string) {
       },
       documents: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, sha256: true, createdAt: true },
+        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, sha256: true, category: true, createdAt: true },
       },
       changes: {
         orderBy: { createdAt: "desc" },

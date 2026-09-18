@@ -19,7 +19,7 @@ export { DocumentValidationError, MAX_DOCUMENT_BYTES, MAX_MULTIPART_BYTES };
 export { DocumentQuotaExceededError };
 export class DocumentNotFoundError extends Error {}
 
-export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string, transactionId?: string) {
+export async function storeCaseDocument(caseFileId: string, file: File, actorUserId: string, requestedName?: string, transactionId?: string, category = "OTHER") {
   const inspected = await inspectDocumentUpload(file, requestedName);
   const { buffer, originalName } = inspected;
 
@@ -69,8 +69,9 @@ export async function storeCaseDocument(caseFileId: string, file: File, actorUse
           sizeBytes: buffer.byteLength,
           sha256: inspected.sha256,
           transactionId,
+          category,
         },
-        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
+        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, createdAt: true },
       });
       await transaction.auditLog.create({
         data: { actorUserId, event: "case.document_uploaded", targetType: "case_file", targetId: caseFileId, context: { referenceNumber: activeCase.referenceNumber, documentId: created.id, mimeType: created.mimeType, sizeBytes: created.sizeBytes } },

@@ -25,7 +25,7 @@ export type ExistingEnforcementCase = {
   installmentCount: number | null; status: CaseStatus;
   notes: Array<{ id: string; content: string; createdAt: string; author: { name: string } }>;
   reminders: Array<{ id: string; title: string; dueAt: string; status: string }>;
-  documents: Array<{ id: string; originalName: string; sizeBytes: number; createdAt: string }>;
+  documents: Array<{ id: string; originalName: string; sizeBytes: number; category: string; createdAt: string }>;
 };
 
 function Icon({ name }: { name: "check" | "x" }) {
