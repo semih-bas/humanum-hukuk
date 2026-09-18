@@ -9,6 +9,7 @@ import { centsToMoneyString, formatMoneyInput, INSTALLMENT_OPTIONS, limitDateYea
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import type { CaseStatus } from "@/lib/case-presentation";
 import PaymentModal from "../PaymentModal";
+import { DocumentsTab, NotesTab, NotificationsTab } from "./CaseActivityTabs";
 
 import styles from "./page.module.css";
 
@@ -22,6 +23,9 @@ export type ExistingEnforcementCase = {
   damageAmount: string; depreciationAmount: string; profitLossDays: number | null; dailyRentalAmount: string | null; discountAmount: string;
   enforcementOffice: string | null; enforcementFileNumber: string | null; vehicleLien: boolean; bankLien: boolean; titleDeedLien: boolean; salaryLien: boolean;
   installmentCount: number | null; status: CaseStatus;
+  notes: Array<{ id: string; content: string; createdAt: string; author: { name: string } }>;
+  reminders: Array<{ id: string; title: string; dueAt: string; status: string }>;
+  documents: Array<{ id: string; originalName: string; sizeBytes: number; createdAt: string }>;
 };
 
 function Icon({ name }: { name: "check" | "x" }) {
@@ -227,7 +231,9 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
       {!caseId && tab !== "general" && <section className={styles.unsavedTab}><h2>Önce dosyayı kaydedin</h2><p>Ödeme, bildirim, not ve evrak kayıtları dosya numarası oluştuktan sonra eklenebilir.</p><button type="button" onClick={() => setTab("general")}>Genel Bilgilere Dön</button></section>}
       {caseId && tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded /></div>}
-      {caseId && tab !== "general" && tab !== "payments" && <section className={styles.pendingTab}><h2>{tab === "notifications" ? "Bildirimler" : tab === "notes" ? "Notlar" : "Evraklar"}</h2><p>Bu bölüm dosyaya bağlı kayıtlarla birlikte hazırlanıyor.</p></section>}
+      {caseId && initialData && tab === "notifications" && <div className={styles.embeddedTab}><NotificationsTab caseId={caseId} initialItems={initialData.reminders} /></div>}
+      {caseId && initialData && tab === "notes" && <div className={styles.embeddedTab}><NotesTab caseId={caseId} initialItems={initialData.notes} /></div>}
+      {caseId && initialData && tab === "documents" && <div className={styles.embeddedTab}><DocumentsTab caseId={caseId} initialItems={initialData.documents} /></div>}
 
       <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate={false}>
 
