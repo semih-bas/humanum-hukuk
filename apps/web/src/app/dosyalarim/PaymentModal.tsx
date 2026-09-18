@@ -41,7 +41,7 @@ const expenseCategories: Category[] = ["FEE", "NOTIFICATION", "EXPERT_FEE", "ATT
 
 const emptyData: Data = { items: [], totals: { income: "0.00", expense: "0.00", net: "0.00" }, caseNote: "" };
 
-export default function PaymentModal({ caseId, onClose, embedded = false, draftItems = [], onDraftItemsChange }: { caseId?: string; onClose?: () => void; embedded?: boolean; draftItems?: DraftTransaction[]; onDraftItemsChange?: (items: DraftTransaction[]) => void }) {
+export default function PaymentModal({ caseId, onClose, embedded = false, readOnly = false, draftItems = [], onDraftItemsChange }: { caseId?: string; onClose?: () => void; embedded?: boolean; readOnly?: boolean; draftItems?: DraftTransaction[]; onDraftItemsChange?: (items: DraftTransaction[]) => void }) {
   const [data, setData] = useState<Data>(() => caseId ? emptyData : draftData(draftItems));
   const [type, setType] = useState<TransactionType>("INCOME");
   const [date, setDate] = useState("");
@@ -143,7 +143,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false, draftI
     finally { setDeletingId(""); }
   }
 
-  const panel = <section className={`${styles.modal} ${embedded ? styles.embedded : ""}`} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : true} aria-labelledby="payment-title" onMouseDown={(event) => event.stopPropagation()}>
+  const panel = <section className={`${styles.modal} ${embedded ? styles.embedded : ""}`} style={readOnly ? { pointerEvents: "none" } : undefined} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : true} aria-labelledby="payment-title" onMouseDown={(event) => event.stopPropagation()}>
       <header><div className={styles.headerIcon}>▱</div><div><h2 id="payment-title">Gelir / Gider Kaydı</h2><p>Gelir veya gider kalemini ekleyin, düzenleyin.</p></div>{!embedded && <button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button>}</header>
       <div className={styles.content}>
         <form className={styles.form} onSubmit={submit}>

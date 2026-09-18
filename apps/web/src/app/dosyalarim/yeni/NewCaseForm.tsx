@@ -76,7 +76,7 @@ function AmountInput({
   </label>;
 }
 
-export default function NewCaseForm({ caseId, initialData, initialTab = "general" }: { caseId?: string; initialData?: ExistingEnforcementCase; initialTab?: EnforcementCaseTab } = {}) {
+export default function NewCaseForm({ caseId, initialData, initialTab = "general", readOnly = false }: { caseId?: string; initialData?: ExistingEnforcementCase; initialTab?: EnforcementCaseTab; readOnly?: boolean } = {}) {
   const router = useRouter();
   const [tab, setTab] = useState<EnforcementCaseTab>(initialTab);
   const [licenseHolder, setLicenseHolder] = useState(initialData?.licenseHolder ?? "");
@@ -219,15 +219,15 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     }
   }
 
-  return <AppShell pageTitle={caseId ? "Dosyayı Düzenle" : "Yeni Dosya Kaydı"} pageSubtitle="İcra">
+  return <AppShell pageTitle={readOnly ? "Dosya Genel Bakışı" : caseId ? "Dosyayı Düzenle" : "Yeni Dosya Kaydı"} pageSubtitle="İcra">
     <main className={styles.newCasePage}>
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <p>{initialData?.referenceNumber ? `${initialData.referenceNumber} · ` : ""}Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
         <div className={styles.pageActions}>
-          <Link href="/dosyalarim">İptal</Link>
-          <button type="submit" form="enforcement-case-form" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : caseId ? "Değişiklikleri Kaydet" : "Kaydet"}</button>
+          <Link href="/dosyalarim">{readOnly ? "Listeye Dön" : "İptal"}</Link>
+          {!readOnly && <button type="submit" form="enforcement-case-form" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : caseId ? "Değişiklikleri Kaydet" : "Kaydet"}</button>}
         </div>
       </header>
 
@@ -238,12 +238,13 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
       <nav className={styles.workspaceTabs}>{([["general", "Genel Bilgiler"], ["payments", "Ödemeler"], ["notifications", "Bildirimler"], ["notes", "Notlar"], ["documents", "Evraklar"]] as Array<[EnforcementCaseTab, string]>).map(([key, label]) => <button type="button" key={key} className={tab === key ? styles.activeWorkspaceTab : ""} onClick={() => setTab(key)}>{label}</button>)}</nav>
 
-      {tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded draftItems={draftTransactions} onDraftItemsChange={setDraftTransactions} /></div>}
-      {tab === "notifications" && <div className={styles.embeddedTab}><NotificationsTab caseId={caseId} initialItems={initialData?.reminders ?? draftReminders} onDraftItemsChange={setDraftReminders} /></div>}
-      {tab === "notes" && <div className={styles.embeddedTab}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} /></div>}
-      {tab === "documents" && <div className={styles.embeddedTab}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} onDraftItemsChange={setDraftDocuments} /></div>}
+      {tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded readOnly={readOnly} draftItems={draftTransactions} onDraftItemsChange={setDraftTransactions} /></div>}
+      {tab === "notifications" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotificationsTab caseId={caseId} initialItems={initialData?.reminders ?? draftReminders} onDraftItemsChange={setDraftReminders} /></div>}
+      {tab === "notes" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} /></div>}
+      {tab === "documents" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} onDraftItemsChange={setDraftDocuments} /></div>}
 
       <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate>
+      <fieldset disabled={readOnly} style={{ display: "contents" }}>
 
       <section className={styles.sectionCard}>
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
@@ -334,7 +335,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
             </>}
           </div>
         </section>
-      </div>
+      </div></fieldset>
       </form>
     </main>
 

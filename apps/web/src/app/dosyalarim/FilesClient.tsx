@@ -239,7 +239,7 @@ export default function FilesClient() {
                   <td><div className={styles.rowActions}>
                     <Link className={styles.paymentAction} href={`/dosyalarim/${record.id}/duzenle?tab=payments`} title="Ödeme" aria-label={record.vehiclePlate + " ödeme"}><Icon name="payment" /></Link>
                     <Link className={styles.reminderAction} href={`/dosyalarim/${record.id}/duzenle?tab=notifications`} title="Bildirim Ekle" aria-label={record.vehiclePlate + " bildirim ekle"}><Icon name="bell" /></Link>
-                    <button className={styles.viewAction} type="button" title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
+                    <Link className={styles.viewAction} href={`/dosyalarim/${record.id}/duzenle?view=1`} title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"}><Icon name="eye" /></Link>
                     <Link className={styles.editAction} href={`/dosyalarim/${record.id}/duzenle`} title="Düzenle" aria-label={record.vehiclePlate + " dosyasını düzenle"}><Icon name="edit" /></Link>
                   </div></td>
                 </tr>;
