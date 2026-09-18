@@ -217,6 +217,23 @@
 @media (max-width: 1250px) { .summaryCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .summaryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .summaryCards { grid-template-columns: 1fr; } }
+
+/* Ortak liste dili: daha temiz yuzey, daha guclu hiyerarsi. */
+.filesPage { gap: 14px; background: transparent; }
+.summaryCard { min-height: 76px; overflow: hidden; border-color: rgb(189 204 216 / 78%); background: linear-gradient(135deg, rgb(255 255 255 / 96%), rgb(247 250 252 / 92%)); box-shadow: 0 8px 24px rgb(9 34 56 / 7%); }
+.summaryCard::after { position: absolute; right: -19px; bottom: -28px; width: 74px; height: 74px; border: 1px solid color-mix(in srgb, var(--card-accent) 16%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--card-accent) 4%, transparent); content: ""; pointer-events: none; }
+.summaryCard:hover { box-shadow: 0 13px 30px rgb(9 34 56 / 12%); }
+.summaryCard b { color: #17364f; font-weight: 800; }
+.summaryCard small { color: #6c8092; }
+.tableCard { border: 1px solid rgb(185 200 212 / 82%); border-top: 2px solid #c08b3b; border-radius: 11px; background: rgb(255 255 255 / 97%); box-shadow: 0 20px 48px rgb(8 32 53 / 13%); }
+.tableCard::before { display: none; }
+.tableToolbar { min-height: 76px; border-bottom: 1px solid #d7e1e8; border-radius: 9px 9px 0 0; background: linear-gradient(105deg, #fff 0%, #fbfcfd 68%, #fff8e9 100%); }
+.tableViewport thead th { border-bottom-color: #cfdbe3; background: #eaf0f4; color: #18364f; letter-spacing: .01em; }
+.tableViewport tbody tr { transition: background .16s ease, box-shadow .16s ease; }
+.tableViewport tbody tr:hover { background: #fbf8f1; box-shadow: inset 3px 0 #c28a35; }
+.tableFooter { border-top-color: #d6e0e7; background: #fbfcfc; }
+.listControls select { border-color: #cad6df; background-color: #fff; box-shadow: 0 2px 7px rgb(15 43 66 / 4%); }
+.newFileButton { border: 1px solid rgb(209 167 91 / 25%); background: linear-gradient(135deg, #143d5e, #08243d); box-shadow: 0 9px 21px rgb(8 36 61 / 19%); }
 .tableToolbar {
   border-bottom: 1px solid #ccd7df;
   border-radius: 8px 8px 0 0;
