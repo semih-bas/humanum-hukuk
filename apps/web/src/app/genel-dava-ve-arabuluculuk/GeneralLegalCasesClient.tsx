@@ -91,17 +91,21 @@ export default function GeneralLegalCasesClient() {
     } catch (cause) { setDrawerError(cause instanceof Error ? cause.message : "Dosya güncellenemedi."); } finally { setSaving(false); }
   }
 
-  const cards = [["Toplam Dava", result.summary.total, "▦", "blue", "Tüm dosyalar"], ["Derdest", result.summary.active, "⌂", "green", "Devam eden"], ["Karar Aşaması", result.summary.decision, "◐", "gold", "Karar bekleyen"], ["İstinaf / Yargıtay", result.summary.appeal, "◉", "purple", "Üst mahkeme"], ["Sonuçlanan", result.summary.completed, "↻", "cyan", "Karar verilen"], ["Yaklaşan Duruşma", result.summary.upcomingHearings, "♙", "red", "Planlı duruşma"]] as const;
+  const cards = [
+    { label: "Toplam Dava", value: result.summary.total, icon: "▦", tone: "blue", hint: "Tüm dosyalar", status: "ALL", stage: "ALL" },
+    { label: "Derdest", value: result.summary.active, icon: "⌂", tone: "green", hint: "Devam eden", status: "ACTIVE", stage: "ALL" },
+    { label: "Karar Aşaması", value: result.summary.decision, icon: "◐", tone: "gold", hint: "Karar bekleyen", status: "DECISION", stage: "ALL" },
+    { label: "İstinaf / Yargıtay", value: result.summary.appeal, icon: "◉", tone: "purple", hint: "Üst mahkeme", status: "APPEAL", stage: "ALL" },
+    { label: "Sonuçlanan", value: result.summary.completed, icon: "↻", tone: "cyan", hint: "Karar verilen", status: "COMPLETED", stage: "ALL" },
+    { label: "Yaklaşan Duruşma", value: result.summary.upcomingHearings, icon: "♙", tone: "red", hint: "Planlı duruşma", status: "ALL", stage: "HEARING" },
+  ] as const;
 
   return <main className={styles.page}>
-    <section className={styles.cards}>{cards.map(([label, value, icon, tone, hint]) => <article className={styles[tone]} key={label}><i>{icon}</i><div><strong>{value}</strong><span>{label}</span><small>{hint}</small></div></article>)}</section>
+    <section className={styles.cards}>{cards.map((card) => <button type="button" aria-pressed={status === card.status && stage === card.stage} className={`${styles[card.tone]} ${status === card.status && stage === card.stage ? styles.activeCard : ""}`} key={card.label} onClick={() => { setStatus(card.status); setStage(card.stage); setPage(1); }}><i>{card.icon}</i><div><strong>{card.value}</strong><span>{card.label}</span><small>{card.hint}</small></div></button>)}</section>
     <section className={styles.workspace}>
-      <header className={styles.workspaceHeader}><div><h2>Dosya Listesi</h2><span>{result.pagination.totalCount} kayıt</span></div></header>
-      <div className={styles.filters}><label className={styles.search}><span className={styles.srOnly}>Dosya ara</span><b>⌕</b><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Dosya no, taraf, mahkeme veya konu ara..." /></label>
-        <label><span className={styles.srOnly}>Dosya alanı</span><select value={kind} onChange={(event) => { setKind(event.target.value); setPage(1); }}><option value="ALL">Tüm Dosya Alanları</option><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
-        <label><span className={styles.srOnly}>Durum</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="ALL">Tüm Durumlar</option>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+      <header className={styles.workspaceHeader}><div><h2>Dosya Listesi</h2><span>{result.pagination.totalCount} kayıt</span></div><div className={styles.filters}><label className={styles.search}><span className={styles.srOnly}>Dosya ara</span><b>⌕</b><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Dosya no veya taraf ara..." /></label>
         <label><span className={styles.srOnly}>Aşama</span><select value={stage} onChange={(event) => { setStage(event.target.value); setPage(1); }}><option value="ALL">Tüm Aşamalar</option>{stageEntries.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-        <button type="button" className={styles.filterButton}>▽ Filtrele</button><button type="button" className={styles.clearButton} onClick={clearFilters}>Temizle</button><Link className={`${buttonStyles.button} ${styles.newCaseButton}`} href="/genel-dava-ve-arabuluculuk/yeni">＋ Yeni Dosya</Link></div>
+        {(query || status !== "ALL" || stage !== "ALL") && <button type="button" className={styles.clearButton} onClick={clearFilters}>Temizle</button>}<Link className={`${buttonStyles.button} ${styles.newCaseButton}`} href="/genel-dava-ve-arabuluculuk/yeni">＋ Yeni Dosya</Link></div></header>
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.tableWrap}><table><thead><tr><th>#</th><th>Dosya No</th><th>Mahkeme / Birim</th><th>Dosya Türü</th><th>Müvekkil / Başvuran</th><th>Karşı Taraf</th><th>Dosya Değeri</th><th>Aşama</th><th>Son İşlem</th><th>Sonraki Duruşma</th><th>Sorumlu</th><th>Durum</th></tr></thead><tbody>
         {loading && <tr><td colSpan={12} className={styles.empty}>Dosyalar yükleniyor…</td></tr>}{!loading && !result.items.length && <tr><td colSpan={12} className={styles.empty}>Henüz kayıtlı dosya bulunmuyor.</td></tr>}
