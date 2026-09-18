@@ -350,6 +350,11 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         <footer><button type="button" onClick={() => { setDraft(toDraft(detail)); setEditing(false); setError(""); }}>Vazgeç</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}</button></footer>
       </form> : <>
         <div className={styles.detailScroll}>
+          <section className={styles.overviewHero}>
+            <div><span>Ruhsat Sahibi</span><strong>{detail.licenseHolder}</strong><small>{detail.debtorName ? `Borçlu: ${detail.debtorName}` : "Borçlu taraf belirtilmedi"}</small></div>
+            <div><span>Dosya Durumu</span><strong>{statusLabels[detail.status]}</strong><small>{formatDate(detail.accidentDate)} tarihli kaza</small></div>
+            <div><span>Net Talep</span><strong>{formatMoney(detail.netClaimAmount)} TL</strong><small>{detail.installmentCount ? `${detail.installmentCount} taksit planı` : "Taksit planı yok"}</small></div>
+          </section>
           {reminderOpen && <form className={styles.activityForm} onSubmit={saveReminder}>
             <div><h3>Yeni Hatırlatma</h3><button type="button" aria-label="Hatırlatma formunu kapat" onClick={() => setReminderOpen(false)}>×</button></div>
             <label className={styles.activityField}><span>Hatırlatma başlığı</span><input required maxLength={500} value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="Örn: Duruşma hazırlığı" /></label>

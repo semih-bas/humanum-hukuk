@@ -47,7 +47,6 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
   const [category, setCategory] = useState<Category | "">("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [caseNote, setCaseNote] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [fileKey, setFileKey] = useState(0);
   const [message, setMessage] = useState("");
@@ -77,7 +76,6 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
         const result = await response.json() as { data?: Data; error?: { message?: string } };
         if (!response.ok || !result.data) throw new Error(result.error?.message ?? "Kayıtlar yüklenemedi.");
         setData(result.data);
-        setCaseNote(result.data.caseNote);
       })
       .catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) setMessage(error instanceof Error ? error.message : "Kayıtlar yüklenemedi."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -92,7 +90,7 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
     try {
       const response = await fetch(editingId ? `/api/cases/${encodeURIComponent(caseId)}/transactions/${encodeURIComponent(editingId)}` : `/api/cases/${encodeURIComponent(caseId)}/transactions`, {
         method: editingId ? "PATCH" : "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, category, transactionDate: date, amount: amount.trim() || "0", description, caseNote: caseNote.trim() || null }),
+        body: JSON.stringify({ type, category, transactionDate: date, amount: amount.trim() || "0", description }),
       });
       const result = await response.json() as { data?: Data; error?: { message?: string } };
       if (!response.ok || !result.data) throw new Error(result.error?.message ?? (editingId ? "Kayıt güncellenemedi." : "Kayıt eklenemedi."));
@@ -149,9 +147,8 @@ export default function PaymentModal({ caseId, onClose, embedded = false }: { ca
             <label>Tutar *<div className={styles.money}><input required inputMode="decimal" value={amount} onChange={(event) => setAmount(formatMoneyInput(event.target.value))} placeholder="0,00" /><b>TL</b></div></label>
             <label>Açıklama *<input required maxLength={500} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Açıklama giriniz" /></label>
           </div>
-          <div className={styles.actions}><button type="button" onClick={editingId ? resetEntry : onClose}>{editingId ? "Düzenlemeden Vazgeç" : "Temizle"}</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor..." : editingId ? "▣ Değişikliği Kaydet" : "▣ Kaydet"}</button></div>
+          <div className={styles.actions}><button type="button" onClick={editingId || embedded ? resetEntry : onClose}>{editingId ? "Düzenlemeden Vazgeç" : embedded ? "Temizle" : "Vazgeç"}</button><button type="submit" disabled={saving}>{saving ? "Kaydediliyor..." : editingId ? "▣ Değişikliği Kaydet" : "▣ Kaydet"}</button></div>
           <div className={styles.fileLabel}><span>Belge Ekle (Opsiyonel)</span><label className={styles.fileBox} htmlFor="payment-document"><input id="payment-document" key={fileKey} multiple type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFiles((current) => mergeFiles(current, Array.from(event.target.files ?? [])))} /><b>⌕ {files.length > 0 ? `${files.length} belge seçildi` : "Dosyaları sürükleyin veya seçin"}</b><small>PDF, JPG, PNG (Belge başına maks. 20 MB)</small></label>{files.length > 0 && <div className={styles.selectedFiles}>{files.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}`}><SelectedFileRow file={file} onRemove={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} /></div>)}</div>}</div>
-          <label className={styles.note}>▧ <b>Dosya Notu</b><textarea maxLength={2000} value={caseNote} onChange={(event) => setCaseNote(event.target.value)} placeholder="Bu dosyaya ait kalıcı not" /><small>{caseNote.length} / 2000</small></label>
           {message && <p className={styles.message}>{message}</p>}
         </form>
         <aside className={styles.side}>
