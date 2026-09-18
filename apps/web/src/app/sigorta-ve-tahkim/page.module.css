@@ -39,3 +39,17 @@
 .workspace::before{display:none}.workspaceToolbar{min-height:76px;border-radius:9px 9px 0 0;background:linear-gradient(105deg,#fff 0%,#fbfcfd 68%,#fff8e9 100%)}.workspaceToolbar>a{border:1px solid rgb(209 167 91/25%);background:linear-gradient(135deg,#143d5e,#08243d);box-shadow:0 9px 21px rgb(8 36 61/19%)}
 .filters{border-bottom-color:#d7e1e8;background:#fbfcfd}.filters input,.filters select,.search>div,.clear{border-color:#cad6df;box-shadow:0 2px 7px rgb(15 43 66/4%)}
 .tableWrap th{border-bottom-color:#cfdbe3;background:#eaf0f4;color:#18364f;letter-spacing:.01em}.tableWrap tbody tr{transition:background .16s ease,box-shadow .16s ease}.tableWrap tbody tr:hover{background:#fbf8f1;box-shadow:inset 3px 0 #c28a35}.list footer{border-top-color:#d6e0e7;background:#fbfcfc}
+
+/* Filtreler panel basliginda; bos liste zemini notr beyazdir. */
+.page{padding-top:20px}.workspace,.list,.tableWrap,.tableWrap table,.tableWrap tbody,.empty{background:#fff}
+.workspaceToolbar{min-height:78px;gap:14px;padding:10px 14px;background:linear-gradient(105deg,#fff 0%,#fafcfd 100%)}
+.workspaceToolbar>.listTitle{display:flex;flex:0 0 auto;align-items:center;gap:9px}.workspaceToolbar>.listTitle span{border-radius:999px;background:#eef4f8;padding:5px 9px;color:#60778d;font-size:11px}
+.workspaceToolbar>.toolbarFilters{display:flex;min-width:0;flex:1;align-items:end;justify-content:flex-end;gap:8px}
+.toolbarFilters label{display:grid;min-width:0;gap:4px}.toolbarFilters label>span{padding:0;border-radius:0;background:transparent;color:#6f8192;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.055em}
+.toolbarFilters label>div{display:flex}.toolbarFilters input,.toolbarFilters select{height:38px;min-width:0;border:1px solid #cad6df;border-radius:6px;background:#fff;padding:0 9px;color:#243d64;box-shadow:0 2px 7px rgb(15 43 66/4%)}
+.dateFilter{width:236px}.dateFilter input{width:50%;border-radius:6px 0 0 6px}.dateFilter input+input{border-left:0;border-radius:0 6px 6px 0}
+.toolbarFilters .search{width:clamp(235px,22vw,350px)}.toolbarFilters .search>div{height:38px;align-items:center;gap:7px;border:1px solid #cad6df;border-radius:6px;background:#fff;padding:0 9px;box-shadow:0 2px 7px rgb(15 43 66/4%)}.toolbarFilters .search input{width:100%;height:36px;border:0;padding:0;box-shadow:none;outline:0}.toolbarFilters .search svg{width:16px;flex:none;fill:none;stroke:#617594;stroke-width:2}
+.arbitrationFilter{width:105px}.toolbarFilters select{width:100%}.toolbarFilters .clear{height:38px;padding:0 12px;white-space:nowrap}
+.toolbarFilters>a{display:inline-flex;height:40px;flex:0 0 auto;align-items:center;gap:7px;border:1px solid rgb(209 167 91/25%);border-radius:7px;background:linear-gradient(135deg,#143d5e,#08243d);padding:0 14px;color:#fff;font-size:11px;font-weight:800;text-decoration:none;white-space:nowrap;box-shadow:0 8px 18px rgb(8 36 61/18%)}.toolbarFilters>a svg{width:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+@media(max-width:1250px){.workspaceToolbar{align-items:stretch;flex-direction:column}.workspaceToolbar>.toolbarFilters{width:100%}.toolbarFilters .search{flex:1;width:auto}}
+@media(max-width:760px){.workspaceToolbar>.toolbarFilters{align-items:stretch;flex-wrap:wrap}.dateFilter,.toolbarFilters .search,.arbitrationFilter{width:100%}.toolbarFilters>a{justify-content:center}}

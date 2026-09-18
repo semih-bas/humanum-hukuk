@@ -285,3 +285,10 @@
 @media (max-width: 899px) {
   .filesPage { padding: 18px 14px 22px; }
 }
+
+/* Arama liste araclarina tasindi; panel zemini tam beyazdir. */
+.toolbarSearch { width: clamp(210px, 18vw, 285px); flex: 0 1 285px; }
+.toolbarSearch .searchField input { height: 44px; padding-left: 14px; }
+.tableViewport { background: #fff; }
+.tableViewport table, .tableViewport tbody, .emptyState { background: #fff; }
+@media (max-width: 1050px) { .toolbarSearch { width: 100%; max-width: none; flex: 1 1 100%; } }

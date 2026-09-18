@@ -188,10 +188,8 @@ export default function FilesClient() {
     <span className={styles.searchIcon}><Icon name="search" /></span>
   </div>;
 
-  return <AppShell headerContent={searchField}>
+  return <AppShell>
     <div className={styles.filesPage}>
-      <div className={styles.mobileSearch}>{searchField}</div>
-
       <section className={styles.summaryCards} aria-label="İcra dosyası özetleri">
         {summaryCards.map((card) => <button
           type="button"
@@ -206,6 +204,7 @@ export default function FilesClient() {
         <header className={styles.tableToolbar}>
           <div><h2>Dosya Listesi</h2><span>{pagination.totalCount} kayıt</span></div>
           <div className={styles.toolbarActions}>
+            <div className={styles.toolbarSearch}>{searchField}</div>
             <div className={styles.listControls}>
               <label><span>Durum</span><select value={statusFilter} disabled={isLoading} onChange={(event) => { setStatusFilter(event.target.value as StatusFilter); setCurrentPage(1); }}><option value="ALL">Tüm durumlar</option>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
               <label><span>Sırala</span><select value={sortOption} disabled={isLoading} onChange={(event) => { setSortOption(event.target.value as SortOption); setCurrentPage(1); }}>{Object.entries(sortOptions).map(([value, option]) => <option value={value} key={value}>{option.label}</option>)}</select></label>
