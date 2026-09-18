@@ -4,14 +4,14 @@ import type { InsuranceCaseInput, UpdateInsuranceCaseInput } from "./input";
 import { parseDate } from "./input";
 import type { InsuranceStatus } from "./presentation";
 
-export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "INSURANCE_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
+export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "INSURANCE_GROUP" | "FOLLOW_UP_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
 type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true } } } }>;
 
 export async function listInsuranceCases(input: InsuranceListInput) {
   const query = input.query.trim();
   const where: Prisma.InsuranceArbitrationCaseWhereInput = {
     ...(query ? { OR: [{ arbitrationApplicationNo: { contains: query, mode: "insensitive" } }, { opposingPolicyNumber: { contains: query, mode: "insensitive" } }, { vehiclePlate: { contains: query, mode: "insensitive" } }, { vehicleOwner: { contains: query, mode: "insensitive" } }, { identityNumber: { contains: query, mode: "insensitive" } }, { opposingIdentityNumber: { contains: query, mode: "insensitive" } }] } : {}),
-    ...(input.status === "ARBITRATION_GROUP" ? { status: { in: ["ARBITRATION_APPLICATION", "ARBITRATION", "EXPERT_REVIEW"] } } : input.status === "INSURANCE_GROUP" ? { status: { in: ["INSURANCE_APPLICATION", "SETTLEMENT_REVIEW", "INSURANCE_PAYMENT_RECEIVED"] } } : input.status === "COMPLETED_GROUP" ? { status: { in: ["COMPLETED", "CLOSED"] } } : input.status !== "ALL" ? { status: input.status } : {}),
+    ...(input.status === "ARBITRATION_GROUP" ? { status: { in: ["ARBITRATION_APPLICATION", "ARBITRATION", "EXPERT_REVIEW"] } } : input.status === "INSURANCE_GROUP" ? { status: { in: ["INSURANCE_APPLICATION", "SETTLEMENT_REVIEW", "INSURANCE_PAYMENT_RECEIVED"] } } : input.status === "FOLLOW_UP_GROUP" ? { status: { in: ["PAYMENT_PENDING", "ENFORCEMENT", "LITIGATION"] } } : input.status === "COMPLETED_GROUP" ? { status: { in: ["COMPLETED", "CLOSED"] } } : input.status !== "ALL" ? { status: input.status } : {}),
     ...(input.arbitration !== "ALL" ? { hasArbitration: input.arbitration === "YES" } : {}),
     ...(input.dateFrom || input.dateTo ? { accidentDate: { ...(input.dateFrom ? { gte: parseDate(input.dateFrom)! } : {}), ...(input.dateTo ? { lte: parseDate(input.dateTo)! } : {}) } } : {}),
   };
@@ -26,7 +26,7 @@ export async function listInsuranceCases(input: InsuranceListInput) {
     return {
       items: records.map((record) => ({ ...record, accidentDate: dateString(record.accidentDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), updatedAt: record.updatedAt.toISOString() })),
       pagination: { page, pageSize: input.pageSize, pageCount, totalCount },
-      summary: { total: allCount, arbitration: (counts.ARBITRATION ?? 0) + (counts.ARBITRATION_APPLICATION ?? 0) + (counts.EXPERT_REVIEW ?? 0), insurance: (counts.INSURANCE_APPLICATION ?? 0) + (counts.SETTLEMENT_REVIEW ?? 0) + (counts.INSURANCE_PAYMENT_RECEIVED ?? 0), completed: (counts.COMPLETED ?? 0) + (counts.CLOSED ?? 0) },
+      summary: { total: allCount, arbitration: (counts.ARBITRATION ?? 0) + (counts.ARBITRATION_APPLICATION ?? 0) + (counts.EXPERT_REVIEW ?? 0), insurance: (counts.INSURANCE_APPLICATION ?? 0) + (counts.SETTLEMENT_REVIEW ?? 0) + (counts.INSURANCE_PAYMENT_RECEIVED ?? 0), followUp: (counts.PAYMENT_PENDING ?? 0) + (counts.ENFORCEMENT ?? 0) + (counts.LITIGATION ?? 0), completed: (counts.COMPLETED ?? 0) + (counts.CLOSED ?? 0) },
     };
   });
 }
