@@ -226,7 +226,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           <p>{initialData?.referenceNumber ? `${initialData.referenceNumber} · ` : ""}Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
         <div className={styles.pageActions}>
-          {caseId && !readOnly ? <button type="button" aria-label="Düzenlemeyi kaydedip kapat" title="Kaydet ve kapat" onClick={() => (document.getElementById("enforcement-case-form") as HTMLFormElement | null)?.requestSubmit()}>×</button> : <Link href="/dosyalarim">{readOnly ? "Listeye Dön" : "İptal"}</Link>}
+          {caseId && !readOnly ? <button type="button" aria-label="Düzenlemeyi kaydedip kapat" title="Kaydet ve kapat" onClick={() => (document.getElementById("enforcement-case-form") as HTMLFormElement | null)?.requestSubmit()}><Icon name="x" /></button> : <Link href="/dosyalarim">{readOnly ? "Listeye Dön" : "İptal"}</Link>}
           {!readOnly && !caseId && <button type="submit" form="enforcement-case-form" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : "Kaydet"}</button>}
         </div>
       </header>
