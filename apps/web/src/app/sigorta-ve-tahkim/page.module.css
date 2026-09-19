@@ -45,7 +45,7 @@
 .page{padding-top:20px}.workspace,.list,.tableWrap,.tableWrap table,.tableWrap tbody,.empty{background:#fff}
 .workspaceToolbar{min-height:78px;gap:14px;padding:10px 14px;background:linear-gradient(105deg,#fff 0%,#fafcfd 100%)}
 .workspaceToolbar>.listTitle{display:flex;flex:0 0 auto;align-items:center;gap:9px}.workspaceToolbar>.listTitle span{border-radius:999px;background:#eef4f8;padding:5px 9px;color:#60778d;font-size:11px}
-.workspaceToolbar>.toolbarFilters{display:flex;min-width:0;flex:1;align-items:end;justify-content:flex-end;gap:8px}
+.workspaceToolbar>.toolbarFilters{display:flex;min-width:0;flex:1;align-items:end;justify-content:flex-end;gap:12px}
 .toolbarFilters label{display:grid;min-width:0;gap:4px}.toolbarFilters label>span{padding:0;border-radius:0;background:transparent;color:#6f8192;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.055em}
 .toolbarFilters label>div{display:flex}.toolbarFilters input,.toolbarFilters select{height:38px;min-width:0;border:1px solid #cad6df;border-radius:6px;background:#fff;padding:0 9px;color:#243d64;box-shadow:0 2px 7px rgb(15 43 66/4%)}
 .dateFilter{width:236px}.dateFilter input{width:50%;border-radius:6px 0 0 6px}.dateFilter input+input{border-left:0;border-radius:0 6px 6px 0}
