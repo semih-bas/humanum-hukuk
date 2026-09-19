@@ -4,7 +4,7 @@ import AppShell from "@/components/app-shell/AppShell";
 import { formatMoneyInput, limitDateYear } from "@/lib/form-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
 import DocumentsStep, { type DocumentDraft, type DocumentFolderConfig } from "./DocumentsStep";
 import partyStyles from "./PartyStep.module.css";
@@ -84,12 +84,6 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
   const [editingPartyId, setEditingPartyId] = useState<string | null>(null);
   const [partyDraft, setPartyDraft] = useState<PartyDraft>(() => makeParty("THIRD_PARTY"));
   const [partyModalErrors, setPartyModalErrors] = useState<string[]>([]);
-  useEffect(() => {
-    if (!partyModalOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previousOverflow; };
-  }, [partyModalOpen]);
   function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); setMissingFields((current) => current.filter((label) => generalFieldLabel(name) !== label)); }
   function updateKind(value: string) { setForm((current) => ({ ...current, kind: value })); setParties(primaryParties(value)); }
   function updateStatus(value: string) { setForm((current) => ({ ...current, status: value, stage: value === "CLOSED" ? "CLOSED" : current.stage === "CLOSED" ? "CASE_OPENING" : current.stage })); }
@@ -226,7 +220,6 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
         <label><span>Tahmini Sonuç Tarihi</span><input type="date" max="9999-12-31" value={form.estimatedCompletionDate} onChange={(event) => update("estimatedCompletionDate", limitDateYear(event.target.value, form.estimatedCompletionDate))} /></label>
         <label><span>Etiketler</span><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="Virgülle ayırın: tazminat, ticari" /></label>
         <label className={styles.check}><input type="checkbox" checked={form.urgent} onChange={(event) => update("urgent", event.target.checked)} /><span>Acil Dosya</span></label>
-        <label className={styles.span2}><span>Açıklama</span><textarea maxLength={4000} value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="Dosya ile ilgili genel açıklamalar" /></label>
       </div></section>
       <footer><span>1 / 7 · Genel Bilgiler</span><button type="submit">Sonraki: Taraflar →</button></footer>
     </form> : step === 1 ? <form className={`${styles.form} ${partyStyles.form}`} onSubmit={continueToFinance}>
