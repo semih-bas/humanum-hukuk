@@ -57,7 +57,7 @@ export type WizardInitialData = {
   documents: Array<{ id: string; originalName: string; category: string; folderKey: string | null; mimeType: string; sizeBytes: number }>;
 };
 
-export default function GeneralCaseWizard({ currentUser, initialData = null }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null }) {
+export default function GeneralCaseWizard({ currentUser, initialData = null, readOnly = false }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null; readOnly?: boolean }) {
   const router = useRouter();
   const editingCase = initialData?.legalCase ?? null;
   const [form, setForm] = useState<GeneralCaseDraft>(() => editingCase ? {
@@ -195,9 +195,11 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
   }
   const litigation = form.kind === "GENERAL_LITIGATION";
 
-  return <AppShell pageTitle={editingCase ? `${editingCase.referenceNumber} Dosyasını Düzenle` : "Yeni Dosya Ekle"} pageSubtitle="Genel Dava ve Arabuluculuk"><main className={styles.page}>
-    <header className={styles.header}><p>{editingCase ? "Dosyanın mevcut bilgilerini aynı adımlı yapı üzerinden güncelleyin." : "Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin."}</p><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
+  return <AppShell pageTitle={readOnly ? `${editingCase?.referenceNumber ?? "Dosya"} Genel Bakışı` : editingCase ? `${editingCase.referenceNumber} Dosyasını Düzenle` : "Yeni Dosya Ekle"} pageSubtitle="Genel Dava ve Arabuluculuk"><main className={styles.page}>
+    <header className={styles.header}><p>{readOnly ? "Dosya bilgileri salt okunur olarak görüntüleniyor." : editingCase ? "Dosyanın mevcut bilgilerini aynı adımlı yapı üzerinden güncelleyin." : "Genel dava veya arabuluculuk dosyasının tüm bilgilerini eksiksiz girin."}</p><Link href="/genel-dava-ve-arabuluculuk" className={styles.cancel}>← Listeye Dön</Link></header>
     <nav className={styles.steps} aria-label="Dosya oluşturma adımları">{steps.map((label, index) => <button type="button" key={label} className={index === step ? styles.activeStep : index < step ? styles.doneStep : ""} disabled={Boolean(createdCase)} onClick={() => goToStep(index)}><b>{index + 1}</b><span>{label}</span></button>)}</nav>
+    {readOnly && <div className={styles.readOnlyNotice}><b>Salt okunur görünüm</b><span>Bu ekrandaki bilgiler değiştirilemez. Düzenlemek için listedeki kalem simgesini kullanın.</span></div>}
+    <fieldset className={styles.workspaceFieldset} disabled={readOnly} aria-label={readOnly ? "Salt okunur dosya bilgileri" : undefined}>
     {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
       <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>CRM Dosya No</span><input value={editingCase?.referenceNumber ?? "Kaydedildiğinde otomatik oluşur"} readOnly /></label>
@@ -258,6 +260,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null }: {
         : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} caseId={editingCase?.id} folderConfig={documentFolders} setFolderConfig={setDocumentFolders} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
           : step === 5 ? <TaskStep currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={continueToNotes} error={error} />
             : <NoteStep currentUser={currentUser} notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
+    </fieldset>
   </main></AppShell>;
 }
 
