@@ -128,6 +128,23 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     };
   }, [damage, depreciation, profitLoss, discount, installmentEnabled, installmentCount]);
 
+  const hasUnsavedGeneralChanges = Boolean(caseId && initialData && (
+    licenseHolder !== initialData.licenseHolder || vehiclePlate !== initialData.vehiclePlate || accidentDate !== initialData.accidentDate ||
+    debtorType !== initialData.debtorType || debtorName !== (initialData.debtorName ?? "") || hasDamageClaim !== initialData.hasDamageClaim ||
+    hasDepreciationClaim !== initialData.hasDepreciationClaim || hasProfitLossClaim !== initialData.hasProfitLossClaim || judgmentStatus !== initialData.judgmentStatus ||
+    normalizeMoney(damage) !== initialData.damageAmount || normalizeMoney(depreciation) !== initialData.depreciationAmount ||
+    (hasProfitLossClaim ? Number(profitLossDays) : null) !== initialData.profitLossDays ||
+    (hasProfitLossClaim ? normalizeMoney(dailyRental) : null) !== initialData.dailyRentalAmount || normalizeMoney(discount) !== initialData.discountAmount ||
+    enforcementOffice !== (initialData.enforcementOffice ?? "") || enforcementFileNumber !== (initialData.enforcementFileNumber ?? "") ||
+    vehicleLien !== initialData.vehicleLien || bankLien !== initialData.bankLien || titleDeedLien !== initialData.titleDeedLien || salaryLien !== initialData.salaryLien ||
+    (installmentEnabled ? installmentCount : null) !== initialData.installmentCount || status !== initialData.status
+  ));
+
+  function closeExistingCase() {
+    if (hasUnsavedGeneralChanges) (document.getElementById("enforcement-case-form") as HTMLFormElement | null)?.requestSubmit();
+    else router.push("/dosyalarim");
+  }
+
   function changeInstallment(enabled: boolean) {
     setInstallmentEnabled(enabled);
     if (!enabled) setInstallmentCount(3);
@@ -226,7 +243,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           <p>{initialData?.referenceNumber ? `${initialData.referenceNumber} · ` : ""}Dosya bilgilerini eksiksiz şekilde giriniz.</p>
         </div>
         <div className={styles.pageActions}>
-          {caseId && !readOnly ? <Link href="/dosyalarim" aria-label="Dosyalar listesine dön" title="Kapat"><Icon name="x" /></Link> : <Link href="/dosyalarim">{readOnly ? "Listeye Dön" : "İptal"}</Link>}
+          {caseId && !readOnly ? <button type="button" aria-label={hasUnsavedGeneralChanges ? "Değişiklikleri kaydedip kapat" : "Dosyalar listesine dön"} title={hasUnsavedGeneralChanges ? "Kaydet ve kapat" : "Kapat"} onClick={closeExistingCase}><Icon name="x" /></button> : <Link href="/dosyalarim">{readOnly ? "Listeye Dön" : "İptal"}</Link>}
           {!readOnly && (!caseId || tab === "general") && <button type="submit" form="enforcement-case-form" disabled={isSubmitting}><Icon name="check" />{isSubmitting ? "Kaydediliyor..." : "Kaydet"}</button>}
         </div>
       </header>
