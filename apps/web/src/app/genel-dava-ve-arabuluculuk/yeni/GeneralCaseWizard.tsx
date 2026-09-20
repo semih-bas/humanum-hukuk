@@ -1,7 +1,7 @@
 "use client";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { formatMoneyInput, limitDateYear } from "@/lib/form-input";
+import { formatMoneyInput, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -88,29 +88,37 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
   function updateKind(value: string) { setForm((current) => ({ ...current, kind: value })); setParties(primaryParties(value)); }
   function updateStatus(value: string) { setForm((current) => ({ ...current, status: value, stage: value === "CLOSED" ? "CLOSED" : current.stage === "CLOSED" ? "CASE_OPENING" : current.stage })); }
   function updateStage(value: string) { setForm((current) => ({ ...current, stage: value, status: value === "CLOSED" ? "CLOSED" : current.status === "CLOSED" ? "ACTIVE" : current.status })); }
-  function continueToParties(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const missing = generalMissingFields(form); if (missing.length) { setMissingFields(missing); setError(""); return; } setMissingFields([]); setError(""); setStep(1); }
+  function continueToParties(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!validateStep(0)) return; setStep(1); }
   function continueToFinance(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateStep(1)) return;
     setFinance((current) => current.claimAmount !== "0" || current.expectedCollectionAmount !== "0"
       ? current
       : { ...current, claimAmount: form.caseValue || "0", expectedCollectionAmount: form.caseValue || "0" });
     setError(""); setStep(2);
   }
-  function continueToProcess(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(3); }
-  function continueToDocuments(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(4); }
+  function continueToProcess(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!validateStep(2)) return; setStep(3); }
+  function continueToDocuments(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!validateStep(3)) return; setStep(4); }
   function continueToTasks(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(5); }
   function continueToNotes(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setStep(6); }
+  function validateStep(index: number) {
+    const problems = index === 0 ? generalMissingFields(form)
+      : index === 1 ? partyValidationErrors(parties)
+        : index === 2 ? financeValidationErrors(finance, financialEntries)
+          : index === 3 ? processValidationErrors(processEntries, hearings)
+            : index === 5 ? taskValidationErrors(tasks) : [];
+    if (!problems.length) { setMissingFields([]); setError(""); return true; }
+    setMissingFields(index === 0 ? problems : []);
+    setError(`Bu adımı tamamlayın: ${problems.slice(0, 4).join(", ")}.`);
+    return false;
+  }
   function goToStep(target: number) {
     if (createdCase || target === step) return;
     setError(""); setMissingFields([]);
     if (target < step) { setStep(target); return; }
-    const generalMissing = generalMissingFields(form);
-    if (generalMissing.length) {
-      setStep(0); setMissingFields(generalMissing); setError(`Eksik zorunlu alanlar: ${generalMissing.join(", ")}.`); return;
-    }
-    const partyMissing = parties.slice(0, 2).filter((party) => !party.name.trim()).map((party) => partyRoleLabel(party.role));
-    if (target > 1 && partyMissing.length) {
-      setStep(1); setMissingFields(partyMissing); setError(`Eksik zorunlu taraflar: ${partyMissing.join(", ")}.`); return;
+    for (const index of [0, 1, 2, 3, 5]) {
+      if (index >= target) break;
+      if (!validateStep(index)) { setStep(index); return; }
     }
     if (target >= 2) setFinance((current) => current.claimAmount !== "0" || current.expectedCollectionAmount !== "0" ? current : { ...current, claimAmount: form.caseValue || "0", expectedCollectionAmount: form.caseValue || "0" });
     setStep(target);
@@ -132,7 +140,11 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
   }
   function removeParty(clientId: string) { setParties((current) => current.filter((party) => party.clientId !== clientId)); }
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (saving) return; setSaving(true); setError("");
+    event.preventDefault(); if (saving) return;
+    for (const index of [0, 1, 2, 3, 5]) {
+      if (!validateStep(index)) { setStep(index); return; }
+    }
+    setSaving(true); setError("");
     try {
       let record = createdCase;
       if (!record) {
@@ -201,6 +213,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
     {readOnly && <div className={styles.readOnlyNotice}><b>Salt okunur görünüm</b><span>Bu ekrandaki bilgiler değiştirilemez. Düzenlemek için listedeki kalem simgesini kullanın.</span></div>}
     <fieldset className={styles.workspaceFieldset} disabled={readOnly} aria-label={readOnly ? "Salt okunur dosya bilgileri" : undefined}>
     {step === 0 ? <form className={`${styles.form} ${styles.generalForm}`} onSubmit={continueToParties}>
+      {error && <p className={partyStyles.error}>{error}</p>}
       <section className={styles.panel}><h2>▣ Dosya Bilgileri</h2><div className={styles.grid3}>
         <label><span>CRM Dosya No</span><input value={editingCase?.referenceNumber ?? "Kaydedildiğinde otomatik oluşur"} readOnly /></label>
         <label><span>Dosya Alanı *</span><select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="GENERAL_LITIGATION">Genel Dava</option><option value="MEDIATION">Arabuluculuk</option></select></label>
@@ -271,10 +284,48 @@ function currentIstanbulDate() {
 function generalMissingFields(form: GeneralCaseDraft) {
   return [
     !form.caseType.trim() && "Dosya Türü", !form.subject.trim() && "Dosya Konusu", !form.openingDate && "Açılış Tarihi",
+    form.openingDate > currentIstanbulDate() && "Açılış tarihi gelecekte olamaz",
+    form.estimatedCompletionDate && form.estimatedCompletionDate < form.openingDate && "Tahmini sonuç tarihi açılış tarihinden önce olamaz",
     form.kind === "GENERAL_LITIGATION" && !form.courthouse.trim() && "Adliye",
     form.kind === "GENERAL_LITIGATION" && !form.courtType.trim() && "Mahkeme Türü",
     form.kind === "GENERAL_LITIGATION" && !form.court.trim() && "Mahkeme",
   ].filter((item): item is string => Boolean(item));
+}
+
+function partyValidationErrors(parties: PartyDraft[]) {
+  return parties.flatMap((party, index) => {
+    const label = index < 2 ? partyRoleLabel(party.role) : party.name || "Diğer taraf";
+    return [
+      !party.name.trim() && `${label}: ad / ünvan`,
+      !validIdentityNumber(party.identityOrTaxNumber, party.kind) && `${label}: ${party.kind === "INDIVIDUAL" ? "11 haneli T.C. Kimlik No" : "10 haneli Vergi No"}`,
+      party.phone && !/^\d{10,11}$/.test(party.phone) && `${label}: telefon 10 veya 11 rakam olmalı`,
+      party.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(party.email) && `${label}: geçerli e-posta`,
+    ].filter((item): item is string => Boolean(item));
+  });
+}
+
+function financeValidationErrors(finance: FinanceDraft, entries: FinancialEntryDraft[]) {
+  return [
+    parseMoneyToCents(finance.claimAmount) === null && "Talep tutarı geçersiz",
+    parseMoneyToCents(finance.amendmentAmount) === null && "Islah tutarı geçersiz",
+    parseMoneyToCents(finance.expectedCollectionAmount) === null && "Tahsil edilecek tutar geçersiz",
+    parseMoneyToCents(finance.opposingAttorneyFee) === null && "Karşı vekâlet ücreti geçersiz",
+    finance.interestRequested && !finance.interestStartDate && "Faiz başlangıç tarihi",
+    finance.paymentPlan === "INSTALLMENT" && !(Number(finance.installmentCount) >= 2 && Number(finance.installmentCount) <= 120) && "Taksit sayısı 2-120 arasında olmalı",
+    entries.some((item) => !item.category.trim() || !item.description.trim() || !item.entryDate || (parseMoneyToCents(item.amount) ?? 0n) <= 0n) && "Mali hareket bilgileri",
+  ].filter((item): item is string => Boolean(item));
+}
+
+function processValidationErrors(entries: ProcessEntryDraft[], hearings: HearingDraft[]) {
+  return [
+    entries.some((item) => !item.action.trim() || !item.eventDate) && "Süreç işlemi bilgileri",
+    hearings.some((item) => !item.startsAt || !item.court.trim() || !item.hearingType.trim()) && "Duruşma bilgileri",
+    hearings.some((item) => item.status === "PLANNED" && new Date(item.startsAt).getTime() <= Date.now()) && "Planlanan duruşma gelecekte olmalı",
+  ].filter((item): item is string => Boolean(item));
+}
+
+function taskValidationErrors(tasks: TaskDraft[]) {
+  return [tasks.some((task) => !task.title.trim() || !task.dueAt) && "Görev başlığı ve son tarih"].filter((item): item is string => Boolean(item));
 }
 
 function generalFieldLabel(name: keyof GeneralCaseDraft) {
