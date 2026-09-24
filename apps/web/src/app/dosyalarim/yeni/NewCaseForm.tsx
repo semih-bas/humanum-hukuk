@@ -164,7 +164,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
     if (!formElement.checkValidity()) {
       setTab("general");
-      setNotice({ tone: "error", message: "Kaydetmeden önce işaretlenen zorunlu alanları tamamlayın." });
+      setNotice(null);
       requestAnimationFrame(() => formElement.reportValidity());
       return;
     }
@@ -211,12 +211,12 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
       };
 
       if (!response.ok || !result.data) {
-        setFieldErrors(result.error?.fields ?? {});
-        setNotice({
+        const nextFieldErrors = result.error?.fields ?? {};
+        setFieldErrors(nextFieldErrors);
+        setNotice(Object.keys(nextFieldErrors).length ? null : {
           tone: "error",
           message: result.error?.message ?? "Dosya kaydedilemedi. Lütfen bilgileri kontrol edin.",
         });
-        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 

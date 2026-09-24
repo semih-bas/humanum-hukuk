@@ -37,7 +37,14 @@ export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = f
         window.location.reload();
         return;
       }
-      if (!response.ok || !body.data) { setErrors(body.error?.fields ?? {}); throw new Error(body.error?.message ?? "Dosya kaydedilemedi."); }
+      if (!response.ok || !body.data) {
+        const nextErrors = body.error?.fields ?? {};
+        setErrors(nextErrors);
+        setError(Object.keys(nextErrors).length ? "" : body.error?.message ?? "Dosya kaydedilemedi.");
+        setTab("general");
+        setSaving(false);
+        return;
+      }
       for (const file of files) { const data = new FormData(); data.append("file", file); const upload = await fetch(`/api/insurance-arbitration/${body.data.id}/documents`, { method: "POST", credentials: "same-origin", body: data }); if (!upload.ok) throw new Error(`${file.name} yüklenemedi; dosya kaydı oluşturuldu.`); }
       router.push(`/sigorta-ve-tahkim?${caseId ? "updated" : "created"}=${encodeURIComponent(body.data.referenceNumber)}`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Dosya kaydedilemedi."); setSaving(false); }
