@@ -5,7 +5,7 @@ import { parseDate } from "./input";
 import type { InsuranceStatus } from "./presentation";
 
 export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "INSURANCE_GROUP" | "FOLLOW_UP_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
-type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true } } } }>;
+type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true } }; notes: { select: { id: true; content: true; createdAt: true; author: { select: { name: true } } } } } }>;
 
 export async function listInsuranceCases(input: InsuranceListInput) {
   const query = input.query.trim();
@@ -48,9 +48,19 @@ export class InsuranceCaseNotFoundError extends Error {}
 export class InsuranceCaseVersionConflictError extends Error {}
 
 export async function getInsuranceCase(id: string) {
-  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } } } });
+  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } }, notes: { orderBy: { createdAt: "desc" }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } } } });
   if (!record) throw new InsuranceCaseNotFoundError();
   return presentCase(record);
+}
+
+export async function addInsuranceCaseNote(id: string, content: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { id: true, referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const note = await transaction.insuranceArbitrationNote.create({ data: { caseId: id, authorId: actorUserId, content: content.trim() }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } });
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.note_added", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber } } });
+    return { ...note, createdAt: note.createdAt.toISOString() };
+  });
 }
 
 export async function updateInsuranceCase(id: string, input: UpdateInsuranceCaseInput, actorUserId: string) {
@@ -74,6 +84,6 @@ export async function updateInsuranceCase(id: string, input: UpdateInsuranceCase
 }
 
 function presentCase(record: InsuranceCaseRecord) {
-  return { ...record, accidentDate: dateString(record.accidentDate), policyExpiryDate: dateString(record.policyExpiryDate), postalDeliveryDate: dateString(record.postalDeliveryDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), insuranceSettlementOffer: record.insuranceSettlementOffer.toFixed(2), postageExpense: record.postageExpense.toFixed(2), enforcementExpense: record.enforcementExpense.toFixed(2), arbitrationApplicationFee: record.arbitrationApplicationFee.toFixed(2), expertFee: record.expertFee.toFixed(2), postalAmount: record.postalAmount.toFixed(2), actualDepreciationAmount: record.actualDepreciationAmount.toFixed(2), payments: record.payments.map((payment) => ({ ...payment, paymentDate: dateString(payment.paymentDate), amount: payment.amount.toFixed(2), commission: payment.commission.toFixed(2), clientAmount: payment.clientAmount.toFixed(2) })), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() };
+  return { ...record, accidentDate: dateString(record.accidentDate), policyExpiryDate: dateString(record.policyExpiryDate), postalDeliveryDate: dateString(record.postalDeliveryDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), insuranceSettlementOffer: record.insuranceSettlementOffer.toFixed(2), postageExpense: record.postageExpense.toFixed(2), enforcementExpense: record.enforcementExpense.toFixed(2), arbitrationApplicationFee: record.arbitrationApplicationFee.toFixed(2), expertFee: record.expertFee.toFixed(2), postalAmount: record.postalAmount.toFixed(2), actualDepreciationAmount: record.actualDepreciationAmount.toFixed(2), payments: record.payments.map((payment) => ({ ...payment, paymentDate: dateString(payment.paymentDate), amount: payment.amount.toFixed(2), commission: payment.commission.toFixed(2), clientAmount: payment.clientAmount.toFixed(2) })), notes: record.notes.map((note) => ({ ...note, createdAt: note.createdAt.toISOString() })), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() };
 }
 function dateString(value: Date | null) { return value?.toISOString().slice(0, 10) ?? null; }

@@ -39,6 +39,7 @@ model User {
   createdInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseCreatedBy")
   updatedInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
   insuranceDocuments                   InsuranceArbitrationDocument[]
+  insuranceNotes                       InsuranceArbitrationNote[]
   createdGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
   updatedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
   archivedGeneralCases                 GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
@@ -398,6 +399,7 @@ model InsuranceArbitrationCase {
   updatedBy                  User                           @relation("InsuranceArbitrationCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   archivedBy                 User?                          @relation("InsuranceArbitrationCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   documents                  InsuranceArbitrationDocument[]
+  notes                      InsuranceArbitrationNote[]
   payments                   InsuranceArbitrationPayment[]
 
   @@index([vehiclePlate])
@@ -443,6 +445,21 @@ model InsuranceArbitrationDocument {
   @@index([caseId, createdAt])
   @@index([uploadedById, createdAt])
   @@map("insurance_arbitration_document")
+}
+
+model InsuranceArbitrationNote {
+  id        String                   @id @default(cuid())
+  caseId    String
+  authorId  String
+  content   String                   @db.Text
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  case      InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author    User                     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("insurance_arbitration_note")
 }
 
 enum GeneralCaseKind {

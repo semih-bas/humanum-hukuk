@@ -53,6 +53,10 @@ export const updateInsuranceCaseInputSchema = insuranceCaseInputSchema.safeExten
   version: z.number({ error: "Dosya sürümü sayı olmalıdır." }).int().min(1).max(2_147_483_647),
 });
 
+export const addInsuranceCaseNoteSchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+});
+
 export type InsuranceCaseInput = z.infer<typeof insuranceCaseInputSchema>;
 export type UpdateInsuranceCaseInput = z.infer<typeof updateInsuranceCaseInputSchema>;
 export function parseDate(value: string | null) { return value ? new Date(`${value}T00:00:00.000Z`) : null; }

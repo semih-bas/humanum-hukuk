@@ -76,7 +76,7 @@ function AmountInput({
   </label>;
 }
 
-export default function NewCaseForm({ caseId, initialData, initialTab = "general", readOnly = false }: { caseId?: string; initialData?: ExistingEnforcementCase; initialTab?: EnforcementCaseTab; readOnly?: boolean } = {}) {
+export default function NewCaseForm({ caseId, initialData, initialTab = "general", readOnly = false, currentUserName = "Kullanıcı" }: { caseId?: string; initialData?: ExistingEnforcementCase; initialTab?: EnforcementCaseTab; readOnly?: boolean; currentUserName?: string } = {}) {
   const router = useRouter();
   const [tab, setTab] = useState<EnforcementCaseTab>(initialTab);
   const [licenseHolder, setLicenseHolder] = useState(initialData?.licenseHolder ?? "");
@@ -257,7 +257,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
       {tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded readOnly={readOnly} draftItems={draftTransactions} onDraftItemsChange={setDraftTransactions} /></div>}
       {tab === "notifications" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotificationsTab caseId={caseId} initialItems={initialData?.reminders ?? draftReminders} onDraftItemsChange={setDraftReminders} /></div>}
-      {tab === "notes" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} /></div>}
+      {tab === "notes" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} currentUserName={currentUserName} /></div>}
       {tab === "documents" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} onDraftItemsChange={setDraftDocuments} /></div>}
 
       <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate>

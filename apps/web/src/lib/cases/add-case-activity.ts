@@ -18,12 +18,12 @@ export async function addCaseNote(caseFileId: string, input: NoteInput, actorUse
 
     const note = await transaction.caseNote.create({
       data: { caseFileId, authorId: actorUserId, content: input.content.trim() },
-      select: { id: true, createdAt: true },
+      select: { id: true, createdAt: true, author: { select: { name: true } } },
     });
     await transaction.auditLog.create({
       data: { actorUserId, event: "case.note_added", targetType: "case_file", targetId: caseFileId, context: { referenceNumber: caseFile.referenceNumber } },
     });
-    return { id: note.id, createdAt: note.createdAt.toISOString() };
+    return { id: note.id, createdAt: note.createdAt.toISOString(), author: note.author };
   });
 }
 
