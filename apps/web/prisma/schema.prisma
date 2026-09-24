@@ -32,13 +32,15 @@ model User {
   archivedInsuranceCases               InsuranceArbitrationCase[]    @relation("InsuranceArbitrationCaseArchivedBy")
   caseChanges                          CaseFileChange[]
   caseNotes                            CaseNote[]
-  caseDocuments                        CaseDocument[]
+  caseDocuments                        CaseDocument[]                  @relation("CaseDocumentUploadedBy")
+  deletedCaseDocuments                 CaseDocument[]                  @relation("CaseDocumentDeletedBy")
   caseReminders                        CaseReminder[]
   createdCaseTransactions              CaseTransaction[]              @relation("CaseTransactionCreatedBy")
   deletedCaseTransactions              CaseTransaction[]              @relation("CaseTransactionDeletedBy")
   createdInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseCreatedBy")
   updatedInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
-  insuranceDocuments                   InsuranceArbitrationDocument[]
+  insuranceDocuments                   InsuranceArbitrationDocument[] @relation("InsuranceDocumentUploadedBy")
+  deletedInsuranceDocuments            InsuranceArbitrationDocument[] @relation("InsuranceDocumentDeletedBy")
   insuranceNotes                       InsuranceArbitrationNote[]
   createdGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
   updatedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
@@ -247,6 +249,7 @@ model CaseFile {
   salaryLien            Boolean           @default(false)
   installmentCount      Int?
   status                CaseFileStatus    @default(OPEN)
+  documentFolders       Json              @default("[]")
   version               Int               @default(1)
   createdById           String
   updatedById           String
@@ -319,14 +322,20 @@ model CaseDocument {
   sha256        String           @db.Char(64)
   transactionId String?
   category      String           @default("OTHER") @db.VarChar(50)
+  folderKey     String?          @db.VarChar(100)
+  deletedById   String?
+  deletedAt     DateTime?
   createdAt     DateTime         @default(now())
   caseFile      CaseFile         @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
-  uploadedBy    User             @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedBy    User             @relation("CaseDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  deletedBy     User?            @relation("CaseDocumentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   transaction   CaseTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([caseFileId, createdAt])
   @@index([caseFileId, category, createdAt])
+  @@index([caseFileId, folderKey, deletedAt, createdAt])
   @@index([uploadedById, createdAt])
+  @@index([deletedById])
   @@index([transactionId])
   @@map("case_document")
 }
@@ -387,6 +396,7 @@ model InsuranceArbitrationCase {
   postalAmount               Decimal                        @default(0) @db.Decimal(18, 2)
   actualDepreciationAmount   Decimal                        @default(0) @db.Decimal(18, 2)
   description                String?
+  documentFolders            Json                           @default("[]")
   version                    Int                            @default(1)
   createdById                String
   updatedById                String
@@ -438,12 +448,19 @@ model InsuranceArbitrationDocument {
   mimeType     String                   @db.VarChar(100)
   sizeBytes    Int
   sha256       String                   @db.Char(64)
+  category     String                   @default("OTHER") @db.VarChar(50)
+  folderKey    String?                  @db.VarChar(100)
+  deletedById  String?
+  deletedAt    DateTime?
   createdAt    DateTime                 @default(now())
   case         InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  uploadedBy   User                     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedBy   User                     @relation("InsuranceDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  deletedBy    User?                    @relation("InsuranceDocumentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseId, createdAt])
+  @@index([caseId, folderKey, deletedAt, createdAt])
   @@index([uploadedById, createdAt])
+  @@index([deletedById])
   @@map("insurance_arbitration_document")
 }
 

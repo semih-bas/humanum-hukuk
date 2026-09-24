@@ -1,6 +1,7 @@
-import { ApiRequestError, assertSameOrigin, requireApiSession } from "@/lib/api-security";
+import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
-import { DocumentQuotaExceededError, DocumentValidationError, MAX_MULTIPART_BYTES, storeCaseDocument } from "@/lib/document-storage";
+import { DocumentQuotaExceededError, DocumentValidationError, MAX_MULTIPART_BYTES, storeCaseDocument, updateCaseDocumentFolders } from "@/lib/document-storage";
+import { documentFolderKeySchema, updateDocumentFoldersSchema } from "@/lib/document-folder-input";
 import { documentStorageLimits, documentUploadRateLimitKey } from "@/lib/document-limits";
 import { consumeDurableRateLimit } from "@/lib/email-rate-limit";
 import { resourceIdSchema } from "@/lib/resource-id";
@@ -35,6 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const requestedName = form.get("documentName");
     const transactionId = form.get("transactionId");
     const requestedCategory = form.get("category");
+    const requestedFolderKey = form.get("folderKey");
     if (!(file instanceof File)) throw new DocumentValidationError("Yüklenecek evrak bulunamadı.");
     if (requestedName !== null && typeof requestedName !== "string") throw new DocumentValidationError("Evrak adı geçerli değil.");
     if (transactionId !== null && (typeof transactionId !== "string" || !resourceIdSchema.safeParse(transactionId).success)) {
@@ -44,7 +46,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (requestedCategory !== null && (typeof requestedCategory !== "string" || !categories.includes(requestedCategory as typeof categories[number]))) {
       throw new DocumentValidationError("Evrak klasörü geçerli değil.");
     }
-    return jsonResponse({ data: await storeCaseDocument(idResult.data, file, session.user.id, requestedName ?? undefined, transactionId ?? undefined, requestedCategory ?? "OTHER") }, 201);
+    const folderKey = documentFolderKeySchema.safeParse(requestedFolderKey ?? requestedCategory ?? "OTHER");
+    if (!folderKey.success) throw new DocumentValidationError("Evrak klasörü geçerli değil.");
+    return jsonResponse({ data: await storeCaseDocument(idResult.data, file, session.user.id, requestedName ?? undefined, transactionId ?? undefined, requestedCategory ?? "OTHER", folderKey.data) }, 201);
   } catch (error) {
     if (error instanceof ApiRequestError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof DocumentValidationError) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: error.message } }, 400);
@@ -52,6 +56,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof CaseNotFoundError) return jsonResponse({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı." } }, 404);
     console.error("Failed to upload case document", { error: error instanceof Error ? error.name : "UnknownError" });
     return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "Evrak yüklenirken beklenmeyen bir hata oluştu." } }, 500);
+  }
+}
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    assertSameOrigin(request); const session = await requireApiSession(request);
+    const id = resourceIdSchema.safeParse((await params).id); const input = updateDocumentFoldersSchema.safeParse(await readJsonBody(request));
+    if (!id.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı.");
+    if (!input.success) throw new DocumentValidationError("Klasör bilgileri geçerli değil.");
+    return jsonResponse({ data: await updateCaseDocumentFolders(id.data, input.data.folders, session.user.id) }, 200);
+  } catch (error) {
+    if (error instanceof ApiRequestError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
+    if (error instanceof DocumentValidationError) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: error.message } }, 400);
+    if (error instanceof CaseNotFoundError) return jsonResponse({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı." } }, 404);
+    return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "Klasörler kaydedilemedi." } }, 500);
   }
 }
 

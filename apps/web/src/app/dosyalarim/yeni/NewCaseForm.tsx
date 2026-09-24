@@ -9,7 +9,7 @@ import { centsToMoneyString, formatMoneyInput, INSTALLMENT_OPTIONS, limitDateYea
 import type { InstallmentCount } from "@/lib/cases/create-case-input";
 import type { CaseStatus } from "@/lib/case-presentation";
 import PaymentModal, { type DraftTransaction } from "../PaymentModal";
-import { DocumentsTab, NotesTab, NotificationsTab, type DraftDocument, type DraftNote, type DraftReminder } from "./CaseActivityTabs";
+import { DocumentsTab, NotesTab, NotificationsTab, type DocumentFolderConfig, type DraftDocument, type DraftNote, type DraftReminder } from "./CaseActivityTabs";
 
 import styles from "./page.module.css";
 
@@ -25,7 +25,8 @@ export type ExistingEnforcementCase = {
   installmentCount: number | null; status: CaseStatus;
   notes: Array<{ id: string; content: string; createdAt: string; author: { name: string } }>;
   reminders: Array<{ id: string; title: string; dueAt: string; status: string }>;
-  documents: Array<{ id: string; originalName: string; sizeBytes: number; category: string; createdAt: string }>;
+  documents: Array<{ id: string; originalName: string; mimeType?: string; sizeBytes: number; category: string; folderKey?: string | null; createdAt: string }>;
+  documentFolders: DocumentFolderConfig[];
 };
 
 function Icon({ name }: { name: "check" | "x" }) {
@@ -109,6 +110,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
   const [draftReminders, setDraftReminders] = useState<DraftReminder[]>([]);
   const [draftDocuments, setDraftDocuments] = useState<DraftDocument[]>([]);
+  const [draftDocumentFolders, setDraftDocumentFolders] = useState<DocumentFolderConfig[]>(initialData?.documentFolders ?? []);
 
   const profitLoss = hasProfitLossClaim && profitLossDays
     ? centsToInput(BigInt(profitLossDays) * toCents(dailyRental))
@@ -220,7 +222,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
         return;
       }
 
-      if (!caseId) await persistDraftActivity(result.data.id, draftTransactions, draftNotes, draftReminders, draftDocuments);
+      if (!caseId) await persistDraftActivity(result.data.id, draftTransactions, draftNotes, draftReminders, draftDocuments, draftDocumentFolders);
 
       setNotice({ tone: "success", message: `${result.data.referenceNumber} numaralı dosya ${caseId ? "güncellendi" : "oluşturuldu"}.` });
       router.push(caseId ? `/dosyalarim?updated=${encodeURIComponent(result.data.referenceNumber)}` : `/dosyalarim/${encodeURIComponent(result.data.id)}/duzenle?created=${encodeURIComponent(result.data.referenceNumber)}`);
@@ -258,7 +260,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
       {tab === "payments" && <div className={styles.embeddedTab}><PaymentModal caseId={caseId} embedded readOnly={readOnly} draftItems={draftTransactions} onDraftItemsChange={setDraftTransactions} /></div>}
       {tab === "notifications" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotificationsTab caseId={caseId} initialItems={initialData?.reminders ?? draftReminders} onDraftItemsChange={setDraftReminders} /></div>}
       {tab === "notes" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} currentUserName={currentUserName} /></div>}
-      {tab === "documents" && <div className={styles.embeddedTab} style={readOnly ? { pointerEvents: "none" } : undefined}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} onDraftItemsChange={setDraftDocuments} /></div>}
+      {tab === "documents" && <div className={styles.embeddedTab}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} initialFolders={draftDocumentFolders} onDraftItemsChange={setDraftDocuments} onDraftFoldersChange={setDraftDocumentFolders} readOnly={readOnly} /></div>}
 
       <form id="enforcement-case-form" className={tab === "general" ? styles.generalTab : styles.hiddenTab} onSubmit={handleSubmit} noValidate>
       <fieldset disabled={readOnly} style={{ display: "contents" }}>
@@ -391,7 +393,8 @@ function todayDate(): string {
   return localDate.toISOString().slice(0, 10);
 }
 
-async function persistDraftActivity(caseId: string, transactions: DraftTransaction[], notes: DraftNote[], reminders: DraftReminder[], documents: DraftDocument[]) {
+async function persistDraftActivity(caseId: string, transactions: DraftTransaction[], notes: DraftNote[], reminders: DraftReminder[], documents: DraftDocument[], folders: DocumentFolderConfig[]) {
+  if (folders.length) { const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folders }) }); if (!response.ok) throw new Error("Taslak klasörler kaydedilemedi."); }
   for (const item of transactions) {
     const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/transactions`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: item.type, category: item.category, transactionDate: item.transactionDate, amount: item.amount, description: item.description }) });
     const body = await response.json(); if (!response.ok) throw new Error(body.error?.message ?? "Taslak ödeme kaydedilemedi.");
@@ -399,5 +402,5 @@ async function persistDraftActivity(caseId: string, transactions: DraftTransacti
   }
   for (const item of notes) { const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:item.content})});if(!response.ok)throw new Error("Taslak not kaydedilemedi."); }
   for (const item of reminders) { const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/reminders`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:item.title,dueAt:item.dueAt})});if(!response.ok)throw new Error("Taslak bildirim kaydedilemedi."); }
-  for (const item of documents) { if(!item.file)continue;const data=new FormData();data.set("file",item.file);data.set("documentName",item.originalName.replace(/\.[^.]+$/, ""));data.set("category",item.category);const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`,{method:"POST",credentials:"same-origin",body:data});if(!response.ok)throw new Error(`${item.originalName} yüklenemedi.`); }
+  for (const item of documents) { if(!item.file)continue;const data=new FormData();data.set("file",item.file);data.set("documentName",item.originalName.replace(/\.[^.]+$/, ""));data.set("category",item.category);data.set("folderKey",item.folderKey ?? item.category);const response=await fetch(`/api/cases/${encodeURIComponent(caseId)}/documents`,{method:"POST",credentials:"same-origin",body:data});if(!response.ok)throw new Error(`${item.originalName} yüklenemedi.`); }
 }

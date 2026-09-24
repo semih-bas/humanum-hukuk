@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "../database";
+import { parseDocumentFolders } from "../document-folder-input";
 
 export async function getCaseFile(id: string) {
   const record = await prisma.caseFile.findFirst({
@@ -31,6 +32,7 @@ export async function getCaseFile(id: string) {
       installmentCount: true,
       status: true,
       version: true,
+      documentFolders: true,
       createdAt: true,
       updatedAt: true,
       createdBy: { select: { name: true } },
@@ -44,8 +46,9 @@ export async function getCaseFile(id: string) {
         select: { id: true, title: true, dueAt: true, sendEmail: true, sendSms: true, status: true, sentAt: true },
       },
       documents: {
+        where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
-        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, sha256: true, category: true, createdAt: true },
+        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, sha256: true, category: true, folderKey: true, createdAt: true },
       },
       changes: {
         orderBy: { createdAt: "desc" },
@@ -89,6 +92,7 @@ export async function getCaseFile(id: string) {
     finalInstallmentAmount: finalInstallmentAmount?.toFixed(2) ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+    documentFolders: parseDocumentFolders(record.documentFolders),
     notes: record.notes.map((note) => ({
       ...note,
       createdAt: note.createdAt.toISOString(),

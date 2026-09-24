@@ -7,10 +7,11 @@ import { prisma } from "@/lib/database";
 import { assertDocumentQuota, DOCUMENT_STORAGE_LOCK_ID, documentStorageLimits } from "@/lib/document-limits";
 import { hasExpectedDocumentDigest } from "@/lib/document-integrity";
 import { inspectDocumentUpload } from "@/lib/document-validation";
+import { fixedDocumentFolders, parseDocumentFolders, type DocumentFolder } from "@/lib/document-folder-input";
 
 export class InsuranceDocumentNotFoundError extends Error {}
 
-export async function storeInsuranceDocument(caseId: string, file: File, actorUserId: string) {
+export async function storeInsuranceDocument(caseId: string, file: File, actorUserId: string, category = "OTHER", folderKey = category) {
   const inspected = await inspectDocumentUpload(file);
   const token = randomBytes(32).toString("hex");
   const storageKey = `insurance/${token.slice(0, 2)}/${token}.${inspected.extension}`;
@@ -19,13 +20,14 @@ export async function storeInsuranceDocument(caseId: string, file: File, actorUs
   try {
     const document = await prisma.$transaction(async (transaction) => {
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${DOCUMENT_STORAGE_LOCK_ID})`;
-      const activeCase = await transaction.insuranceArbitrationCase.findFirst({ where: { id: caseId, archivedAt: null }, select: { id: true, referenceNumber: true } });
+      const activeCase = await transaction.insuranceArbitrationCase.findFirst({ where: { id: caseId, archivedAt: null }, select: { id: true, referenceNumber: true, documentFolders: true } });
       if (!activeCase) throw new InsuranceDocumentNotFoundError();
+      if (!hasDocumentFolder(activeCase.documentFolders, folderKey)) throw new InsuranceDocumentNotFoundError();
 
       const root = storageRoot();
       await mkdir(root, { recursive: true });
       const [caseDocumentCount, storageUsage] = await Promise.all([
-        transaction.insuranceArbitrationDocument.count({ where: { caseId } }),
+        transaction.insuranceArbitrationDocument.count({ where: { caseId, deletedAt: null } }),
         transaction.insuranceArbitrationDocument.aggregate({ _sum: { sizeBytes: true } }),
       ]);
       const physicalStorageBytes = await storedFileBytes(root);
@@ -40,7 +42,7 @@ export async function storeInsuranceDocument(caseId: string, file: File, actorUs
       created = true;
       try { await handle.writeFile(inspected.buffer); } finally { await handle.close(); }
 
-      const stored = await transaction.insuranceArbitrationDocument.create({ data: { caseId, uploadedById: actorUserId, originalName: inspected.originalName, storageKey, mimeType: inspected.mimeType, sizeBytes: inspected.buffer.byteLength, sha256: inspected.sha256 }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true } });
+      const stored = await transaction.insuranceArbitrationDocument.create({ data: { caseId, uploadedById: actorUserId, originalName: inspected.originalName, storageKey, mimeType: inspected.mimeType, sizeBytes: inspected.buffer.byteLength, sha256: inspected.sha256, category, folderKey }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, folderKey: true, createdAt: true } });
       await transaction.auditLog.create({
         data: { actorUserId, event: "insurance_arbitration.document_uploaded", targetType: "insurance_arbitration_case", targetId: caseId, context: { referenceNumber: activeCase.referenceNumber, documentId: stored.id, mimeType: stored.mimeType, sizeBytes: stored.sizeBytes } },
       });
@@ -54,13 +56,49 @@ export async function storeInsuranceDocument(caseId: string, file: File, actorUs
 }
 
 export async function readInsuranceDocument(caseId: string, documentId: string) {
-  const document = await prisma.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId, case: { archivedAt: null } }, select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true } });
+  const document = await prisma.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId, deletedAt: null, case: { archivedAt: null } }, select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true } });
   if (!document) throw new InsuranceDocumentNotFoundError();
   try {
     const data = await readFile(/* turbopackIgnore: true */ resolveStorageKey(document.storageKey));
     if (data.byteLength !== document.sizeBytes || !hasExpectedDocumentDigest(data, document.sha256)) throw new Error("Invalid document data");
     return { ...document, data };
   } catch { throw new InsuranceDocumentNotFoundError(); }
+}
+
+export async function moveInsuranceDocument(caseId: string, documentId: string, folderKey: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const activeCase = await transaction.insuranceArbitrationCase.findFirst({ where: { id: caseId, archivedAt: null }, select: { referenceNumber: true, documentFolders: true } });
+    if (!activeCase || !hasDocumentFolder(activeCase.documentFolders, folderKey)) throw new InsuranceDocumentNotFoundError();
+    const result = await transaction.insuranceArbitrationDocument.updateMany({ where: { id: documentId, caseId, deletedAt: null }, data: { folderKey, category: folderKey.startsWith("CUSTOM:") ? "OTHER" : folderKey } });
+    if (result.count !== 1) throw new InsuranceDocumentNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration.document_moved", targetType: "insurance_arbitration_case", targetId: caseId, context: { referenceNumber: activeCase.referenceNumber, documentId, folderKey } } });
+    return { id: documentId, folderKey };
+  });
+}
+
+export async function deleteInsuranceDocument(caseId: string, documentId: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const document = await transaction.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId, deletedAt: null, case: { archivedAt: null } }, select: { originalName: true, case: { select: { referenceNumber: true } } } });
+    if (!document) throw new InsuranceDocumentNotFoundError();
+    const result = await transaction.insuranceArbitrationDocument.updateMany({ where: { id: documentId, caseId, deletedAt: null }, data: { deletedAt: new Date(), deletedById: actorUserId } });
+    if (result.count !== 1) throw new InsuranceDocumentNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration.document_deleted", targetType: "insurance_arbitration_case", targetId: caseId, context: { referenceNumber: document.case.referenceNumber, documentId, originalName: document.originalName } } });
+    return { id: documentId };
+  });
+}
+
+export async function updateInsuranceDocumentFolders(caseId: string, folders: DocumentFolder[], actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const activeCase = await transaction.insuranceArbitrationCase.findFirst({ where: { id: caseId, archivedAt: null }, select: { referenceNumber: true } });
+    if (!activeCase) throw new InsuranceDocumentNotFoundError();
+    await transaction.insuranceArbitrationCase.update({ where: { id: caseId }, data: { documentFolders: folders } });
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration.document_folders_updated", targetType: "insurance_arbitration_case", targetId: caseId, context: { referenceNumber: activeCase.referenceNumber, folderCount: folders.length } } });
+    return folders;
+  });
+}
+
+function hasDocumentFolder(value: unknown, folderKey: string) {
+  return fixedDocumentFolders.includes(folderKey as typeof fixedDocumentFolders[number]) || parseDocumentFolders(value).some((folder) => folder.key === folderKey);
 }
 
 function storageRoot() {
