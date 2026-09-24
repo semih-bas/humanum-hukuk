@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "../database";
+import { parseCaseDebtors, type CaseDebtor } from "./case-debtors";
 
 export type CaseListQuery = {
   query: string;
@@ -18,6 +19,7 @@ export type CaseListItem = {
   vehiclePlate: string;
   accidentDate: string;
   debtorName: string | null;
+  debtors: CaseDebtor[];
   enforcementOffice: string | null;
   enforcementFileNumber: string | null;
   status: "OPEN" | "ENFORCEMENT" | "INSTALLMENT" | "PENDING" | "CLOSED";
@@ -75,6 +77,8 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
         vehiclePlate: true,
         accidentDate: true,
         debtorName: true,
+        debtorType: true,
+        debtors: true,
         enforcementOffice: true,
         enforcementFileNumber: true,
         status: true,
@@ -89,6 +93,7 @@ export async function listCaseFiles(input: CaseListQuery): Promise<CaseListResul
     return {
       items: records.map((record) => ({
         ...record,
+        debtors: parseCaseDebtors(record.debtors, record.debtorType, record.debtorName),
         accidentDate: record.accidentDate.toISOString().slice(0, 10),
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),

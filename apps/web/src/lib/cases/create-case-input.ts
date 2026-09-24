@@ -11,10 +11,10 @@ import {
   normalizeText,
   parseMoneyToCents,
   validatePlate,
-  INSTALLMENT_OPTIONS,
 } from "@/lib/form-input";
+import { DEBTOR_TYPES, type CaseDebtor } from "./case-debtors";
 
-export type InstallmentCount = typeof INSTALLMENT_OPTIONS[number];
+export type InstallmentCount = number;
 
 const MAX_MONEY = new Prisma.Decimal("9999999999999999.99");
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,6 +47,10 @@ const money = z
   .refine((value) => value.lte(MAX_MONEY), "Tutar izin verilen üst sınırı aşıyor.");
 
 const optionalMoney = z.union([money, z.null()]).optional().transform((value) => value ?? null);
+const debtor = z.object({
+  type: z.enum(DEBTOR_TYPES),
+  name: requiredText("Borçlu taraf", PERSON_OR_COMPANY_MAX_LENGTH),
+}).strict();
 
 export const addCaseReminderSchema = z.object({
   title: requiredText("Hatırlatma başlığı", SHORT_TEXT_MAX_LENGTH),
@@ -78,6 +82,7 @@ const rawCaseCoreSchema = z.object({
   accidentDate: z.string().regex(DATE_PATTERN, "Kaza tarihi YYYY-MM-DD biçiminde olmalıdır."),
   debtorType: z.enum(["INSURANCE_COMPANY", "INDIVIDUAL", "COMPANY"]),
   debtorName: optionalText("Borçlu taraf", PERSON_OR_COMPANY_MAX_LENGTH),
+  debtors: z.array(debtor).min(1, "En az bir borçlu eklenmelidir.").max(50, "En fazla 50 borçlu eklenebilir.").optional(),
   damageAmount: money,
   depreciationAmount: money,
   profitLossAmount: money,
@@ -87,7 +92,7 @@ const rawCaseCoreSchema = z.object({
   vehicleLien: z.boolean(),
   bankLien: z.boolean(),
   titleDeedLien: z.boolean(),
-  installmentCount: z.union(INSTALLMENT_OPTIONS.map((count) => z.literal(count)) as [z.ZodLiteral<InstallmentCount>, ...z.ZodLiteral<InstallmentCount>[]]).nullable(),
+  installmentCount: z.number({ error: "Taksit sayısı sayı olmalıdır." }).int("Taksit sayısı tam sayı olmalıdır.").min(1, "Taksit sayısı en az 1 olmalıdır.").max(12, "Taksit sayısı en fazla 12 olabilir.").nullable(),
   status: z.enum(["OPEN", "ENFORCEMENT", "INSTALLMENT", "PENDING", "CLOSED"]),
 });
 
@@ -117,6 +122,16 @@ type EditableCaseInput = z.infer<typeof rawEditableCaseSchema>;
 
 function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
   const accidentDate = parseDateOnly(value.accidentDate);
+  const debtors = canonicalDebtors(value);
+
+  if (!debtors.length) {
+    context.addIssue({ code: "custom", path: ["debtors"], message: "En az bir borçlu eklenmelidir." });
+  }
+
+  const debtorKeys = debtors.map((item) => `${item.type}:${normalizeText(item.name).toLocaleLowerCase("tr-TR")}`);
+  if (new Set(debtorKeys).size !== debtorKeys.length) {
+    context.addIssue({ code: "custom", path: ["debtors"], message: "Aynı borçlu birden fazla eklenemez." });
+  }
 
   if (!accidentDate || value.accidentDate > currentIstanbulDate()) {
     context.addIssue({
@@ -214,16 +229,27 @@ export type CaseFinancialSummary = {
 };
 
 export function normalizeCaseCoreInput<T extends CaseCoreInput>(input: T): T {
+  const debtors = canonicalDebtors(input).map((item) => ({ ...item, name: normalizeText(item.name) }));
   return {
     ...input,
     licenseHolder: normalizeText(input.licenseHolder),
     vehiclePlate: normalizePlate(input.vehiclePlate),
-    debtorName: input.debtorName ? normalizeText(input.debtorName) : null,
+    debtorType: debtors[0]?.type ?? input.debtorType,
+    debtorName: debtors[0]?.name ?? null,
+    debtors,
     enforcementOffice: input.enforcementOffice ? normalizeText(input.enforcementOffice) : null,
     enforcementFileNumber: input.enforcementFileNumber
       ? normalizeText(input.enforcementFileNumber).toLocaleUpperCase("tr-TR")
       : null,
   };
+}
+
+function canonicalDebtors(input: Pick<CaseCoreInput, "debtors" | "debtorType" | "debtorName">): CaseDebtor[] {
+  return input.debtors?.length
+    ? input.debtors
+    : input.debtorName?.trim()
+      ? [{ type: input.debtorType, name: input.debtorName }]
+      : [];
 }
 
 export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInput {

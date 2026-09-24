@@ -15,7 +15,7 @@ export class CaseHasNoChangesError extends Error {}
 type TransactionClient = Prisma.TransactionClient;
 
 const editableFields = [
-  "licenseHolder", "vehiclePlate", "accidentDate", "debtorType", "debtorName",
+  "licenseHolder", "vehiclePlate", "accidentDate", "debtorType", "debtorName", "debtors",
   "hasDamageClaim", "hasDepreciationClaim", "hasProfitLossClaim", "damageAmount",
   "depreciationAmount", "profitLossAmount", "profitLossDays", "dailyRentalAmount",
   "judgmentStatus", "discountAmount",
@@ -56,6 +56,7 @@ export async function updateCaseFileInTransaction(
     accidentDate,
     debtorType: input.debtorType,
     debtorName: input.debtorName,
+    debtors: input.debtors ?? [],
     damageAmount: input.damageAmount,
     depreciationAmount: input.depreciationAmount,
     profitLossAmount: input.profitLossAmount,
@@ -99,6 +100,7 @@ export async function updateCaseFileInTransaction(
     accidentDate: input.accidentDate,
     debtorType: input.debtorType,
     debtorName: input.debtorName,
+    debtors: input.debtors ?? [],
     damageAmount: input.damageAmount.toFixed(2),
     depreciationAmount: input.depreciationAmount.toFixed(2),
     profitLossAmount: input.profitLossAmount.toFixed(2),
@@ -151,7 +153,12 @@ export async function updateCaseFileInTransaction(
 function sameValue(left: unknown, right: unknown): boolean {
   if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime();
   if (isDecimalLike(left) && isDecimalLike(right)) return left.equals(right);
+  if ((Array.isArray(left) || isPlainObject(left)) && (Array.isArray(right) || isPlainObject(right))) return JSON.stringify(left) === JSON.stringify(right);
   return left === right;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isDecimalLike(value: unknown): value is { equals(other: unknown): boolean } {

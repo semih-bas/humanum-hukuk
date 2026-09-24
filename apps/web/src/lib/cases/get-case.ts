@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "../database";
 import { parseDocumentFolders } from "../document-folder-input";
+import { parseCaseDebtors } from "./case-debtors";
 
 export async function getCaseFile(id: string) {
   const record = await prisma.caseFile.findFirst({
@@ -13,6 +14,7 @@ export async function getCaseFile(id: string) {
       accidentDate: true,
       debtorType: true,
       debtorName: true,
+      debtors: true,
       damageAmount: true,
       depreciationAmount: true,
       profitLossAmount: true,
@@ -81,6 +83,7 @@ export async function getCaseFile(id: string) {
 
   return {
     ...record,
+    debtors: parseCaseDebtors(record.debtors, record.debtorType, record.debtorName),
     accidentDate: record.accidentDate.toISOString().slice(0, 10),
     damageAmount: record.damageAmount.toFixed(2),
     depreciationAmount: record.depreciationAmount.toFixed(2),

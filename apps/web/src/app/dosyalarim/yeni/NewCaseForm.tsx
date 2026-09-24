@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import AppShell from "@/components/app-shell/AppShell";
-import { centsToMoneyString, formatMoneyInput, INSTALLMENT_OPTIONS, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
-import type { InstallmentCount } from "@/lib/cases/create-case-input";
+import { centsToMoneyString, formatMoneyInput, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
+import { debtorTypeLabel, type CaseDebtor, type DebtorType } from "@/lib/cases/case-debtors";
 import type { CaseStatus } from "@/lib/case-presentation";
 import PaymentModal, { type DraftTransaction } from "../PaymentModal";
 import { DocumentsTab, NotesTab, NotificationsTab, type DocumentFolderConfig, type DraftDocument, type DraftNote, type DraftReminder } from "./CaseActivityTabs";
@@ -19,6 +20,7 @@ export type EnforcementCaseTab = "general" | "payments" | "notifications" | "not
 export type ExistingEnforcementCase = {
   id: string; referenceNumber: string; version: number; licenseHolder: string; vehiclePlate: string; accidentDate: string;
   debtorType: "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY"; debtorName: string | null;
+  debtors: CaseDebtor[];
   hasDamageClaim: boolean; hasDepreciationClaim: boolean; hasProfitLossClaim: boolean; judgmentStatus: "WITHOUT_JUDGMENT" | "WITH_JUDGMENT";
   damageAmount: string; depreciationAmount: string; profitLossDays: number | null; dailyRentalAmount: string | null; discountAmount: string;
   enforcementOffice: string | null; enforcementFileNumber: string | null; vehicleLien: boolean; bankLien: boolean; titleDeedLien: boolean; salaryLien: boolean;
@@ -83,8 +85,10 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const [licenseHolder, setLicenseHolder] = useState(initialData?.licenseHolder ?? "");
   const [vehiclePlate, setVehiclePlate] = useState(initialData?.vehiclePlate ?? "");
   const [accidentDate, setAccidentDate] = useState(initialData?.accidentDate ?? "");
-  const [debtorType, setDebtorType] = useState(initialData?.debtorType ?? "");
-  const [debtorName, setDebtorName] = useState(initialData?.debtorName ?? "");
+  const [debtors, setDebtors] = useState<CaseDebtor[]>(() => initialCaseDebtors(initialData));
+  const [newDebtorType, setNewDebtorType] = useState<DebtorType>("INSURANCE_COMPANY");
+  const [newDebtorName, setNewDebtorName] = useState("");
+  const [showAllDebtors, setShowAllDebtors] = useState(false);
   const [hasDamageClaim, setHasDamageClaim] = useState(initialData?.hasDamageClaim ?? false);
   const [hasDepreciationClaim, setHasDepreciationClaim] = useState(initialData?.hasDepreciationClaim ?? false);
   const [hasProfitLossClaim, setHasProfitLossClaim] = useState(initialData?.hasProfitLossClaim ?? false);
@@ -101,7 +105,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const [titleDeedLien, setTitleDeedLien] = useState(initialData?.titleDeedLien ?? false);
   const [salaryLien, setSalaryLien] = useState(initialData?.salaryLien ?? false);
   const [installmentEnabled, setInstallmentEnabled] = useState(Boolean(initialData?.installmentCount));
-  const [installmentCount, setInstallmentCount] = useState<InstallmentCount>((initialData?.installmentCount as InstallmentCount | null) ?? 3);
+  const [installmentCount, setInstallmentCount] = useState(String(initialData?.installmentCount ?? 3));
   const [status, setStatus] = useState(initialData?.status ?? "");
   const [notice, setNotice] = useState<Notice>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -119,8 +123,10 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const financials = useMemo(() => {
     const total = toCents(damage) + toCents(depreciation) + toCents(profitLoss);
     const net = total > toCents(discount) ? total - toCents(discount) : 0n;
-    const monthly = installmentEnabled ? net / BigInt(installmentCount) : 0n;
-    const remainder = installmentEnabled ? net % BigInt(installmentCount) : 0n;
+    const validInstallmentCount = parseInstallmentCount(installmentCount);
+    const divisor = BigInt(validInstallmentCount ?? 1);
+    const monthly = installmentEnabled && validInstallmentCount ? net / divisor : 0n;
+    const remainder = installmentEnabled && validInstallmentCount ? net % divisor : 0n;
 
     return {
       total: centsToInput(total),
@@ -132,14 +138,14 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
   const hasUnsavedGeneralChanges = Boolean(caseId && initialData && (
     licenseHolder !== initialData.licenseHolder || vehiclePlate !== initialData.vehiclePlate || accidentDate !== initialData.accidentDate ||
-    debtorType !== initialData.debtorType || debtorName !== (initialData.debtorName ?? "") || hasDamageClaim !== initialData.hasDamageClaim ||
+    !sameDebtors(debtors, initialCaseDebtors(initialData)) || hasDamageClaim !== initialData.hasDamageClaim ||
     hasDepreciationClaim !== initialData.hasDepreciationClaim || hasProfitLossClaim !== initialData.hasProfitLossClaim || judgmentStatus !== initialData.judgmentStatus ||
     !sameMoney(damage, initialData.damageAmount) || !sameMoney(depreciation, initialData.depreciationAmount) ||
     (hasProfitLossClaim ? Number(profitLossDays) : null) !== initialData.profitLossDays ||
     (hasProfitLossClaim ? !sameMoney(dailyRental, initialData.dailyRentalAmount) : initialData.dailyRentalAmount !== null) || !sameMoney(discount, initialData.discountAmount) ||
     enforcementOffice !== (initialData.enforcementOffice ?? "") || enforcementFileNumber !== (initialData.enforcementFileNumber ?? "") ||
     vehicleLien !== initialData.vehicleLien || bankLien !== initialData.bankLien || titleDeedLien !== initialData.titleDeedLien || salaryLien !== initialData.salaryLien ||
-    (installmentEnabled ? installmentCount : null) !== initialData.installmentCount || status !== initialData.status
+    (installmentEnabled ? Number(installmentCount) : null) !== initialData.installmentCount || status !== initialData.status
   ));
 
   function closeExistingCase() {
@@ -149,11 +155,38 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
   function changeInstallment(enabled: boolean) {
     setInstallmentEnabled(enabled);
-    if (!enabled) setInstallmentCount(3);
+    if (!enabled) setInstallmentCount("3");
   }
 
   function changeStatus(nextStatus: string) {
     setStatus(nextStatus);
+  }
+
+  function addDebtor() {
+    const name = newDebtorName.trim();
+    if (!name) {
+      setFieldErrors((current) => ({ ...current, debtors: ["Borçlu taraf adını yazın."] }));
+      return;
+    }
+    if (debtors.length >= 50) {
+      setFieldErrors((current) => ({ ...current, debtors: ["En fazla 50 borçlu eklenebilir."] }));
+      return;
+    }
+    if (debtors.some((item) => item.type === newDebtorType && item.name.toLocaleLowerCase("tr-TR") === name.toLocaleLowerCase("tr-TR"))) {
+      setFieldErrors((current) => ({ ...current, debtors: ["Bu borçlu zaten eklenmiş."] }));
+      return;
+    }
+    setDebtors((current) => [...current, { type: newDebtorType, name }]);
+    setNewDebtorName("");
+    setFieldErrors((current) => ({ ...current, debtors: undefined }));
+  }
+
+  function removeDebtor(index: number) {
+    setDebtors((current) => {
+      const next = current.filter((_, itemIndex) => itemIndex !== index);
+      if (next.length <= 2) setShowAllDebtors(false);
+      return next;
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -161,6 +194,13 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     const formElement = event.currentTarget;
 
     if (isSubmitting) {
+      return;
+    }
+
+    if (!debtors.length) {
+      setTab("general");
+      setNotice(null);
+      setFieldErrors((current) => ({ ...current, debtors: ["En az bir borçlu eklenmelidir."] }));
       return;
     }
 
@@ -184,8 +224,9 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           licenseHolder,
           vehiclePlate,
           accidentDate,
-          debtorType,
-          debtorName: debtorName || null,
+          debtorType: debtors[0].type,
+          debtorName: debtors[0].name,
+          debtors,
           hasDamageClaim,
           hasDepreciationClaim,
           hasProfitLossClaim,
@@ -202,7 +243,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           bankLien,
           titleDeedLien,
           salaryLien,
-          installmentCount: installmentEnabled ? installmentCount : null,
+          installmentCount: installmentEnabled ? Number(installmentCount) : null,
           status,
           ...(caseId ? { version: initialData?.version } : { note: null, reminder: null }),
         }),
@@ -267,12 +308,25 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
 
       <section className={styles.sectionCard}>
         <h2><span>1</span>Araç ve Taraf Bilgileri</h2>
-        <div className={styles.partyColumns}>
-          <label className={styles.field}><span>Ruhsat Sahibi</span><input required maxLength={150} value={licenseHolder} onChange={(event) => setLicenseHolder(event.target.value)} placeholder="Ruhsat sahibi adı soyadı" /><FieldError errors={fieldErrors} name="licenseHolder" /></label>
-          <label className={styles.field}><span>Araç Plakası</span><input required maxLength={20} value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toLocaleUpperCase("tr-TR"))} placeholder="34 ABC 123" /><FieldError errors={fieldErrors} name="vehiclePlate" /></label>
-          <label className={styles.field}><span>Kaza Tarihi</span><input required type="date" max={todayDate()} value={accidentDate} onChange={(event) => setAccidentDate(limitDateYear(event.target.value, accidentDate))} /><FieldError errors={fieldErrors} name="accidentDate" /></label>
-          <label className={styles.field}><span>Borçlu Türü</span><select required value={debtorType} onChange={(event) => setDebtorType(event.target.value)}><option value="" disabled>Tür seçiniz</option><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select><FieldError errors={fieldErrors} name="debtorType" /></label>
-          <label className={styles.field}><span>Borçlu Taraf</span><input required maxLength={150} value={debtorName} onChange={(event) => setDebtorName(event.target.value)} placeholder="Kişi veya şirket adı" /><FieldError errors={fieldErrors} name="debtorName" /></label>
+        <div className={styles.partyLayout}>
+          <div className={styles.vehicleFields}>
+            <label className={styles.field}><span>Ruhsat Sahibi</span><input required maxLength={150} value={licenseHolder} onChange={(event) => setLicenseHolder(event.target.value)} placeholder="Ruhsat sahibi adı soyadı" /><FieldError errors={fieldErrors} name="licenseHolder" /></label>
+            <label className={styles.field}><span>Araç Plakası</span><input required maxLength={20} value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toLocaleUpperCase("tr-TR"))} placeholder="34 ABC 123" /><FieldError errors={fieldErrors} name="vehiclePlate" /></label>
+            <label className={`${styles.field} ${styles.accidentField}`}><span>Kaza Tarihi</span><input required type="date" max={todayDate()} value={accidentDate} onChange={(event) => setAccidentDate(limitDateYear(event.target.value, accidentDate))} /><FieldError errors={fieldErrors} name="accidentDate" /></label>
+          </div>
+          <section className={styles.debtorsPanel} aria-labelledby="debtors-title">
+            <h3 id="debtors-title">Borçlular</h3>
+            <div className={styles.debtorComposer}>
+              <label className={styles.field}><span>Borçlu Türü</span><select value={newDebtorType} onChange={(event) => setNewDebtorType(event.target.value as DebtorType)}><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select></label>
+              <label className={styles.field}><span>Borçlu Taraf</span><input maxLength={150} value={newDebtorName} onChange={(event) => setNewDebtorName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addDebtor(); } }} placeholder="Kişi veya şirket adı" /></label>
+              <button className={styles.addDebtorButton} type="button" onClick={addDebtor}>+ Ekle</button>
+            </div>
+            <div className={styles.addedDebtors}>
+              <span>Eklenen Borçlular</span>
+              {debtors.length ? <div className={styles.debtorRows}>{debtors.slice(0, 2).map((debtor, index) => <div className={styles.debtorRow} key={`${debtor.type}-${debtor.name}-${index}`}><b>{debtorTypeLabel(debtor.type)}</b><span>{debtor.name}</span><button type="button" aria-label={`${debtor.name} borçlusunu kaldır`} onClick={() => removeDebtor(index)}>×</button></div>)}{debtors.length > 2 && <button className={styles.moreDebtorsButton} type="button" onClick={() => setShowAllDebtors(true)}>+{debtors.length - 2}</button>}</div> : <p>Henüz borçlu eklenmedi.</p>}
+            </div>
+            <FieldError errors={fieldErrors} name="debtors" />
+          </section>
         </div>
       </section>
 
@@ -349,7 +403,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           <div className={styles.installmentGrid}>
             <label className={styles.field}><span>Taksit Var mı?</span><select value={installmentEnabled ? "yes" : "no"} onChange={(event) => changeInstallment(event.target.value === "yes")}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
             {installmentEnabled && <>
-              <label className={styles.field}><span>Toplam Taksit Sayısı</span><select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select><FieldError errors={fieldErrors} name="installmentCount" /></label>
+              <label className={styles.field}><span>Toplam Taksit Sayısı</span><input required type="number" inputMode="numeric" min={1} max={12} step={1} value={installmentCount} onChange={(event) => setInstallmentCount(event.target.value)} placeholder="1-12" /><FieldError errors={fieldErrors} name="installmentCount" /></label>
               <AmountInput label="Taksit Tutarı" value={financials.monthly} readOnly />
             </>}
           </div>
@@ -357,8 +411,18 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
       </div></fieldset>
       </form>
     </main>
-
+    {showAllDebtors && <DebtorsModal debtors={debtors} readOnly={readOnly} onClose={() => setShowAllDebtors(false)} onRemove={removeDebtor} />}
   </AppShell>;
+}
+
+function DebtorsModal({ debtors, readOnly, onClose, onRemove }: { debtors: CaseDebtor[]; readOnly: boolean; onClose: () => void; onRemove: (index: number) => void }) {
+  return createPortal(<div className={styles.debtorModalBackdrop} role="presentation" onMouseDown={onClose}>
+    <section className={styles.debtorModal} role="dialog" aria-modal="true" aria-labelledby="all-debtors-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div><span>Borçlu Listesi</span><h2 id="all-debtors-title">Tüm Borçlular ({debtors.length})</h2></div><button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button></header>
+      <div className={styles.debtorModalList}>{debtors.map((debtor, index) => <div key={`${debtor.type}-${debtor.name}-${index}`}><b>{debtorTypeLabel(debtor.type)}</b><span>{debtor.name}</span>{!readOnly && <button type="button" aria-label={`${debtor.name} borçlusunu kaldır`} onClick={() => onRemove(index)}>Kaldır</button>}</div>)}</div>
+      <footer><button type="button" onClick={onClose}>Kapat</button></footer>
+    </section>
+  </div>, document.body);
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -371,6 +435,20 @@ function normalizeMoney(value: string): string {
 
 function sameMoney(input: string, persisted: string | null): boolean {
   return (parseMoneyToCents(input) ?? 0n) === (parseMoneyToCents(persisted ?? "") ?? 0n);
+}
+
+function initialCaseDebtors(initialData?: ExistingEnforcementCase): CaseDebtor[] {
+  if (initialData?.debtors?.length) return initialData.debtors;
+  return initialData?.debtorName ? [{ type: initialData.debtorType, name: initialData.debtorName }] : [];
+}
+
+function sameDebtors(left: CaseDebtor[], right: CaseDebtor[]): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function parseInstallmentCount(value: string): number | null {
+  const count = Number(value);
+  return Number.isInteger(count) && count >= 1 && count <= 12 ? count : null;
 }
 
 function inputMoney(value?: string | null): string {

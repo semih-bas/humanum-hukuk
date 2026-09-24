@@ -233,6 +233,7 @@ model CaseFile {
   accidentDate          DateTime          @db.Date
   debtorType            DebtorType
   debtorName            String?
+  debtors               Json              @default("[]")
   damageAmount          Decimal           @default(0) @db.Decimal(18, 2)
   depreciationAmount    Decimal           @default(0) @db.Decimal(18, 2)
   profitLossAmount      Decimal           @default(0) @db.Decimal(18, 2)

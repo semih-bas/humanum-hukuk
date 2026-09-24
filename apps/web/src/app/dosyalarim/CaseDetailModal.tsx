@@ -3,12 +3,11 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { centsToMoneyString, formatMoneyInput, formatTimeInput, INSTALLMENT_OPTIONS, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
+import { centsToMoneyString, formatMoneyInput, formatTimeInput, isValidTime, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, formatIstanbulDateTime as formatDateTime, formatMoneyAmount as formatMoney, type CaseStatus } from "@/lib/case-presentation";
-import type { InstallmentCount } from "@/lib/cases/create-case-input";
+import { debtorTypeLabel, type CaseDebtor, type DebtorType } from "@/lib/cases/case-debtors";
 import styles from "./page.module.css";
 
-type DebtorType = "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY";
 type JudgmentStatus = "WITHOUT_JUDGMENT" | "WITH_JUDGMENT";
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -20,6 +19,7 @@ type CaseDetail = {
   accidentDate: string;
   debtorType: DebtorType;
   debtorName: string | null;
+  debtors: CaseDebtor[];
   damageAmount: string;
   depreciationAmount: string;
   profitLossAmount: string;
@@ -40,7 +40,7 @@ type CaseDetail = {
   bankLien: boolean;
   titleDeedLien: boolean;
   salaryLien: boolean;
-  installmentCount: InstallmentCount | null;
+  installmentCount: number | null;
   status: CaseStatus;
   version: number;
   createdAt: string;
@@ -54,7 +54,7 @@ type CaseDetail = {
 };
 
 type Draft = Pick<CaseDetail,
-  "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorType" | "debtorName" |
+  "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorType" | "debtorName" | "debtors" |
   "damageAmount" | "depreciationAmount" | "profitLossAmount" | "discountAmount" |
   "hasDamageClaim" | "hasDepreciationClaim" | "hasProfitLossClaim" | "profitLossDays" |
   "dailyRentalAmount" | "judgmentStatus" |
@@ -65,7 +65,7 @@ type Draft = Pick<CaseDetail,
 const fieldLabels: Record<string, string> = {
   referenceNumber: "Dosya numarası",
   licenseHolder: "Ruhsat sahibi", vehiclePlate: "Araç plakası", accidentDate: "Kaza tarihi",
-  debtorType: "Borçlu türü", debtorName: "Borçlu taraf", damageAmount: "Hasar bedeli",
+  debtorType: "Borçlu türü", debtorName: "Borçlu taraf", debtors: "Borçlular", damageAmount: "Hasar bedeli",
   depreciationAmount: "Değer kaybı", profitLossAmount: "Kazanç kaybı", discountAmount: "İndirim",
   hasDamageClaim: "Hasar bedeli dosya türü", hasDepreciationClaim: "Değer kaybı dosya türü",
   hasProfitLossClaim: "Kazanç kaybı dosya türü", profitLossDays: "Kazanç kaybı gün sayısı",
@@ -158,6 +158,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
         body: JSON.stringify({
           ...draft,
           debtorName: draft.debtorName || null,
+          debtors: draft.debtors,
           enforcementOffice: draft.enforcementOffice || null,
           enforcementFileNumber: draft.enforcementFileNumber || null,
           damageAmount: normalizeMoney(draft.damageAmount),
@@ -289,8 +290,8 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <TextField label="Ruhsat Sahibi" maxLength={150} value={draft.licenseHolder} error={fieldErrors.licenseHolder?.[0]} onChange={(value) => update("licenseHolder", value)} />
           <TextField label="Araç Plakası" maxLength={20} value={draft.vehiclePlate} error={fieldErrors.vehiclePlate?.[0]} onChange={(value) => update("vehiclePlate", value.toLocaleUpperCase("tr-TR"))} />
           <TextField label="Kaza Tarihi" type="date" value={draft.accidentDate} error={fieldErrors.accidentDate?.[0]} onChange={(value) => update("accidentDate", value)} />
-          <label><span>Borçlu Türü</span><select value={draft.debtorType} onChange={(event) => update("debtorType", event.target.value as DebtorType)}><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select></label>
-          <TextField label="Borçlu Taraf" maxLength={150} value={draft.debtorName ?? ""} error={fieldErrors.debtorName?.[0]} onChange={(value) => update("debtorName", value)} />
+          <label><span>İlk Borçlu Türü</span><select value={draft.debtorType} onChange={(event) => { const type = event.target.value as DebtorType; setDraft((current) => current ? { ...current, debtorType: type, debtors: current.debtors.map((item, index) => index ? item : { ...item, type }) } : current); }}><option value="INSURANCE_COMPANY">Sigorta Şirketi</option><option value="INDIVIDUAL">Şahıs</option><option value="COMPANY">Şirket</option></select></label>
+          <TextField label="İlk Borçlu Taraf" maxLength={150} value={draft.debtorName ?? ""} error={fieldErrors.debtorName?.[0]} onChange={(value) => setDraft((current) => current ? { ...current, debtorName: value, debtors: current.debtors.map((item, index) => index ? item : { ...item, name: value }) } : current)} />
           <label><span>İlam Durumu</span><select value={draft.judgmentStatus} onChange={(event) => update("judgmentStatus", event.target.value as JudgmentStatus)}><option value="WITHOUT_JUDGMENT">İlamsız</option><option value="WITH_JUDGMENT">İlamlı</option></select></label>
           <fieldset className={`${styles.editChoiceSection} ${styles.editWideField}`}>
             <legend>Dosya Türleri</legend>
@@ -311,7 +312,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <TextField label="İcra Dosya No" maxLength={50} value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
           <label><span>Dosya Durumu</span><select value={draft.status} onChange={(event) => update("status", event.target.value as CaseStatus)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label><span>Taksit Var mı?</span><select value={draft.installmentCount === null ? "no" : "yes"} onChange={(event) => update("installmentCount", event.target.value === "yes" ? draft.installmentCount ?? 3 : null)}><option value="no">Hayır</option><option value="yes">Evet</option></select></label>
-          {draft.installmentCount !== null && <label><span>Taksit Sayısı</span><select value={draft.installmentCount} onChange={(event) => update("installmentCount", Number(event.target.value) as InstallmentCount)}>{INSTALLMENT_OPTIONS.map((count) => <option value={count} key={count}>{count} Ay</option>)}</select></label>}
+          {draft.installmentCount !== null && <label><span>Taksit Sayısı</span><input required type="number" inputMode="numeric" min={1} max={12} step={1} value={draft.installmentCount} onChange={(event) => update("installmentCount", Number(event.target.value))} /></label>}
           {draft.installmentCount !== null && <InstallmentPreview draft={draft} />}
         </div>
         <div className={styles.editLienSection}>
@@ -351,7 +352,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
       </form> : <>
         <div className={styles.detailScroll}>
           <section className={styles.overviewHero}>
-            <div><span>Ruhsat Sahibi</span><strong>{detail.licenseHolder}</strong><small>{detail.debtorName ? `Borçlu: ${detail.debtorName}` : "Borçlu taraf belirtilmedi"}</small></div>
+            <div><span>Ruhsat Sahibi</span><strong>{detail.licenseHolder}</strong><small>{detail.debtors.length ? `Borçlu: ${detail.debtors[0].name}${detail.debtors.length > 1 ? ` +${detail.debtors.length - 1}` : ""}` : "Borçlu taraf belirtilmedi"}</small></div>
             <div><span>Dosya Durumu</span><strong>{statusLabels[detail.status]}</strong><small>{formatDate(detail.accidentDate)} tarihli kaza</small></div>
             <div><span>Net Talep</span><strong>{formatMoney(detail.netClaimAmount)} TL</strong><small>{detail.installmentCount ? `${detail.installmentCount} taksit planı` : "Taksit planı yok"}</small></div>
           </section>
@@ -371,7 +372,7 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
             <h3>Araç ve Taraf Bilgileri</h3>
             <dl>
               <Detail label="Ruhsat Sahibi" value={detail.licenseHolder} />
-              <Detail label="Borçlu Taraf" value={`${debtorTypeLabel(detail.debtorType)}${detail.debtorName ? ` · ${detail.debtorName}` : ""}`} />
+              <Detail label="Borçlu Taraflar" value={detail.debtors.map((debtor) => `${debtorTypeLabel(debtor.type)} · ${debtor.name}`).join("; ") || "—"} />
               <Detail label="Kaza Tarihi" value={formatDate(detail.accidentDate)} />
               <Detail label="İlam Durumu" value={detail.judgmentStatus === "WITH_JUDGMENT" ? "İlamlı" : "İlamsız"} />
             </dl>
@@ -432,18 +433,17 @@ function InstallmentPreview({ draft }: { draft: Draft }) {
   return <label><span>Aylık Taksit</span><div className={styles.editMoneyInput}><input readOnly value={formatMoney(installment.monthly)} /><b>TL</b></div></label>;
 }
 function Detail({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) { return <div className={emphasis ? styles.emphasisDetail : undefined}><dt>{label}</dt><dd>{value}</dd></div>; }
-function debtorTypeLabel(value: DebtorType) { return ({ INSURANCE_COMPANY: "Sigorta şirketi", INDIVIDUAL: "Şahıs", COMPANY: "Şirket" } as const)[value]; }
 function claimTypeText(detail: CaseDetail) { return [detail.hasDamageClaim && "Hasar Bedeli", detail.hasDepreciationClaim && "Değer Kaybı", detail.hasProfitLossClaim && "Kazanç Kaybı"].filter(Boolean).join(", ") || "—"; }
 function profitLossText(detail: CaseDetail) { const amount = `${formatMoney(detail.profitLossAmount)} TL`; return detail.hasProfitLossClaim && detail.profitLossDays && detail.dailyRentalAmount ? `${detail.profitLossDays} gün × ${formatMoney(detail.dailyRentalAmount)} TL = ${amount}` : amount; }
 function installmentText(detail: CaseDetail) { if (!detail.installmentCount) return "Taksit yok"; const monthly = `${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay`; const final = detail.finalInstallmentAmount && detail.finalInstallmentAmount !== detail.monthlyInstallmentAmount ? ` · Son taksit ${formatMoney(detail.finalInstallmentAmount)} TL` : ""; return `${detail.installmentCount} ay · ${monthly}${final}`; }
-function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), hasDamageClaim: detail.hasDamageClaim, hasDepreciationClaim: detail.hasDepreciationClaim, hasProfitLossClaim: detail.hasProfitLossClaim, profitLossDays: detail.profitLossDays, dailyRentalAmount: detail.dailyRentalAmount ? formatMoney(detail.dailyRentalAmount) : null, judgmentStatus: detail.judgmentStatus, discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, salaryLien: detail.salaryLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
+function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, debtors: detail.debtors, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), hasDamageClaim: detail.hasDamageClaim, hasDepreciationClaim: detail.hasDepreciationClaim, hasProfitLossClaim: detail.hasProfitLossClaim, profitLossDays: detail.profitLossDays, dailyRentalAmount: detail.dailyRentalAmount ? formatMoney(detail.dailyRentalAmount) : null, judgmentStatus: detail.judgmentStatus, discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, salaryLien: detail.salaryLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
 function withProfitLoss(draft: Draft, days: number | null, dailyRentalAmount: string | null): Draft { const dailyCents = parseMoneyToCents(dailyRentalAmount ?? "") ?? 0n; const total = days ? dailyCents * BigInt(days) : 0n; return { ...draft, profitLossDays: days, dailyRentalAmount, profitLossAmount: centsToMoneyString(total) }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
 function calculateDraftInstallment(draft: Draft) {
   const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);
   const discount = parseMoneyToCents(draft.discountAmount) ?? 0n;
   const net = total > discount ? total - discount : 0n;
-  const count = BigInt(draft.installmentCount ?? 1);
+  const count = BigInt(draft.installmentCount && draft.installmentCount >= 1 && draft.installmentCount <= 12 ? draft.installmentCount : 1);
   const monthly = net / count;
   return { monthly: centsToMoneyString(monthly) };
 }

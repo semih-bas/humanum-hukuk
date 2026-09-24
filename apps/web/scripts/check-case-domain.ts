@@ -143,14 +143,14 @@ try {
         updatedById: user.id,
       },
     })),
-    expectDatabaseRejection("unsupported installment count", () => prisma.caseFile.create({
+    expectDatabaseRejection("installment count above twelve", () => prisma.caseFile.create({
       data: {
         referenceNumber: `${testPrefix}-INSTALLMENT`,
         licenseHolder: "Test",
         vehiclePlate: "34 TEST 003",
         accidentDate: new Date("2026-01-15T00:00:00.000Z"),
         debtorType: "INDIVIDUAL",
-        installmentCount: 2,
+        installmentCount: 13,
         createdById: user.id,
         updatedById: user.id,
       },
@@ -172,7 +172,10 @@ try {
 
   const independentInstallments = await prisma.$transaction(async (transaction) => {
     const values = [
+      { count: 1, status: "INSTALLMENT" as const },
+      { count: 2, status: "INSTALLMENT" as const },
       { count: 6, status: "ENFORCEMENT" as const },
+      { count: 11, status: "OPEN" as const },
       { count: 12, status: "OPEN" as const },
       { count: null, status: "INSTALLMENT" as const },
     ];

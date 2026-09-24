@@ -99,15 +99,22 @@ test("icra dairesi ve dosya numarası birlikte girilir", () => {
   assert.ok(result.error.flatten().fieldErrors.enforcementFileNumber?.length);
 });
 
-test("taksit sayısı dosya durumundan bağımsız olarak 3, 4, 6, 9 veya 12 olabilir", () => {
-  for (const installmentCount of [3, 4, 6, 9, 12] as const) {
+test("taksit sayısı dosya durumundan bağımsız olarak 1 ile 12 arasında olabilir", () => {
+  for (const installmentCount of Array.from({ length: 12 }, (_, index) => index + 1)) {
     assert.equal(createCaseSchema.safeParse({ ...validCase, status: "OPEN", installmentCount }).success, true);
     assert.equal(createCaseSchema.safeParse({ ...validCase, status: "ENFORCEMENT", installmentCount }).success, true);
   }
-  for (const installmentCount of [2, 5, 7, 8, 10, 11] as const) {
+  for (const installmentCount of [0, 13, 1.5]) {
     assert.equal(createCaseSchema.safeParse({ ...validCase, installmentCount }).success, false);
   }
   assert.equal(createCaseSchema.safeParse({ ...validCase, status: "INSTALLMENT", installmentCount: null }).success, true);
+});
+
+test("birden fazla borçluyu kabul eder, boş ve yinelenen borçluyu reddeder", () => {
+  const debtors = [{ type: "INSURANCE_COMPANY", name: "Örnek Sigorta A.Ş." }, { type: "INDIVIDUAL", name: "Ahmet Yılmaz" }] as const;
+  assert.equal(createCaseSchema.safeParse({ ...validCase, debtors }).success, true);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, debtorName: null, debtors: [] }).success, false);
+  assert.equal(createCaseSchema.safeParse({ ...validCase, debtors: [debtors[0], debtors[0]] }).success, false);
 });
 
 test("gelecek kaza tarihini ve kontrol karakterlerini reddeder", () => {

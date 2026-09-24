@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import AppShell from "@/components/app-shell/AppShell";
 import DeleteCaseButton from "@/components/case-deletion/DeleteCaseButton";
 import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, type CaseStatus } from "@/lib/case-presentation";
+import { debtorTypeLabel, type CaseDebtor } from "@/lib/cases/case-debtors";
 import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
 
@@ -17,6 +19,7 @@ type CaseRecord = {
   vehiclePlate: string;
   accidentDate: string;
   debtorName: string | null;
+  debtors: CaseDebtor[];
   enforcementOffice: string | null;
   enforcementFileNumber: string | null;
   status: CaseStatus;
@@ -87,6 +90,7 @@ export default function FilesClient() {
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, pageCount: 1, totalCount: 0 });
   const [summary, setSummary] = useState<CaseSummary>({ total: 0, open: 0, enforcement: 0, installment: 0, pending: 0, closed: 0 });
   const [detailRequest, setDetailRequest] = useState<{ id: string; mode: "view" } | null>(linkedCaseId ? { id: linkedCaseId, mode: "view" } : null);
+  const [debtorPreview, setDebtorPreview] = useState<{ referenceNumber: string; debtors: CaseDebtor[] } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState(createdReference
     ? `${createdReference} numaralı dosya başarıyla oluşturuldu.${documentFailed ? " Seçilen evrak yüklenemedi; dosya ayrıntısından tekrar ekleyebilirsiniz." : ""}`
@@ -233,7 +237,7 @@ export default function FilesClient() {
                   <td><strong>{record.licenseHolder}</strong><small>{record.referenceNumber}{record.version > 1 ? " · Düzenlendi" : ""}</small></td>
                   <td>{record.vehiclePlate}</td>
                   <td>{formatDate(record.accidentDate)}</td>
-                  <td>{record.debtorName ?? "—"}</td>
+                  <td><div className={styles.debtorCell}>{record.debtors.length ? record.debtors.slice(0, 2).map((debtor, index) => <span key={`${debtor.type}-${debtor.name}-${index}`}><b>{debtorTypeLabel(debtor.type)}</b>{debtor.name}</span>) : <span>—</span>}{record.debtors.length > 2 && <button type="button" onClick={() => setDebtorPreview({ referenceNumber: record.referenceNumber, debtors: record.debtors })}>+{record.debtors.length - 2}</button>}</div></td>
                   <td><span>{record.enforcementOffice ?? "—"}</span><small>{record.enforcementFileNumber ?? "Dosya numarası yok"}</small></td>
                   <td><span className={`${styles.status} ${styles[`status${statusLabel.replaceAll(" ", "")}`]}`}>{statusLabel}</span></td>
                   <td><div className={styles.rowActions}>
@@ -270,7 +274,18 @@ export default function FilesClient() {
       onClose={() => setDetailRequest(null)}
       onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
     />}
+    {debtorPreview && <DebtorListModal referenceNumber={debtorPreview.referenceNumber} debtors={debtorPreview.debtors} onClose={() => setDebtorPreview(null)} />}
   </AppShell>;
+}
+
+function DebtorListModal({ referenceNumber, debtors, onClose }: { referenceNumber: string; debtors: CaseDebtor[]; onClose: () => void }) {
+  return createPortal(<div className={styles.debtorModalBackdrop} role="presentation" onMouseDown={onClose}>
+    <section className={styles.debtorModal} role="dialog" aria-modal="true" aria-labelledby="debtor-list-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div><span>{referenceNumber}</span><h2 id="debtor-list-title">Borçlular ({debtors.length})</h2></div><button type="button" aria-label="Pencereyi kapat" onClick={onClose}>×</button></header>
+      <div className={styles.debtorModalList}>{debtors.map((debtor, index) => <div key={`${debtor.type}-${debtor.name}-${index}`}><b>{debtorTypeLabel(debtor.type)}</b><span>{debtor.name}</span></div>)}</div>
+      <footer><button type="button" onClick={onClose}>Kapat</button></footer>
+    </section>
+  </div>, document.body);
 }
 
 function getVisiblePages(currentPage: number, pageCount: number): number[] {
