@@ -237,6 +237,8 @@ model CaseFile {
   damageAmount          Decimal           @default(0) @db.Decimal(18, 2)
   depreciationAmount    Decimal           @default(0) @db.Decimal(18, 2)
   profitLossAmount      Decimal           @default(0) @db.Decimal(18, 2)
+  preEnforcementInterestAmount  Decimal   @default(0) @db.Decimal(18, 2)
+  postEnforcementInterestAmount Decimal   @default(0) @db.Decimal(18, 2)
   hasDamageClaim        Boolean           @default(false)
   hasDepreciationClaim  Boolean           @default(false)
   hasProfitLossClaim    Boolean           @default(false)

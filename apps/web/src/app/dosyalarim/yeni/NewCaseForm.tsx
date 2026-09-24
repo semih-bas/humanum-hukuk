@@ -22,7 +22,8 @@ export type ExistingEnforcementCase = {
   debtorType: "INSURANCE_COMPANY" | "INDIVIDUAL" | "COMPANY"; debtorName: string | null;
   debtors: CaseDebtor[];
   hasDamageClaim: boolean; hasDepreciationClaim: boolean; hasProfitLossClaim: boolean; judgmentStatus: "WITHOUT_JUDGMENT" | "WITH_JUDGMENT";
-  damageAmount: string; depreciationAmount: string; profitLossDays: number | null; dailyRentalAmount: string | null; discountAmount: string;
+  damageAmount: string; depreciationAmount: string; profitLossDays: number | null; dailyRentalAmount: string | null;
+  preEnforcementInterestAmount: string; postEnforcementInterestAmount: string; discountAmount: string;
   enforcementOffice: string | null; enforcementFileNumber: string | null; vehicleLien: boolean; bankLien: boolean; titleDeedLien: boolean; salaryLien: boolean;
   installmentCount: number | null; status: CaseStatus;
   notes: Array<{ id: string; content: string; createdAt: string; author: { name: string } }>;
@@ -97,6 +98,8 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   const [depreciation, setDepreciation] = useState(() => inputMoney(initialData?.depreciationAmount));
   const [profitLossDays, setProfitLossDays] = useState(initialData?.profitLossDays ? String(initialData.profitLossDays) : "");
   const [dailyRental, setDailyRental] = useState(() => inputMoney(initialData?.dailyRentalAmount));
+  const [preEnforcementInterest, setPreEnforcementInterest] = useState(() => inputMoney(initialData?.preEnforcementInterestAmount));
+  const [postEnforcementInterest, setPostEnforcementInterest] = useState(() => inputMoney(initialData?.postEnforcementInterestAmount));
   const [discount, setDiscount] = useState(() => inputMoney(initialData?.discountAmount));
   const [enforcementOffice, setEnforcementOffice] = useState(initialData?.enforcementOffice ?? "");
   const [enforcementFileNumber, setEnforcementFileNumber] = useState(initialData?.enforcementFileNumber ?? "");
@@ -121,7 +124,8 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     : "";
 
   const financials = useMemo(() => {
-    const total = toCents(damage) + toCents(depreciation) + toCents(profitLoss);
+    const total = toCents(damage) + toCents(depreciation) + toCents(profitLoss)
+      + toCents(preEnforcementInterest) + toCents(postEnforcementInterest);
     const net = total > toCents(discount) ? total - toCents(discount) : 0n;
     const validInstallmentCount = parseInstallmentCount(installmentCount);
     const divisor = BigInt(validInstallmentCount ?? 1);
@@ -134,7 +138,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
       monthly: centsToInput(monthly),
       final: centsToInput(monthly + remainder),
     };
-  }, [damage, depreciation, profitLoss, discount, installmentEnabled, installmentCount]);
+  }, [damage, depreciation, profitLoss, preEnforcementInterest, postEnforcementInterest, discount, installmentEnabled, installmentCount]);
 
   const hasUnsavedGeneralChanges = Boolean(caseId && initialData && (
     licenseHolder !== initialData.licenseHolder || vehiclePlate !== initialData.vehiclePlate || accidentDate !== initialData.accidentDate ||
@@ -142,7 +146,9 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     hasDepreciationClaim !== initialData.hasDepreciationClaim || hasProfitLossClaim !== initialData.hasProfitLossClaim || judgmentStatus !== initialData.judgmentStatus ||
     !sameMoney(damage, initialData.damageAmount) || !sameMoney(depreciation, initialData.depreciationAmount) ||
     (hasProfitLossClaim ? Number(profitLossDays) : null) !== initialData.profitLossDays ||
-    (hasProfitLossClaim ? !sameMoney(dailyRental, initialData.dailyRentalAmount) : initialData.dailyRentalAmount !== null) || !sameMoney(discount, initialData.discountAmount) ||
+    (hasProfitLossClaim ? !sameMoney(dailyRental, initialData.dailyRentalAmount) : initialData.dailyRentalAmount !== null) ||
+    !sameMoney(preEnforcementInterest, initialData.preEnforcementInterestAmount) || !sameMoney(postEnforcementInterest, initialData.postEnforcementInterestAmount) ||
+    !sameMoney(discount, initialData.discountAmount) ||
     enforcementOffice !== (initialData.enforcementOffice ?? "") || enforcementFileNumber !== (initialData.enforcementFileNumber ?? "") ||
     vehicleLien !== initialData.vehicleLien || bankLien !== initialData.bankLien || titleDeedLien !== initialData.titleDeedLien || salaryLien !== initialData.salaryLien ||
     (installmentEnabled ? Number(installmentCount) : null) !== initialData.installmentCount || status !== initialData.status
@@ -236,6 +242,8 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
           profitLossAmount: normalizeMoney(profitLoss),
           profitLossDays: hasProfitLossClaim ? Number(profitLossDays) : null,
           dailyRentalAmount: hasProfitLossClaim ? normalizeMoney(dailyRental) : null,
+          preEnforcementInterestAmount: normalizeMoney(preEnforcementInterest),
+          postEnforcementInterestAmount: normalizeMoney(postEnforcementInterest),
           discountAmount: normalizeMoney(discount),
           enforcementOffice: enforcementOffice || null,
           enforcementFileNumber: enforcementFileNumber || null,
@@ -355,22 +363,28 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
       <section className={styles.sectionCard}>
         <h2><span>3</span>Tutar ve Finansal Bilgiler</h2>
         <div className={styles.financialGrid}>
-          <AmountInput label="Hesaplanan Hasar Bedeli Tutarı" value={hasDamageClaim ? damage : ""} onChange={setDamage} readOnly={!hasDamageClaim} error={fieldErrors.damageAmount?.[0]} />
-          <AmountInput label="Hesaplanan Değer Kaybı Tutarı" value={hasDepreciationClaim ? depreciation : ""} onChange={setDepreciation} readOnly={!hasDepreciationClaim} error={fieldErrors.depreciationAmount?.[0]} />
-          <div className={styles.profitLossBlock}>
-            <span>Hesaplanan Kazanç Kaybı Tutarı</span>
-            <div className={styles.profitFormula}>
-              <label className={styles.compactNumber}><span>Gün</span><input disabled={!hasProfitLossClaim} type="number" min="1" max="36500" value={profitLossDays} onChange={(event) => setProfitLossDays(event.target.value.replace(/\D/g, ""))} placeholder="0" /></label>
-              <b>×</b>
-              <AmountInput label="Günlük Kira Bedeli" value={hasProfitLossClaim ? dailyRental : ""} onChange={setDailyRental} readOnly={!hasProfitLossClaim} error={fieldErrors.dailyRentalAmount?.[0]} />
-              <b>=</b>
-              <AmountInput label="Toplam Kazanç Kaybı" value={profitLoss} readOnly error={fieldErrors.profitLossAmount?.[0]} />
+          <div className={styles.financialTopRow}>
+            <AmountInput label="Hesaplanan Hasar Bedeli Tutarı" value={hasDamageClaim ? damage : ""} onChange={setDamage} readOnly={!hasDamageClaim} error={fieldErrors.damageAmount?.[0]} />
+            <AmountInput label="Hesaplanan Değer Kaybı Tutarı" value={hasDepreciationClaim ? depreciation : ""} onChange={setDepreciation} readOnly={!hasDepreciationClaim} error={fieldErrors.depreciationAmount?.[0]} />
+            <div className={styles.profitLossBlock}>
+              <span>Hesaplanan Kazanç Kaybı Tutarı</span>
+              <div className={styles.profitFormula}>
+                <label className={styles.compactNumber}><span>Gün</span><input disabled={!hasProfitLossClaim} type="number" min="1" max="36500" value={profitLossDays} onChange={(event) => setProfitLossDays(event.target.value.replace(/\D/g, ""))} placeholder="0" /></label>
+                <b>×</b>
+                <AmountInput label="Günlük Kira Bedeli" value={hasProfitLossClaim ? dailyRental : ""} onChange={setDailyRental} readOnly={!hasProfitLossClaim} error={fieldErrors.dailyRentalAmount?.[0]} />
+                <b>=</b>
+                <AmountInput label="Toplam Kazanç Kaybı" value={profitLoss} readOnly error={fieldErrors.profitLossAmount?.[0]} />
+              </div>
+              <FieldError errors={fieldErrors} name="profitLossDays" />
             </div>
-            <FieldError errors={fieldErrors} name="profitLossDays" />
           </div>
-          <AmountInput label="Talep Edilen Toplam Tutar" value={financials.total} readOnly />
-          <AmountInput label="İndirim Tutarı" value={discount} onChange={setDiscount} error={fieldErrors.discountAmount?.[0]} />
-          <AmountInput label="Net Talep Tutarı" value={financials.net} readOnly />
+          <div className={styles.financialBottomRow}>
+            <AmountInput label="Talep Edilen Toplam Tutar" value={financials.total} readOnly />
+            <AmountInput label="İcra Öncesi İşlemiş Faiz" value={preEnforcementInterest} onChange={setPreEnforcementInterest} error={fieldErrors.preEnforcementInterestAmount?.[0]} />
+            <AmountInput label="İcra Sonrası İşlemiş Faiz" value={postEnforcementInterest} onChange={setPostEnforcementInterest} error={fieldErrors.postEnforcementInterestAmount?.[0]} />
+            <AmountInput label="İndirim Tutarı" value={discount} onChange={setDiscount} error={fieldErrors.discountAmount?.[0]} />
+            <AmountInput label="Net Talep Tutarı" value={financials.net} readOnly />
+          </div>
         </div>
       </section>
 

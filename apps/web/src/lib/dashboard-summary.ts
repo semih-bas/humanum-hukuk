@@ -7,6 +7,8 @@ type AmountAggregate = {
     damageAmount: Prisma.Decimal | null;
     depreciationAmount: Prisma.Decimal | null;
     profitLossAmount: Prisma.Decimal | null;
+    preEnforcementInterestAmount: Prisma.Decimal | null;
+    postEnforcementInterestAmount: Prisma.Decimal | null;
     discountAmount: Prisma.Decimal | null;
   };
 };
@@ -50,6 +52,8 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
           damageAmount: true,
           depreciationAmount: true,
           profitLossAmount: true,
+          preEnforcementInterestAmount: true,
+          postEnforcementInterestAmount: true,
           discountAmount: true,
         },
       }),
@@ -59,6 +63,8 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
           damageAmount: true,
           depreciationAmount: true,
           profitLossAmount: true,
+          preEnforcementInterestAmount: true,
+          postEnforcementInterestAmount: true,
           discountAmount: true,
         },
       }),
@@ -119,6 +125,8 @@ function calculateNetAmount(aggregate: AmountAggregate): Prisma.Decimal {
   return new Prisma.Decimal(aggregate._sum.damageAmount ?? 0)
     .add(aggregate._sum.depreciationAmount ?? 0)
     .add(aggregate._sum.profitLossAmount ?? 0)
+    .add(aggregate._sum.preEnforcementInterestAmount ?? 0)
+    .add(aggregate._sum.postEnforcementInterestAmount ?? 0)
     .sub(aggregate._sum.discountAmount ?? 0);
 }
 

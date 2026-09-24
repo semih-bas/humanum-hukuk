@@ -86,6 +86,8 @@ const rawCaseCoreSchema = z.object({
   damageAmount: money,
   depreciationAmount: money,
   profitLossAmount: money,
+  preEnforcementInterestAmount: money,
+  postEnforcementInterestAmount: money,
   discountAmount: money,
   enforcementOffice: optionalText("İcra dairesi", ENFORCEMENT_OFFICE_MAX_LENGTH),
   enforcementFileNumber: optionalText("İcra dosya numarası", ENFORCEMENT_FILE_NUMBER_MAX_LENGTH),
@@ -153,12 +155,18 @@ function validateCaseRules(value: CaseCoreInput, context: z.RefinementCtx) {
     !Prisma.Decimal.isDecimal(value.damageAmount)
     || !Prisma.Decimal.isDecimal(value.depreciationAmount)
     || !Prisma.Decimal.isDecimal(value.profitLossAmount)
+    || !Prisma.Decimal.isDecimal(value.preEnforcementInterestAmount)
+    || !Prisma.Decimal.isDecimal(value.postEnforcementInterestAmount)
     || !Prisma.Decimal.isDecimal(value.discountAmount)
   ) {
     return;
   }
 
-  const total = value.damageAmount.add(value.depreciationAmount).add(value.profitLossAmount);
+  const total = value.damageAmount
+    .add(value.depreciationAmount)
+    .add(value.profitLossAmount)
+    .add(value.preEnforcementInterestAmount)
+    .add(value.postEnforcementInterestAmount);
 
   if (total.gt(MAX_MONEY)) {
     context.addIssue({
@@ -260,7 +268,11 @@ export function normalizeCreateCaseInput(input: CreateCaseInput): CreateCaseInpu
 }
 
 export function calculateCaseFinancials(input: CaseCoreInput): CaseFinancialSummary {
-  const totalClaimAmount = input.damageAmount.add(input.depreciationAmount).add(input.profitLossAmount);
+  const totalClaimAmount = input.damageAmount
+    .add(input.depreciationAmount)
+    .add(input.profitLossAmount)
+    .add(input.preEnforcementInterestAmount)
+    .add(input.postEnforcementInterestAmount);
   const netClaimAmount = totalClaimAmount.sub(input.discountAmount);
   const installmentCents = input.installmentCount ? BigInt(netClaimAmount.toFixed(2).replace(".", "")) : 0n;
   const monthlyCents = input.installmentCount ? installmentCents / BigInt(input.installmentCount) : 0n;

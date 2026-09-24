@@ -23,6 +23,8 @@ type CaseDetail = {
   damageAmount: string;
   depreciationAmount: string;
   profitLossAmount: string;
+  preEnforcementInterestAmount: string;
+  postEnforcementInterestAmount: string;
   hasDamageClaim: boolean;
   hasDepreciationClaim: boolean;
   hasProfitLossClaim: boolean;
@@ -55,7 +57,7 @@ type CaseDetail = {
 
 type Draft = Pick<CaseDetail,
   "licenseHolder" | "vehiclePlate" | "accidentDate" | "debtorType" | "debtorName" | "debtors" |
-  "damageAmount" | "depreciationAmount" | "profitLossAmount" | "discountAmount" |
+  "damageAmount" | "depreciationAmount" | "profitLossAmount" | "preEnforcementInterestAmount" | "postEnforcementInterestAmount" | "discountAmount" |
   "hasDamageClaim" | "hasDepreciationClaim" | "hasProfitLossClaim" | "profitLossDays" |
   "dailyRentalAmount" | "judgmentStatus" |
   "enforcementOffice" | "enforcementFileNumber" | "vehicleLien" | "bankLien" |
@@ -66,7 +68,8 @@ const fieldLabels: Record<string, string> = {
   referenceNumber: "Dosya numarası",
   licenseHolder: "Ruhsat sahibi", vehiclePlate: "Araç plakası", accidentDate: "Kaza tarihi",
   debtorType: "Borçlu türü", debtorName: "Borçlu taraf", debtors: "Borçlular", damageAmount: "Hasar bedeli",
-  depreciationAmount: "Değer kaybı", profitLossAmount: "Kazanç kaybı", discountAmount: "İndirim",
+  depreciationAmount: "Değer kaybı", profitLossAmount: "Kazanç kaybı", preEnforcementInterestAmount: "İcra öncesi işlemiş faiz",
+  postEnforcementInterestAmount: "İcra sonrası işlemiş faiz", discountAmount: "İndirim",
   hasDamageClaim: "Hasar bedeli dosya türü", hasDepreciationClaim: "Değer kaybı dosya türü",
   hasProfitLossClaim: "Kazanç kaybı dosya türü", profitLossDays: "Kazanç kaybı gün sayısı",
   dailyRentalAmount: "Günlük kira bedeli", judgmentStatus: "İlam durumu",
@@ -164,6 +167,8 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           damageAmount: normalizeMoney(draft.damageAmount),
           depreciationAmount: normalizeMoney(draft.depreciationAmount),
           profitLossAmount: normalizeMoney(draft.profitLossAmount),
+          preEnforcementInterestAmount: normalizeMoney(draft.preEnforcementInterestAmount),
+          postEnforcementInterestAmount: normalizeMoney(draft.postEnforcementInterestAmount),
           dailyRentalAmount: draft.dailyRentalAmount ? normalizeMoney(draft.dailyRentalAmount) : null,
           discountAmount: normalizeMoney(draft.discountAmount),
           installmentCount: draft.installmentCount,
@@ -307,6 +312,8 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
           <label><span>Kazanç Kaybı Gün Sayısı</span><input readOnly={!draft.hasProfitLossClaim} type="number" min="1" max="36500" value={draft.profitLossDays ?? ""} onChange={(event) => setDraft((current) => current ? withProfitLoss(current, event.target.value ? Number(event.target.value) : null, current.dailyRentalAmount) : current)} />{fieldErrors.profitLossDays?.[0] && <small>{fieldErrors.profitLossDays[0]}</small>}</label>
           <MoneyField label="Günlük Kira Bedeli" readOnly={!draft.hasProfitLossClaim} value={draft.dailyRentalAmount ?? ""} error={fieldErrors.dailyRentalAmount?.[0]} onChange={(value) => setDraft((current) => current ? withProfitLoss(current, current.profitLossDays, value) : current)} />
           <MoneyField label="Toplam Kazanç Kaybı" readOnly value={draft.hasProfitLossClaim ? draft.profitLossAmount : ""} error={fieldErrors.profitLossAmount?.[0]} onChange={() => undefined} />
+          <MoneyField label="İcra Öncesi İşlemiş Faiz" value={draft.preEnforcementInterestAmount} error={fieldErrors.preEnforcementInterestAmount?.[0]} onChange={(value) => update("preEnforcementInterestAmount", value)} />
+          <MoneyField label="İcra Sonrası İşlemiş Faiz" value={draft.postEnforcementInterestAmount} error={fieldErrors.postEnforcementInterestAmount?.[0]} onChange={(value) => update("postEnforcementInterestAmount", value)} />
           <MoneyField label="İndirim" value={draft.discountAmount} error={fieldErrors.discountAmount?.[0]} onChange={(value) => update("discountAmount", value)} />
           <TextField label="İcra Dairesi" maxLength={150} value={draft.enforcementOffice ?? ""} error={fieldErrors.enforcementOffice?.[0]} onChange={(value) => update("enforcementOffice", value)} />
           <TextField label="İcra Dosya No" maxLength={50} value={draft.enforcementFileNumber ?? ""} error={fieldErrors.enforcementFileNumber?.[0]} onChange={(value) => update("enforcementFileNumber", value)} />
@@ -384,6 +391,8 @@ export default function CaseDetailModal({ caseId, initialMode, onClose, onSaved 
               <Detail label="Hasar Bedeli" value={`${formatMoney(detail.damageAmount)} TL`} />
               <Detail label="Değer Kaybı" value={`${formatMoney(detail.depreciationAmount)} TL`} />
               <Detail label="Kazanç Kaybı" value={profitLossText(detail)} />
+              <Detail label="İcra Öncesi İşlemiş Faiz" value={`${formatMoney(detail.preEnforcementInterestAmount)} TL`} />
+              <Detail label="İcra Sonrası İşlemiş Faiz" value={`${formatMoney(detail.postEnforcementInterestAmount)} TL`} />
               <Detail label="Toplam Talep" value={`${formatMoney(detail.totalClaimAmount)} TL`} />
               <Detail label="İndirim" value={`${formatMoney(detail.discountAmount)} TL`} />
               <Detail label="Net Talep" value={`${formatMoney(detail.netClaimAmount)} TL`} emphasis />
@@ -436,11 +445,11 @@ function Detail({ label, value, emphasis = false }: { label: string; value: stri
 function claimTypeText(detail: CaseDetail) { return [detail.hasDamageClaim && "Hasar Bedeli", detail.hasDepreciationClaim && "Değer Kaybı", detail.hasProfitLossClaim && "Kazanç Kaybı"].filter(Boolean).join(", ") || "—"; }
 function profitLossText(detail: CaseDetail) { const amount = `${formatMoney(detail.profitLossAmount)} TL`; return detail.hasProfitLossClaim && detail.profitLossDays && detail.dailyRentalAmount ? `${detail.profitLossDays} gün × ${formatMoney(detail.dailyRentalAmount)} TL = ${amount}` : amount; }
 function installmentText(detail: CaseDetail) { if (!detail.installmentCount) return "Taksit yok"; const monthly = `${formatMoney(detail.monthlyInstallmentAmount ?? "0")} TL/ay`; const final = detail.finalInstallmentAmount && detail.finalInstallmentAmount !== detail.monthlyInstallmentAmount ? ` · Son taksit ${formatMoney(detail.finalInstallmentAmount)} TL` : ""; return `${detail.installmentCount} ay · ${monthly}${final}`; }
-function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, debtors: detail.debtors, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), hasDamageClaim: detail.hasDamageClaim, hasDepreciationClaim: detail.hasDepreciationClaim, hasProfitLossClaim: detail.hasProfitLossClaim, profitLossDays: detail.profitLossDays, dailyRentalAmount: detail.dailyRentalAmount ? formatMoney(detail.dailyRentalAmount) : null, judgmentStatus: detail.judgmentStatus, discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, salaryLien: detail.salaryLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
+function toDraft(detail: CaseDetail): Draft { return { licenseHolder: detail.licenseHolder, vehiclePlate: detail.vehiclePlate, accidentDate: detail.accidentDate, debtorType: detail.debtorType, debtorName: detail.debtorName, debtors: detail.debtors, damageAmount: formatMoney(detail.damageAmount), depreciationAmount: formatMoney(detail.depreciationAmount), profitLossAmount: formatMoney(detail.profitLossAmount), preEnforcementInterestAmount: formatMoney(detail.preEnforcementInterestAmount), postEnforcementInterestAmount: formatMoney(detail.postEnforcementInterestAmount), hasDamageClaim: detail.hasDamageClaim, hasDepreciationClaim: detail.hasDepreciationClaim, hasProfitLossClaim: detail.hasProfitLossClaim, profitLossDays: detail.profitLossDays, dailyRentalAmount: detail.dailyRentalAmount ? formatMoney(detail.dailyRentalAmount) : null, judgmentStatus: detail.judgmentStatus, discountAmount: formatMoney(detail.discountAmount), enforcementOffice: detail.enforcementOffice, enforcementFileNumber: detail.enforcementFileNumber, vehicleLien: detail.vehicleLien, bankLien: detail.bankLien, titleDeedLien: detail.titleDeedLien, salaryLien: detail.salaryLien, installmentCount: detail.installmentCount, status: detail.status, version: detail.version }; }
 function withProfitLoss(draft: Draft, days: number | null, dailyRentalAmount: string | null): Draft { const dailyCents = parseMoneyToCents(dailyRentalAmount ?? "") ?? 0n; const total = days ? dailyCents * BigInt(days) : 0n; return { ...draft, profitLossDays: days, dailyRentalAmount, profitLossAmount: centsToMoneyString(total) }; }
 function normalizeMoney(value: string) { return value.trim() || "0"; }
 function calculateDraftInstallment(draft: Draft) {
-  const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);
+  const total = [draft.damageAmount, draft.depreciationAmount, draft.profitLossAmount, draft.preEnforcementInterestAmount, draft.postEnforcementInterestAmount].reduce((sum, value) => sum + (parseMoneyToCents(value) ?? 0n), 0n);
   const discount = parseMoneyToCents(draft.discountAmount) ?? 0n;
   const net = total > discount ? total - discount : 0n;
   const count = BigInt(draft.installmentCount && draft.installmentCount >= 1 && draft.installmentCount <= 12 ? draft.installmentCount : 1);

@@ -17,6 +17,8 @@ const validPayload = {
   damageAmount: "1000.00",
   depreciationAmount: "500.00",
   profitLossAmount: "250.00",
+  preEnforcementInterestAmount: "100.00",
+  postEnforcementInterestAmount: "50.00",
   discountAmount: "250.00",
   enforcementOffice: "İstanbul 12. İcra Dairesi",
   enforcementFileNumber: `2026/${Date.now()}`,
@@ -47,16 +49,16 @@ try {
   const financials = calculateCaseFinancials(parsed);
 
   if (
-    financials.totalClaimAmount.toFixed(2) !== "1750.00"
-    || financials.netClaimAmount.toFixed(2) !== "1500.00"
-    || financials.monthlyInstallmentAmount?.toFixed(2) !== "500.00"
+    financials.totalClaimAmount.toFixed(2) !== "1900.00"
+    || financials.netClaimAmount.toFixed(2) !== "1650.00"
+    || financials.monthlyInstallmentAmount?.toFixed(2) !== "550.00"
   ) {
     throw new Error("Server-side financial calculations are incorrect.");
   }
 
   const rejectedInputs = await Promise.all([
     expectRejectedValidation("negative amount", { ...validPayload, damageAmount: "-1" }),
-    expectRejectedValidation("discount above total", { ...validPayload, discountAmount: "1750.01" }),
+    expectRejectedValidation("discount above total", { ...validPayload, discountAmount: "1900.01" }),
     expectRejectedValidation("claim total above database limit", {
       ...validPayload,
       damageAmount: "9999999999999999.99",

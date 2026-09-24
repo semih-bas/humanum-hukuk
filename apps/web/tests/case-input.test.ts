@@ -13,6 +13,8 @@ const validCase = {
   damageAmount: "1000.00",
   depreciationAmount: "250.00",
   profitLossAmount: "50.00",
+  preEnforcementInterestAmount: "20.00",
+  postEnforcementInterestAmount: "30.00",
   hasDamageClaim: true,
   hasDepreciationClaim: true,
   hasProfitLossClaim: true,
@@ -37,8 +39,8 @@ test("geçerli dosya verisini kabul eder ve finansal değerleri sunucuda hesapla
   assert.equal(result.success, true);
   if (!result.success) return;
   const financials = calculateCaseFinancials(result.data);
-  assert.equal(financials.totalClaimAmount.toFixed(2), "1300.00");
-  assert.equal(financials.netClaimAmount.toFixed(2), "1200.00");
+  assert.equal(financials.totalClaimAmount.toFixed(2), "1350.00");
+  assert.equal(financials.netClaimAmount.toFixed(2), "1250.00");
   assert.equal(financials.monthlyInstallmentAmount, null);
 });
 
@@ -57,7 +59,7 @@ test("hatırlatmalar yalnızca e-posta kanalıyla oluşturulur", () => {
 });
 
 test("indirim toplam talep tutarını aşamaz", () => {
-  const result = createCaseSchema.safeParse({ ...validCase, discountAmount: "1300.01" });
+  const result = createCaseSchema.safeParse({ ...validCase, discountAmount: "1350.01" });
   assert.equal(result.success, false);
   if (result.success) return;
   assert.ok(result.error.flatten().fieldErrors.discountAmount?.length);
@@ -197,14 +199,14 @@ test("tarih yılı dört haneyi ve saat geçerli aralıkları aşmaz", () => {
 });
 
 test("taksit hesabı bölünmeyen kuruşu son taksite ekler", () => {
-  const result = createCaseSchema.safeParse({ ...validCase, status: "OPEN", installmentCount: 6 });
+  const result = createCaseSchema.safeParse({ ...validCase, preEnforcementInterestAmount: "0", postEnforcementInterestAmount: "0", status: "OPEN", installmentCount: 6 });
   assert.equal(result.success, true);
   if (!result.success) return;
   const financials = calculateCaseFinancials(result.data);
   assert.equal(financials.monthlyInstallmentAmount?.toFixed(2), "200.00");
   assert.equal(financials.finalInstallmentAmount?.toFixed(2), "200.00");
 
-  const uneven = createCaseSchema.safeParse({ ...validCase, damageAmount: "1000.01", depreciationAmount: "0", profitLossAmount: "0", discountAmount: "0", hasDepreciationClaim: false, hasProfitLossClaim: false, profitLossDays: null, dailyRentalAmount: null, installmentCount: 6 });
+  const uneven = createCaseSchema.safeParse({ ...validCase, damageAmount: "1000.01", depreciationAmount: "0", profitLossAmount: "0", preEnforcementInterestAmount: "0", postEnforcementInterestAmount: "0", discountAmount: "0", hasDepreciationClaim: false, hasProfitLossClaim: false, profitLossDays: null, dailyRentalAmount: null, installmentCount: 6 });
   assert.equal(uneven.success, true);
   if (uneven.success) {
     const unevenFinancials = calculateCaseFinancials(uneven.data);

@@ -18,6 +18,8 @@ export async function getCaseFile(id: string) {
       damageAmount: true,
       depreciationAmount: true,
       profitLossAmount: true,
+      preEnforcementInterestAmount: true,
+      postEnforcementInterestAmount: true,
       hasDamageClaim: true,
       hasDepreciationClaim: true,
       hasProfitLossClaim: true,
@@ -72,7 +74,11 @@ export async function getCaseFile(id: string) {
     return null;
   }
 
-  const totalClaimAmount = record.damageAmount.add(record.depreciationAmount).add(record.profitLossAmount);
+  const totalClaimAmount = record.damageAmount
+    .add(record.depreciationAmount)
+    .add(record.profitLossAmount)
+    .add(record.preEnforcementInterestAmount)
+    .add(record.postEnforcementInterestAmount);
   const netClaimAmount = totalClaimAmount.sub(record.discountAmount);
   const monthlyInstallmentAmount = record.installmentCount
     ? centsToDecimal(BigInt(netClaimAmount.toFixed(2).replace(".", "")) / BigInt(record.installmentCount))
@@ -88,6 +94,8 @@ export async function getCaseFile(id: string) {
     damageAmount: record.damageAmount.toFixed(2),
     depreciationAmount: record.depreciationAmount.toFixed(2),
     profitLossAmount: record.profitLossAmount.toFixed(2),
+    preEnforcementInterestAmount: record.preEnforcementInterestAmount.toFixed(2),
+    postEnforcementInterestAmount: record.postEnforcementInterestAmount.toFixed(2),
     dailyRentalAmount: record.dailyRentalAmount?.toFixed(2) ?? null,
     discountAmount: record.discountAmount.toFixed(2),
     totalClaimAmount: totalClaimAmount.toFixed(2),
