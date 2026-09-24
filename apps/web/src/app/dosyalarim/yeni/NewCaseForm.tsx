@@ -132,9 +132,9 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
     licenseHolder !== initialData.licenseHolder || vehiclePlate !== initialData.vehiclePlate || accidentDate !== initialData.accidentDate ||
     debtorType !== initialData.debtorType || debtorName !== (initialData.debtorName ?? "") || hasDamageClaim !== initialData.hasDamageClaim ||
     hasDepreciationClaim !== initialData.hasDepreciationClaim || hasProfitLossClaim !== initialData.hasProfitLossClaim || judgmentStatus !== initialData.judgmentStatus ||
-    normalizeMoney(damage) !== initialData.damageAmount || normalizeMoney(depreciation) !== initialData.depreciationAmount ||
+    !sameMoney(damage, initialData.damageAmount) || !sameMoney(depreciation, initialData.depreciationAmount) ||
     (hasProfitLossClaim ? Number(profitLossDays) : null) !== initialData.profitLossDays ||
-    (hasProfitLossClaim ? normalizeMoney(dailyRental) : null) !== initialData.dailyRentalAmount || normalizeMoney(discount) !== initialData.discountAmount ||
+    (hasProfitLossClaim ? !sameMoney(dailyRental, initialData.dailyRentalAmount) : initialData.dailyRentalAmount !== null) || !sameMoney(discount, initialData.discountAmount) ||
     enforcementOffice !== (initialData.enforcementOffice ?? "") || enforcementFileNumber !== (initialData.enforcementFileNumber ?? "") ||
     vehicleLien !== initialData.vehicleLien || bankLien !== initialData.bankLien || titleDeedLien !== initialData.titleDeedLien || salaryLien !== initialData.salaryLien ||
     (installmentEnabled ? installmentCount : null) !== initialData.installmentCount || status !== initialData.status
@@ -365,6 +365,10 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 function normalizeMoney(value: string): string {
   return value.trim() || "0";
+}
+
+function sameMoney(input: string, persisted: string | null): boolean {
+  return (parseMoneyToCents(input) ?? 0n) === (parseMoneyToCents(persisted ?? "") ?? 0n);
 }
 
 function inputMoney(value?: string | null): string {
