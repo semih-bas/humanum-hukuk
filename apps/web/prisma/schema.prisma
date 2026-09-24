@@ -20,12 +20,16 @@ model User {
   banned                               Boolean?                       @default(false)
   banReason                            String?
   banExpires                           DateTime?
+  deletionRequestedAt                  DateTime?
+  deletionDueAt                        DateTime?
+  deletedById                          String?
   sessions                             Session[]
   accounts                             Account[]
   auditLogs                            AuditLog[]
   createdCases                         CaseFile[]                     @relation("CaseFileCreatedBy")
   updatedCases                         CaseFile[]                     @relation("CaseFileUpdatedBy")
   archivedCases                        CaseFile[]                     @relation("CaseFileArchivedBy")
+  archivedInsuranceCases               InsuranceArbitrationCase[]    @relation("InsuranceArbitrationCaseArchivedBy")
   caseChanges                          CaseFileChange[]
   caseNotes                            CaseNote[]
   caseDocuments                        CaseDocument[]
@@ -65,6 +69,7 @@ model User {
   @@unique([email])
   @@index([role])
   @@index([banned])
+  @@index([deletionDueAt])
   @@map("user")
 }
 
@@ -246,6 +251,7 @@ model CaseFile {
   updatedById           String
   archivedById          String?
   archivedAt            DateTime?
+  purgeAfter            DateTime?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   createdBy             User              @relation("CaseFileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -264,6 +270,7 @@ model CaseFile {
   @@index([debtorName])
   @@index([createdAt])
   @@index([archivedAt])
+  @@index([purgeAfter])
   @@map("case_file")
 }
 
@@ -382,10 +389,14 @@ model InsuranceArbitrationCase {
   version                    Int                            @default(1)
   createdById                String
   updatedById                String
+  archivedById               String?
+  archivedAt                 DateTime?
+  purgeAfter                 DateTime?
   createdAt                  DateTime                       @default(now())
   updatedAt                  DateTime                       @updatedAt
   createdBy                  User                           @relation("InsuranceArbitrationCaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy                  User                           @relation("InsuranceArbitrationCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy                 User?                          @relation("InsuranceArbitrationCaseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   documents                  InsuranceArbitrationDocument[]
   payments                   InsuranceArbitrationPayment[]
 
@@ -394,6 +405,8 @@ model InsuranceArbitrationCase {
   @@index([accidentDate])
   @@index([status])
   @@index([updatedAt])
+  @@index([archivedAt])
+  @@index([purgeAfter])
   @@map("insurance_arbitration_case")
 }
 
@@ -575,6 +588,7 @@ model GeneralLegalCase {
   updatedById              String
   archivedById             String?
   archivedAt               DateTime?
+  purgeAfter               DateTime?
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
   responsibleUser          User                        @relation("GeneralLegalCaseResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: Restrict)
@@ -598,6 +612,7 @@ model GeneralLegalCase {
   @@index([responsibleUserId, status])
   @@index([updatedAt])
   @@index([archivedAt])
+  @@index([purgeAfter])
   @@map("general_legal_case")
 }
 

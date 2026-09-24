@@ -76,6 +76,24 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  deletion-worker:
+    build:
+      context: ./apps/web
+      target: deletion-worker
+    restart: unless-stopped
+    env_file:
+      - path: ./apps/web/.env.production.app
+        required: true
+    volumes:
+      - humanum_documents:/var/lib/humanum/documents
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   humanum_postgres_data:
   humanum_documents:

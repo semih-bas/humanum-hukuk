@@ -10,6 +10,7 @@ type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: 
 export async function listInsuranceCases(input: InsuranceListInput) {
   const query = input.query.trim();
   const where: Prisma.InsuranceArbitrationCaseWhereInput = {
+    archivedAt: null,
     ...(query ? { OR: [{ arbitrationApplicationNo: { contains: query, mode: "insensitive" } }, { opposingPolicyNumber: { contains: query, mode: "insensitive" } }, { vehiclePlate: { contains: query, mode: "insensitive" } }, { vehicleOwner: { contains: query, mode: "insensitive" } }, { identityNumber: { contains: query, mode: "insensitive" } }, { opposingIdentityNumber: { contains: query, mode: "insensitive" } }] } : {}),
     ...(input.status === "ARBITRATION_GROUP" ? { status: { in: ["ARBITRATION_APPLICATION", "ARBITRATION", "EXPERT_REVIEW"] } } : input.status === "INSURANCE_GROUP" ? { status: { in: ["INSURANCE_APPLICATION", "SETTLEMENT_REVIEW", "INSURANCE_PAYMENT_RECEIVED"] } } : input.status === "FOLLOW_UP_GROUP" ? { status: { in: ["PAYMENT_PENDING", "ENFORCEMENT", "LITIGATION"] } } : input.status === "COMPLETED_GROUP" ? { status: { in: ["COMPLETED", "CLOSED"] } } : input.status !== "ALL" ? { status: input.status } : {}),
     ...(input.arbitration !== "ALL" ? { hasArbitration: input.arbitration === "YES" } : {}),
@@ -18,7 +19,7 @@ export async function listInsuranceCases(input: InsuranceListInput) {
   return prisma.$transaction(async (transaction) => {
     const [totalCount, statusGroups] = await Promise.all([
       transaction.insuranceArbitrationCase.count({ where }),
-      transaction.insuranceArbitrationCase.groupBy({ by: ["status"], _count: { _all: true } }),
+      transaction.insuranceArbitrationCase.groupBy({ by: ["status"], where: { archivedAt: null }, _count: { _all: true } }),
     ]);
     const pageCount = Math.max(1, Math.ceil(totalCount / input.pageSize)); const page = Math.min(input.page, pageCount);
     const records = await transaction.insuranceArbitrationCase.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], skip: (page - 1) * input.pageSize, take: input.pageSize });
@@ -47,19 +48,19 @@ export class InsuranceCaseNotFoundError extends Error {}
 export class InsuranceCaseVersionConflictError extends Error {}
 
 export async function getInsuranceCase(id: string) {
-  const record = await prisma.insuranceArbitrationCase.findUnique({ where: { id }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } } } });
+  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true } } } });
   if (!record) throw new InsuranceCaseNotFoundError();
   return presentCase(record);
 }
 
 export async function updateInsuranceCase(id: string, input: UpdateInsuranceCaseInput, actorUserId: string) {
   await prisma.$transaction(async (transaction) => {
-    const existing = await transaction.insuranceArbitrationCase.findUnique({ where: { id }, select: { id: true, referenceNumber: true, version: true } });
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { id: true, referenceNumber: true, version: true } });
     if (!existing) throw new InsuranceCaseNotFoundError();
     if (existing.version !== input.version) throw new InsuranceCaseVersionConflictError();
     const { payments, version, ...caseInput } = input;
     const updated = await transaction.insuranceArbitrationCase.updateMany({
-      where: { id, version },
+      where: { id, version, archivedAt: null },
       data: { ...caseInput, accidentDate: parseDate(input.accidentDate)!, policyExpiryDate: parseDate(input.policyExpiryDate), postalDeliveryDate: parseDate(input.postalDeliveryDate), insuranceApplicationDate: parseDate(input.insuranceApplicationDate), arbitrationApplicationDate: input.hasArbitration ? parseDate(input.arbitrationApplicationDate) : null, arbitrationApplicationNo: input.hasArbitration ? input.arbitrationApplicationNo : null, arbitrationCaseNumber: input.hasArbitration ? input.arbitrationCaseNumber : null, updatedById: actorUserId, version: { increment: 1 } },
     });
     if (updated.count !== 1) throw new InsuranceCaseVersionConflictError();

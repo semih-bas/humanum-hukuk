@@ -4,6 +4,7 @@ import { updateCaseSchema } from "@/lib/cases/create-case-input";
 import { getCaseFile } from "@/lib/cases/get-case";
 import { CaseHasNoChangesError, CaseNotFoundError, CaseVersionConflictError, updateCaseFile } from "@/lib/cases/update-case";
 import { resourceIdSchema } from "@/lib/resource-id";
+import { archiveEnforcementCase, deletionResponse, RecoverableRecordNotFoundError } from "@/lib/recoverable-deletion";
 import { NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -39,6 +40,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (error instanceof CaseNotFoundError) return jsonResponse({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı." } }, 404);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonResponse({ error: { code: "CASE_CONFLICT", message: "Aynı icra dairesi ve dosya numarasıyla kayıtlı bir dosya zaten bulunuyor." } }, 409);
     return handleError(error, "Dosya güncellenirken beklenmeyen bir hata oluştu.");
+  }
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  try {
+    assertSameOrigin(request);
+    const session = await requireApiSession(request);
+    return jsonResponse({ data: deletionResponse(await archiveEnforcementCase(await readId(context), session.user.id)) }, 200);
+  } catch (error) {
+    if (error instanceof RecoverableRecordNotFoundError) return jsonResponse({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı veya daha önce silindi." } }, 404);
+    return handleError(error, "Dosya silinirken beklenmeyen bir hata oluştu.");
   }
 }
 

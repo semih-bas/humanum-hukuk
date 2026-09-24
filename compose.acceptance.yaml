@@ -107,6 +107,24 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  deletion-worker:
+    build:
+      context: ./apps/web
+      target: deletion-worker
+    env_file:
+      - path: ./apps/web/.env.acceptance.app
+        required: true
+    volumes:
+      - humanum-acceptance-documents:/var/lib/humanum/documents
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   fixtures:
     profiles: ["tools"]
     build:

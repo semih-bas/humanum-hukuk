@@ -33,9 +33,10 @@ export async function POST(request: Request) {
 
       const target = await transaction.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, role: true, banned: true },
+        select: { id: true, name: true, role: true, banned: true, deletionRequestedAt: true },
       });
       if (!target) throw new ApiRequestError(404, "USER_NOT_FOUND", "Kullanıcı bulunamadı.");
+      if (target.deletionRequestedAt) throw new ApiRequestError(409, "USER_DELETION_PENDING", "Silinmek üzere işaretlenen kullanıcı önce geri getirilmelidir.");
 
       const activeAdminCount = action === "ban" && target.role === "admin" && !target.banned
         ? await transaction.user.count({ where: { role: "admin", banned: false } })

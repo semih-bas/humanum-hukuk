@@ -19,7 +19,7 @@ export async function storeInsuranceDocument(caseId: string, file: File, actorUs
   try {
     const document = await prisma.$transaction(async (transaction) => {
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${DOCUMENT_STORAGE_LOCK_ID})`;
-      const activeCase = await transaction.insuranceArbitrationCase.findUnique({ where: { id: caseId }, select: { id: true, referenceNumber: true } });
+      const activeCase = await transaction.insuranceArbitrationCase.findFirst({ where: { id: caseId, archivedAt: null }, select: { id: true, referenceNumber: true } });
       if (!activeCase) throw new InsuranceDocumentNotFoundError();
 
       const root = storageRoot();
@@ -54,7 +54,7 @@ export async function storeInsuranceDocument(caseId: string, file: File, actorUs
 }
 
 export async function readInsuranceDocument(caseId: string, documentId: string) {
-  const document = await prisma.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId }, select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true } });
+  const document = await prisma.insuranceArbitrationDocument.findFirst({ where: { id: documentId, caseId, case: { archivedAt: null } }, select: { originalName: true, storageKey: true, mimeType: true, sizeBytes: true, sha256: true } });
   if (!document) throw new InsuranceDocumentNotFoundError();
   try {
     const data = await readFile(/* turbopackIgnore: true */ resolveStorageKey(document.storageKey));

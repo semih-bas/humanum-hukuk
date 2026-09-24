@@ -43,6 +43,21 @@ COPY package.json tsconfig.json ./
 USER node
 CMD ["node", "--import", "tsx", "scripts/send-reminders.ts"]
 
+FROM base AS deletion-worker
+WORKDIR /app
+ENV NODE_ENV=production
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && mkdir -p /var/lib/humanum/documents \
+    && chown -R nextjs:nodejs /var/lib/humanum
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=builder /app/src/generated ./src/generated
+COPY src/lib ./src/lib
+COPY scripts/purge-deleted-records.ts scripts/restore-deleted-record.ts ./scripts/
+COPY package.json tsconfig.json ./
+USER nextjs
+CMD ["node", "--import", "tsx", "scripts/purge-deleted-records.ts"]
+
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000

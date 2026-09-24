@@ -406,6 +406,7 @@
 .memberActionsMenu { position: absolute; z-index: 6; top: 35px; right: 0; width: 174px; padding: 6px; border: 1px solid #d8e0e6; border-radius: 8px; background: #fff; box-shadow: 0 14px 34px rgb(13 34 54 / 17%); }
 .memberActionsMenu .statusButton { display: flex; width: 100%; min-height: 34px; align-items: center; grid-column: auto; margin: 0; padding: 0 9px; border-radius: 5px; background: transparent; color: #9d3e43; font-size: 9px; text-align: left; text-decoration: none; }
 .memberActionsMenu .statusButton:hover { background: #fff1f1; color: #8b3035; text-decoration: none; }
+.memberActionsMenu .reactivateButton { display: flex; width: 100%; min-height: 34px; align-items: center; padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: #277153; cursor: pointer; font-size: 9px; text-align: left; }.memberActionsMenu .reactivateButton:hover { background: #edf8f2; }
 .teamMember:nth-last-child(-n + 2) .memberActionsMenu { top: auto; bottom: 35px; }
 .teamEmpty, .managementNotice { color: #71808f; }
 .addMemberButton { min-height: 46px; border-color: #c6984d; background: linear-gradient(135deg, #fffaf0, #f7ead1); color: #865b1c; box-shadow: 0 5px 15px rgb(135 91 28 / 8%); }

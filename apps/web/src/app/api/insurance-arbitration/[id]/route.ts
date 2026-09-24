@@ -3,6 +3,7 @@ import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } fr
 import { updateInsuranceCaseInputSchema } from "@/lib/insurance-arbitration/input";
 import { getInsuranceCase, InsuranceCaseNotFoundError, InsuranceCaseVersionConflictError, updateInsuranceCase } from "@/lib/insurance-arbitration/service";
 import { resourceIdSchema } from "@/lib/resource-id";
+import { archiveInsuranceCase, deletionResponse, RecoverableRecordNotFoundError } from "@/lib/recoverable-deletion";
 import { NextResponse } from "next/server";
 
 type Context = { params: Promise<{ id: string }> };
@@ -22,6 +23,16 @@ export async function PATCH(request: Request, context: Context) {
     if (error instanceof InsuranceCaseVersionConflictError) return json({ error: { code: "VERSION_CONFLICT", message: "Bu dosya siz açtıktan sonra başka biri tarafından düzenlendi. Güncel bilgileri yeniden yükleyin." } }, 409);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return json({ error: { message: "Bu tahkim başvuru numarası zaten kayıtlı." } }, 409);
     return handle(error, "Dosya güncellenemedi.");
+  }
+}
+
+export async function DELETE(request: Request, context: Context) {
+  try {
+    assertSameOrigin(request); const session = await requireApiSession(request);
+    return json({ data: deletionResponse(await archiveInsuranceCase(await readId(context), session.user.id)) }, 200);
+  } catch (error) {
+    if (error instanceof RecoverableRecordNotFoundError) return json({ error: { code: "NOT_FOUND", message: "Dosya bulunamadı veya daha önce silindi." } }, 404);
+    return handle(error, "Dosya silinemedi.");
   }
 }
 

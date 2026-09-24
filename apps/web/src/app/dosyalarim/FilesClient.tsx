@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/app-shell/AppShell";
+import DeleteCaseButton from "@/components/case-deletion/DeleteCaseButton";
 import { CASE_STATUS_LABELS as statusLabels, formatCaseDate as formatDate, type CaseStatus } from "@/lib/case-presentation";
 import CaseDetailModal from "./CaseDetailModal";
 import styles from "./page.module.css";
@@ -241,6 +242,7 @@ export default function FilesClient() {
                     <Link className={styles.reminderAction} href={`/dosyalarim/${record.id}/duzenle?tab=notifications`} title="Bildirim Ekle" aria-label={record.vehiclePlate + " bildirim ekle"}><Icon name="bell" /></Link>
                     <Link className={styles.viewAction} href={`/dosyalarim/${record.id}/duzenle?view=1`} title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"}><Icon name="eye" /></Link>
                     <Link className={styles.editAction} href={`/dosyalarim/${record.id}/duzenle`} title="Düzenle" aria-label={record.vehiclePlate + " dosyasını düzenle"}><Icon name="edit" /></Link>
+                    <DeleteCaseButton endpoint={`/api/cases/${record.id}`} reference={record.referenceNumber} onDeleted={() => { setRefreshKey((value) => value + 1); setNotice(`${record.referenceNumber} silindi. 30 gün içinde geri getirilebilir.`); }} />
                   </div></td>
                 </tr>;
               })}

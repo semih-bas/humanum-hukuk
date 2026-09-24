@@ -124,6 +124,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [changingUserId, setChangingUserId] = useState<string | null>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<TeamMember | null>(null);
+  const [pendingUserDeletion, setPendingUserDeletion] = useState<TeamMember | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
   const [avatarImageOverride, setAvatarImageOverride] = useState<string | null | undefined>(undefined);
@@ -212,9 +213,10 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
 
   async function loadTeamMembers() {
     setTeamState("loading");
-    const { data, error } = await authClient.admin.listUsers({
-      query: { limit: 50, sortBy: "name", sortDirection: "asc" },
-    });
+    const [{ data, error }, deletionResponse] = await Promise.all([
+      authClient.admin.listUsers({ query: { limit: 50, sortBy: "name", sortDirection: "asc" } }),
+      fetch("/api/admin/users/deletion", { credentials: "same-origin", cache: "no-store" }),
+    ]);
 
     if (error || !data) {
       setTeamState("error");
@@ -222,7 +224,9 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
       return;
     }
 
-    setTeamMembers(data.users);
+    const deletionBody = await deletionResponse.json() as { data?: { userIds?: string[] } };
+    const deletedIds = new Set(deletionResponse.ok ? deletionBody.data?.userIds ?? [] : []);
+    setTeamMembers(data.users.filter((user) => !deletedIds.has(user.id)));
     setTeamState("ready");
   }
 
@@ -304,6 +308,18 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
     const member = pendingStatusChange;
     setPendingStatusChange(null);
     await applyUserStatusChange(member, "ban");
+  }
+
+  async function confirmUserDeletion() {
+    if (!pendingUserDeletion) return;
+    const member = pendingUserDeletion; setPendingUserDeletion(null); setChangingUserId(member.id); setManagementNotice("");
+    try {
+      const response = await fetch("/api/admin/users/deletion", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ userId: member.id }) });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) { setManagementNotice(result.error?.message ?? "Kullanıcı silinemedi."); return; }
+      setManagementNotice(`${member.name} silindi. 30 gün içinde yönetici tarafından geri getirilebilir.`); await loadTeamMembers();
+    } catch { setManagementNotice("Kullanıcı silinemedi. Lütfen tekrar deneyin."); }
+    finally { setChangingUserId(null); }
   }
 
   async function handleSignOut() {
@@ -401,9 +417,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
                     {member.id !== session?.user.id && <details className={styles.memberActions}>
                       <summary className={styles.memberActionsTrigger} aria-label={`${member.name} için işlemleri aç`}>•••</summary>
                       <div className={styles.memberActionsMenu}>
-                        <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>
-                          {changingUserId === member.id ? "İşleniyor…" : member.banned ? "Tekrar aktifleştir" : "Kullanıcıyı pasifleştir"}
-                        </button>
+                        {member.banned ? <><button className={styles.statusButton} type="button" onClick={() => setPendingUserDeletion(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "İşleniyor…" : "Kullanıcıyı sil"}</button><button className={styles.reactivateButton} type="button" onClick={() => void applyUserStatusChange(member, "unban")} disabled={changingUserId !== null}>Tekrar aktifleştir</button></> : <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "İşleniyor…" : "Kullanıcıyı pasifleştir"}</button>}
                       </div>
                     </details>}
                   </div>
@@ -458,6 +472,8 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
           </div>
         </section>
       </div>}
+
+      {pendingUserDeletion && <div className={styles.confirmationBackdrop} role="presentation" onMouseDown={() => setPendingUserDeletion(null)}><section className={styles.confirmationDialog} role="dialog" aria-modal="true" aria-labelledby="user-deletion-title" onMouseDown={(event) => event.stopPropagation()}><p className={styles.confirmationEyebrow}>Geri alınabilir silme</p><h2 id="user-deletion-title">Kullanıcı silinsin mi?</h2><p><strong>{pendingUserDeletion.name}</strong> ekip listesinden hemen kaldırılacak. Hesap 30 gün boyunca geri getirilebilir; ardından kişisel giriş bilgileri kalıcı olarak anonimleştirilir.</p><div className={styles.confirmationActions}><button type="button" onClick={() => setPendingUserDeletion(null)}>Vazgeç</button><button type="button" className={styles.dangerButton} onClick={() => void confirmUserDeletion()}>Eminim, sil</button></div></section></div>}
 
       <div className={`${styles.workspace} ${hideTopbar ? styles.workspaceWithoutTopbar : ""}`}>
         {!hideTopbar && <header className={styles.topbar}>
