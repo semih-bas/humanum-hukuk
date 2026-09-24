@@ -4,7 +4,7 @@ import AppShell from "@/components/app-shell/AppShell";
 import { formatMoneyInput, limitDateYear, parseMoneyToCents } from "@/lib/form-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import FinanceStep, { type FinanceDraft, type FinancialEntryDraft } from "./FinanceStep";
 import DocumentsStep, { type DocumentDraft, type DocumentFolderConfig } from "./DocumentsStep";
 import partyStyles from "./PartyStep.module.css";
@@ -84,6 +84,8 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
   const [editingPartyId, setEditingPartyId] = useState<string | null>(null);
   const [partyDraft, setPartyDraft] = useState<PartyDraft>(() => makeParty("THIRD_PARTY"));
   const [partyModalErrors, setPartyModalErrors] = useState<string[]>([]);
+  const partyNameRef = useRef<HTMLInputElement>(null);
+  const partyIdentityRef = useRef<HTMLInputElement>(null);
   function update(name: keyof GeneralCaseDraft, value: string | boolean) { setForm((current) => ({ ...current, [name]: value })); setMissingFields((current) => current.filter((label) => generalFieldLabel(name) !== label)); }
   function updateKind(value: string) { setForm((current) => ({ ...current, kind: value })); setParties(primaryParties(value)); }
   function updateStatus(value: string) { setForm((current) => ({ ...current, status: value, stage: value === "CLOSED" ? "CLOSED" : current.stage === "CLOSED" ? "CASE_OPENING" : current.stage })); }
@@ -131,8 +133,16 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
     setPartyModalOpen(true);
   }
   function savePartyDraft() {
-    const required = [!partyDraft.name.trim() && "Ad / Ünvan", !validIdentityNumber(partyDraft.identityOrTaxNumber, partyDraft.kind) && (partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No" : "Vergi No")].filter((item): item is string => Boolean(item));
-    if (required.length) { setPartyModalErrors(required); return; }
+    const problems = [!partyDraft.name.trim() && "Ad / Ünvan", !validIdentityNumber(partyDraft.identityOrTaxNumber, partyDraft.kind) && (partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No" : "Vergi No")].filter((item): item is string => Boolean(item));
+    if (problems.length) {
+      setPartyModalErrors(problems);
+      requestAnimationFrame(() => {
+        const target = problems.includes("Ad / Ünvan") ? partyNameRef.current : partyIdentityRef.current;
+        target?.focus();
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
     setParties((current) => editingPartyId
       ? current.map((party) => party.clientId === editingPartyId ? partyDraft : party)
       : [...current, partyDraft]);
@@ -256,11 +266,11 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
         {parties.length === 2 ? <p className={partyStyles.empty}>Henüz başka taraf eklenmedi.</p> : <div className={partyStyles.tableWrap}><table><thead><tr><th>Taraf Türü</th><th>Ad / Ünvan</th><th>T.C. / Vergi No</th><th>Vekil</th><th>Açıklama</th><th>İşlemler</th></tr></thead><tbody>{parties.slice(2).map((party) => <tr key={party.clientId}><td>{partyRoleLabel(party.role)}</td><td><strong>{party.name}</strong><small>{party.kind === "INDIVIDUAL" ? "Gerçek kişi" : "Tüzel kişi"}</small></td><td>{party.identityOrTaxNumber || "—"}</td><td>{party.representativeName || "—"}</td><td>{party.description || "—"}</td><td><span style={{ display: "inline-flex", gap: 8 }}><button type="button" title="Tarafı düzenle" aria-label={`${party.name} tarafını düzenle`} onClick={() => openPartyModal(party)}>✎</button><button type="button" title="Tarafı sil" aria-label={`${party.name} tarafını sil`} className={partyStyles.delete} onClick={() => removeParty(party.clientId)}>⌫</button></span></td></tr>)}</tbody></table></div>}
       </section>
       <footer><button type="button" className={partyStyles.back} onClick={() => setStep(0)}>← Genel Bilgiler</button><span>2 / 7 · Taraflar</span><button type="submit">Mali Bilgilere İlerle →</button></footer>
-      {partyModalOpen && <div className={partyStyles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPartyModalOpen(false); }}><section className={partyStyles.modal} role="dialog" aria-modal="true" aria-labelledby="party-modal-title"><header><div><h2 id="party-modal-title">{editingPartyId ? "Diğer Tarafı Düzenle" : "Diğer Taraf Ekle"}</h2><p>Kişi veya kurumun dosyadaki rolünü ve iletişim bilgilerini girin.</p></div><button type="button" aria-label="Kapat" onClick={() => setPartyModalOpen(false)}>×</button></header>{partyModalErrors.length > 0 && <p className={partyStyles.modalNotice}>Lütfen işaretli zorunlu alanları tamamlayın.</p>}<div className={partyStyles.modalGrid}>
+      {partyModalOpen && <div className={partyStyles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPartyModalOpen(false); }}><section className={partyStyles.modal} role="dialog" aria-modal="true" aria-labelledby="party-modal-title"><header><div><h2 id="party-modal-title">{editingPartyId ? "Diğer Tarafı Düzenle" : "Diğer Taraf Ekle"}</h2><p>Kişi veya kurumun dosyadaki rolünü ve iletişim bilgilerini girin.</p></div><button type="button" aria-label="Kapat" onClick={() => setPartyModalOpen(false)}>×</button></header>{partyModalErrors.length > 0 && <div className={partyStyles.modalNotice} role="alert"><strong>Bu bilgiler kaydedilemedi.</strong><span>{partyModalErrors.map((field) => field === "Ad / Ünvan" ? "Ad veya ünvanı girin." : partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No 11 haneli olmalıdır." : "Vergi No 10 haneli olmalıdır.").join(" ")}</span></div>}<div className={partyStyles.modalGrid}>
         <label><span>Taraf Rolü *</span><select value={partyDraft.role} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))}>{availableRoles(form.kind).filter(([role]) => !["PLAINTIFF", "DEFENDANT", "APPLICANT", "RESPONDENT"].includes(role)).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
         <label><span>Kişi Türü *</span><select value={partyDraft.kind} onChange={(event) => setPartyDraft((current) => ({ ...current, kind: event.target.value as PartyDraft["kind"] }))}><option value="INDIVIDUAL">Gerçek Kişi</option><option value="ORGANIZATION">Tüzel Kişi / Kurum</option></select></label>
-        <label className={`${partyStyles.modalWide} ${partyModalErrors.includes("Ad / Ünvan") ? partyStyles.invalid : ""}`}><span>{partyDraft.kind === "INDIVIDUAL" ? "Ad Soyad" : "Şirket / Kurum Ünvanı"} *</span><input autoFocus maxLength={200} value={partyDraft.name} onChange={(event) => { setPartyDraft((current) => ({ ...current, name: event.target.value })); setPartyModalErrors((current) => current.filter((item) => item !== "Ad / Ünvan")); }} />{partyModalErrors.includes("Ad / Ünvan") && <small>Ad veya ünvan zorunludur.</small>}</label>
-        <label className={partyModalErrors.some((item) => item.includes("No")) ? partyStyles.invalid : ""}><span>{partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No *" : "Vergi No *"}</span><input inputMode="numeric" maxLength={partyDraft.kind === "INDIVIDUAL" ? 11 : 10} value={partyDraft.identityOrTaxNumber} onChange={(event) => { setPartyDraft((current) => ({ ...current, identityOrTaxNumber: event.target.value.replace(/\D/g, "").slice(0, current.kind === "INDIVIDUAL" ? 11 : 10) })); setPartyModalErrors((current) => current.filter((item) => !item.includes("No"))); }} />{partyModalErrors.some((item) => item.includes("No")) && <small>{partyDraft.kind === "INDIVIDUAL" ? "11 haneli T.C. kimlik numarası girin." : "10 haneli vergi numarası girin."}</small>}</label>
+        <label className={`${partyStyles.modalWide} ${partyModalErrors.includes("Ad / Ünvan") ? partyStyles.invalid : ""}`}><span>{partyDraft.kind === "INDIVIDUAL" ? "Ad Soyad" : "Şirket / Kurum Ünvanı"} *</span><input ref={partyNameRef} autoFocus aria-invalid={partyModalErrors.includes("Ad / Ünvan")} maxLength={200} value={partyDraft.name} onChange={(event) => { setPartyDraft((current) => ({ ...current, name: event.target.value })); setPartyModalErrors((current) => current.filter((item) => item !== "Ad / Ünvan")); }} />{partyModalErrors.includes("Ad / Ünvan") && <small>Ad veya ünvan zorunludur.</small>}</label>
+        <label className={partyModalErrors.some((item) => item.includes("No")) ? partyStyles.invalid : ""}><span>{partyDraft.kind === "INDIVIDUAL" ? "T.C. Kimlik No *" : "Vergi No *"}</span><input ref={partyIdentityRef} aria-invalid={partyModalErrors.some((item) => item.includes("No"))} inputMode="numeric" maxLength={partyDraft.kind === "INDIVIDUAL" ? 11 : 10} value={partyDraft.identityOrTaxNumber} onChange={(event) => { setPartyDraft((current) => ({ ...current, identityOrTaxNumber: event.target.value.replace(/\D/g, "").slice(0, current.kind === "INDIVIDUAL" ? 11 : 10) })); setPartyModalErrors((current) => current.filter((item) => !item.includes("No"))); }} />{partyModalErrors.some((item) => item.includes("No")) && <small>{partyDraft.kind === "INDIVIDUAL" ? "11 haneli T.C. kimlik numarası girin." : "10 haneli vergi numarası girin."}</small>}</label>
         <label><span>Telefon</span><input inputMode="numeric" maxLength={11} value={partyDraft.phone} onChange={(event) => setPartyDraft((current) => ({ ...current, phone: event.target.value.replace(/\D/g, "").slice(0, 11) }))} placeholder="05XXXXXXXXX" /></label>
         <label><span>E-posta</span><input type="email" maxLength={254} value={partyDraft.email} onChange={(event) => setPartyDraft((current) => ({ ...current, email: event.target.value }))} /></label>
         <label><span>Vekil / Temsilci</span><input maxLength={200} value={partyDraft.representativeName} onChange={(event) => setPartyDraft((current) => ({ ...current, representativeName: event.target.value }))} /></label>
