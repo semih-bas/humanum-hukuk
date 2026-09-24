@@ -31,7 +31,8 @@ model User {
   archivedCases                        CaseFile[]                     @relation("CaseFileArchivedBy")
   archivedInsuranceCases               InsuranceArbitrationCase[]    @relation("InsuranceArbitrationCaseArchivedBy")
   caseChanges                          CaseFileChange[]
-  caseNotes                            CaseNote[]
+  caseNotes                            CaseNote[]                     @relation("CaseNoteAuthor")
+  deletedCaseNotes                     CaseNote[]                     @relation("CaseNoteDeletedBy")
   caseDocuments                        CaseDocument[]                  @relation("CaseDocumentUploadedBy")
   deletedCaseDocuments                 CaseDocument[]                  @relation("CaseDocumentDeletedBy")
   caseReminders                        CaseReminder[]
@@ -41,7 +42,8 @@ model User {
   updatedInsuranceCases                InsuranceArbitrationCase[]     @relation("InsuranceArbitrationCaseUpdatedBy")
   insuranceDocuments                   InsuranceArbitrationDocument[] @relation("InsuranceDocumentUploadedBy")
   deletedInsuranceDocuments            InsuranceArbitrationDocument[] @relation("InsuranceDocumentDeletedBy")
-  insuranceNotes                       InsuranceArbitrationNote[]
+  insuranceNotes                       InsuranceArbitrationNote[]      @relation("InsuranceNoteAuthor")
+  deletedInsuranceNotes                InsuranceArbitrationNote[]      @relation("InsuranceNoteDeletedBy")
   createdGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
   updatedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
   archivedGeneralCases                 GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
@@ -297,17 +299,22 @@ model CaseFileChange {
 }
 
 model CaseNote {
-  id         String   @id @default(cuid())
-  caseFileId String
-  authorId   String
-  content    String   @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  caseFile   CaseFile @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  id          String    @id @default(cuid())
+  caseFileId  String
+  authorId    String
+  deletedById String?
+  content     String    @db.Text
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  caseFile    CaseFile  @relation(fields: [caseFileId], references: [id], onDelete: Cascade)
+  author      User      @relation("CaseNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  deletedBy   User?     @relation("CaseNoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseFileId, createdAt])
+  @@index([caseFileId, deletedAt, createdAt])
   @@index([authorId, createdAt])
+  @@index([deletedById])
   @@map("case_note")
 }
 
@@ -465,17 +472,22 @@ model InsuranceArbitrationDocument {
 }
 
 model InsuranceArbitrationNote {
-  id        String                   @id @default(cuid())
-  caseId    String
-  authorId  String
-  content   String                   @db.Text
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
-  case      InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  author    User                     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  id          String                   @id @default(cuid())
+  caseId      String
+  authorId    String
+  deletedById String?
+  content     String                   @db.Text
+  deletedAt   DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  case        InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author      User                     @relation("InsuranceNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  deletedBy   User?                    @relation("InsuranceNoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([caseId, createdAt])
+  @@index([caseId, deletedAt, createdAt])
   @@index([authorId, createdAt])
+  @@index([deletedById])
   @@map("insurance_arbitration_note")
 }
 

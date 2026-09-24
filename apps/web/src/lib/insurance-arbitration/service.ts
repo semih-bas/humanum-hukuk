@@ -49,7 +49,7 @@ export class InsuranceCaseNotFoundError extends Error {}
 export class InsuranceCaseVersionConflictError extends Error {}
 
 export async function getInsuranceCase(id: string) {
-  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, folderKey: true, createdAt: true } }, notes: { orderBy: { createdAt: "desc" }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } } } });
+  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, folderKey: true, createdAt: true } }, notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } } } });
   if (!record) throw new InsuranceCaseNotFoundError();
   return presentCase(record);
 }
@@ -61,6 +61,16 @@ export async function addInsuranceCaseNote(id: string, content: string, actorUse
     const note = await transaction.insuranceArbitrationNote.create({ data: { caseId: id, authorId: actorUserId, content: content.trim() }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } });
     await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.note_added", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber } } });
     return { ...note, createdAt: note.createdAt.toISOString() };
+  });
+}
+
+export async function deleteInsuranceCaseNote(id: string, noteId: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const result = await transaction.insuranceArbitrationNote.updateMany({ where: { id: noteId, caseId: id, deletedAt: null }, data: { deletedAt: new Date(), deletedById: actorUserId } });
+    if (result.count !== 1) throw new InsuranceCaseNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.note_deleted", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, noteId } } });
   });
 }
 

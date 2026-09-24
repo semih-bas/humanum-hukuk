@@ -27,6 +27,16 @@ export async function addCaseNote(caseFileId: string, input: NoteInput, actorUse
   });
 }
 
+export async function deleteCaseNote(caseFileId: string, noteId: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const caseFile = await transaction.caseFile.findFirst({ where: { id: caseFileId, archivedAt: null }, select: { referenceNumber: true } });
+    if (!caseFile) throw new CaseNotFoundError();
+    const result = await transaction.caseNote.updateMany({ where: { id: noteId, caseFileId, deletedAt: null }, data: { deletedAt: new Date(), deletedById: actorUserId } });
+    if (result.count !== 1) throw new CaseNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId, event: "case.note_deleted", targetType: "case_file", targetId: caseFileId, context: { referenceNumber: caseFile.referenceNumber, noteId } } });
+  });
+}
+
 export async function addCaseReminder(caseFileId: string, input: ReminderInput, actorUserId: string) {
   return prisma.$transaction(async (transaction) => {
     await lockReminderCreation(transaction, actorUserId);

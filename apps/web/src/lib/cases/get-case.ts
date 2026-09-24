@@ -38,6 +38,7 @@ export async function getCaseFile(id: string) {
       createdBy: { select: { name: true } },
       updatedBy: { select: { name: true } },
       notes: {
+        where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, createdAt: true, updatedAt: true, author: { select: { name: true } } },
       },

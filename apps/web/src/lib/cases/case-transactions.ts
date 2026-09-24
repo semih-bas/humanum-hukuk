@@ -21,7 +21,7 @@ export async function listCaseTransactions(caseFileId: string) {
     where: { id: caseFileId, archivedAt: null },
     select: {
       id: true,
-      notes: { orderBy: { createdAt: "desc" }, take: 1, select: { content: true } },
+      notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { content: true } },
       transactions: { where: { deletedAt: null }, orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }], select: transactionSelect },
     },
   });
@@ -49,7 +49,7 @@ export async function createCaseTransaction(caseFileId: string, input: CreateTra
 
     const note = input.caseNote?.trim();
     if (note) {
-      const latest = await transaction.caseNote.findFirst({ where: { caseFileId }, orderBy: { createdAt: "desc" }, select: { id: true, content: true } });
+      const latest = await transaction.caseNote.findFirst({ where: { caseFileId, deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, content: true } });
       if (!latest) await transaction.caseNote.create({ data: { caseFileId, authorId: actorUserId, content: note } });
       else if (latest.content !== note) await transaction.caseNote.update({ where: { id: latest.id }, data: { content: note, authorId: actorUserId } });
     }
@@ -79,7 +79,7 @@ export async function updateCaseTransaction(caseFileId: string, id: string, inpu
 
     const note = input.caseNote?.trim();
     if (note) {
-      const latest = await transaction.caseNote.findFirst({ where: { caseFileId }, orderBy: { createdAt: "desc" }, select: { id: true, content: true } });
+      const latest = await transaction.caseNote.findFirst({ where: { caseFileId, deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, content: true } });
       if (!latest) await transaction.caseNote.create({ data: { caseFileId, authorId: actorUserId, content: note } });
       else if (latest.content !== note) await transaction.caseNote.update({ where: { id: latest.id }, data: { content: note, authorId: actorUserId } });
     }
