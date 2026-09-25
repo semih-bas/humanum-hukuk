@@ -106,6 +106,7 @@ export async function createCaseFileInTransaction(
         create: {
           createdById: actorUserId,
           title: input.reminder.title,
+          eventAt: input.reminder.dueAt,
           dueAt: input.reminder.dueAt,
           sendEmail: true,
           sendSms: false,

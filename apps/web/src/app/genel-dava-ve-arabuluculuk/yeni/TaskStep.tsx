@@ -1,4 +1,6 @@
-import { Dispatch, FormEvent, SetStateAction, useState } from "react";
+import { Dispatch, FormEvent, SetStateAction } from "react";
+import CaseNotifications, { type CaseNotificationItem } from "@/components/case-notifications/CaseNotifications";
+import { notificationLeadMinutes } from "@/lib/notification-schedule";
 
 import styles from "./TaskStep.module.css";
 
@@ -12,6 +14,7 @@ export type TaskDraft = {
   taskType: string;
   reminderOffsetMinutes: number | null;
   status: "PLANNED" | "WAITING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  creatorName: string;
 };
 
 type Props = {
@@ -24,34 +27,18 @@ type Props = {
 };
 
 export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmit, error }: Props) {
-  const [draft, setDraft] = useState<TaskDraft>(() => emptyTask(currentUser.id));
-  function addTask() {
-    if (!draft.title.trim() || !draft.dueAt) return;
-    setTasks((current) => [...current, { ...draft, title: draft.title.trim(), description: draft.description.trim(), taskType: draft.taskType.trim() }]);
-    setDraft(emptyTask(currentUser.id));
+  const notifications: CaseNotificationItem[] = tasks.map((task) => {
+    const eventAt = new Date(task.dueAt).toISOString();
+    const notifyAt = new Date(new Date(eventAt).getTime() - (task.reminderOffsetMinutes ?? notificationLeadMinutes(task.priority)) * 60_000).toISOString();
+    return { id: task.clientId, title: task.title, description: task.description || null, reminderType: task.taskType || null, priority: task.priority, eventAt, notifyAt, status: task.status, creator: { name: task.creatorName || currentUser.name } };
+  });
+  function change(next: CaseNotificationItem[]) {
+    setTasks(next.map((item) => ({ clientId: item.id, title: item.title, description: item.description ?? "", assigneeUserId: currentUser.id, priority: item.priority, dueAt: item.eventAt, taskType: item.reminderType ?? "", reminderOffsetMinutes: notificationLeadMinutes(item.priority), status: taskStatus(item.status), creatorName: item.creator.name })));
   }
-  return <form className={styles.form} onSubmit={onSubmit}>
+  return <div className={styles.form}>
     {error && <p className={styles.error}>{error}</p>}
-    <div className={styles.columns} style={{ gridTemplateColumns: "1fr" }}>
-      <section className={styles.panel}><h2>Yeni Bildirim Ekle</h2><div className={styles.grid}>
-        <label className={styles.wide}><span>Bildirim Başlığı *</span><input maxLength={150} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-        <label className={styles.wide}><span>Açıklama</span><textarea maxLength={4000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></label>
-        <label><span>Sorumlu</span><input value={currentUser.name} readOnly /></label>
-        <label><span>Öncelik</span><select value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: event.target.value as TaskDraft["priority"] }))}><option value="HIGH">Yüksek</option><option value="MEDIUM">Orta</option><option value="LOW">Düşük</option></select></label>
-        <label><span>Son Tarih</span><input type="datetime-local" value={draft.dueAt} onChange={(event) => setDraft((current) => ({ ...current, dueAt: event.target.value }))} /></label>
-        <label><span>Bildirim Türü</span><input maxLength={100} value={draft.taskType} onChange={(event) => setDraft((current) => ({ ...current, taskType: event.target.value }))} placeholder="Örn. Duruşma" /></label>
-        <label><span>Hatırlatma</span><select value={draft.reminderOffsetMinutes ?? ""} onChange={(event) => setDraft((current) => ({ ...current, reminderOffsetMinutes: event.target.value ? Number(event.target.value) : null }))}><option value="">Yok</option><option value="1440">1 gün önce</option><option value="4320">3 gün önce</option><option value="10080">1 hafta önce</option></select></label>
-      </div><button type="button" className={styles.add} onClick={addTask}>+ Bildirim Ekle</button></section>
-    </div>
-    <section className={styles.list}><h2>Bildirim Listesi ({tasks.length})</h2>{tasks.length === 0 ? <p>Henüz bildirim eklenmedi. Bu alan zorunlu değildir.</p> : tasks.map((task) => <article key={task.clientId}><div><b>{task.title}</b><span>{task.taskType || "Genel"} · {formatDate(task.dueAt)}</span></div><em className={styles[task.priority.toLowerCase()]}>{priorityLabel(task.priority)}</em><button type="button" onClick={() => setTasks((current) => current.filter((item) => item.clientId !== task.clientId))}>Kaldır</button></article>)}</section>
-    <footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Bildirimler</span><button type="submit">Notlara İlerle →</button></footer>
-  </form>;
+    <CaseNotifications initialItems={notifications} onItemsChange={change} currentUserName={currentUser.name} />
+    <form onSubmit={onSubmit}><footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Bildirimler</span><button type="submit">Notlara İlerle →</button></footer></form>
+  </div>;
 }
-
-function emptyTask(userId: string): TaskDraft {
-  const date = new Date(Date.now() + 86_400_000); date.setHours(17, 0, 0, 0);
-  return { clientId: crypto.randomUUID(), title: "", description: "", assigneeUserId: userId, priority: "MEDIUM", dueAt: localDateTime(date), taskType: "", reminderOffsetMinutes: 1440, status: "PLANNED" };
-}
-function localDateTime(date: Date) { const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000); return local.toISOString().slice(0, 16); }
-function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
-function priorityLabel(value: TaskDraft["priority"]) { return value === "HIGH" ? "Yüksek" : value === "LOW" ? "Düşük" : "Orta"; }
+function taskStatus(value: string): TaskDraft["status"] { return value === "SENT" || value === "COMPLETED" ? "COMPLETED" : value === "WAITING" || value === "IN_PROGRESS" || value === "CANCELLED" ? value : "PLANNED"; }

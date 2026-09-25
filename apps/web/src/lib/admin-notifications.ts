@@ -38,6 +38,7 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
           id: true,
           title: true,
           dueAt: true,
+          eventAt: true,
           status: true,
           caseFile: {
             select: {
@@ -55,7 +56,7 @@ export async function listAdminNotifications(): Promise<AdminNotificationResult>
         id: reminder.id,
         caseFileId: reminder.caseFile.id,
         title: reminder.title,
-        dueAt: reminder.dueAt.toISOString(),
+        dueAt: reminder.eventAt.toISOString(),
         status: reminder.status as AdminNotification["status"],
         referenceNumber: reminder.caseFile.referenceNumber,
         vehiclePlate: reminder.caseFile.vehiclePlate,
@@ -76,12 +77,13 @@ export async function listAdminReminderTasks() {
     prisma.caseReminder.count({ where }),
     prisma.caseReminder.findMany({
       where,
-      orderBy: [{ dueAt: "asc" }, { id: "asc" }],
+      orderBy: [{ eventAt: "asc" }, { id: "asc" }],
       take: 200,
       select: {
         id: true,
         title: true,
         dueAt: true,
+        eventAt: true,
         status: true,
         caseFile: { select: { id: true, referenceNumber: true, vehiclePlate: true } },
         createdBy: { select: { name: true } },
@@ -91,6 +93,6 @@ export async function listAdminReminderTasks() {
   ]);
   return {
     totalCount,
-    items: reminders.map((reminder) => ({ ...reminder, dueAt: reminder.dueAt.toISOString(), overdue: reminder.dueAt < now })),
+    items: reminders.map((reminder) => ({ ...reminder, dueAt: reminder.eventAt.toISOString(), eventAt: reminder.eventAt.toISOString(), overdue: reminder.eventAt < now })),
   };
 }

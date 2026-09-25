@@ -47,8 +47,9 @@ export async function getCaseFile(id: string) {
         select: { id: true, content: true, createdAt: true, updatedAt: true, author: { select: { name: true } } },
       },
       reminders: {
-        orderBy: { dueAt: "asc" },
-        select: { id: true, title: true, dueAt: true, sendEmail: true, sendSms: true, status: true, sentAt: true },
+        where: { status: { not: "CANCELLED" } },
+        orderBy: { eventAt: "asc" },
+        select: { id: true, title: true, description: true, reminderType: true, priority: true, eventAt: true, dueAt: true, sendEmail: true, sendSms: true, status: true, sentAt: true, createdBy: { select: { name: true } } },
       },
       documents: {
         where: { deletedAt: null },
@@ -112,8 +113,12 @@ export async function getCaseFile(id: string) {
     })),
     reminders: record.reminders.map((reminder) => ({
       ...reminder,
+      priority: normalizeReminderPriority(reminder.priority),
+      eventAt: reminder.eventAt.toISOString(),
+      notifyAt: reminder.dueAt.toISOString(),
       dueAt: reminder.dueAt.toISOString(),
       sentAt: reminder.sentAt?.toISOString() ?? null,
+      creator: reminder.createdBy,
     })),
     documents: record.documents.map((document) => ({
       ...document,
@@ -125,6 +130,8 @@ export async function getCaseFile(id: string) {
     })),
   };
 }
+
+function normalizeReminderPriority(value: string): "HIGH" | "MEDIUM" | "LOW" { return value === "HIGH" || value === "LOW" ? value : "MEDIUM"; }
 
 export type CaseFileDetail = NonNullable<Awaited<ReturnType<typeof getCaseFile>>>;
 

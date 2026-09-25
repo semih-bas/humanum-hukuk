@@ -52,7 +52,7 @@ export type WizardInitialData = {
     processEntries: Array<{ id: string; type: ProcessEntryDraft["type"]; stage: string; eventDate: string; action: string; description: string | null; responsibleUser: { id: string; name: string } | null }>;
     hearings: Array<{ id: string; startsAt: string; court: string; hearingType: string; courtroom: string | null; attendeeUser: { id: string; name: string } | null; reminderOffsetMinutes: number | null; note: string | null; status: HearingDraft["status"] }>;
   };
-  tasks: Array<{ id: string; title: string; description: string | null; priority: TaskDraft["priority"]; dueAt: string; taskType: string | null; reminderOffsetMinutes: number | null; status: TaskDraft["status"]; assignee: { id: string; name: string } | null }>;
+  tasks: Array<{ id: string; title: string; description: string | null; priority: TaskDraft["priority"]; dueAt: string; taskType: string | null; reminderOffsetMinutes: number | null; status: TaskDraft["status"]; assignee: { id: string; name: string } | null; createdBy: { name: string } }>;
   notes: Array<{ id: string; content: string; noteType: NoteDraft["noteType"]; visibility: NoteDraft["visibility"]; important: boolean }>;
   documents: Array<{ id: string; originalName: string; category: string; folderKey: string | null; mimeType: string; sizeBytes: number }>;
 };
@@ -74,7 +74,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
   const [hearings, setHearings] = useState<HearingDraft[]>(() => initialData?.process.hearings.map((hearing) => ({ clientId: hearing.id, startsAt: toLocalDateTime(hearing.startsAt), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom ?? "", attendeeUserId: hearing.attendeeUser?.id ?? null, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note ?? "", status: hearing.status })) ?? []);
   const [documents, setDocuments] = useState<DocumentDraft[]>(() => initialData?.documents.map((document) => ({ clientId: document.id, persistedId: document.id, file: null, originalName: document.originalName, mimeType: document.mimeType, sizeBytes: document.sizeBytes, category: document.category, folder: document.folderKey ?? document.category })) ?? []);
   const [documentFolders, setDocumentFolders] = useState<DocumentFolderConfig[]>(() => initialData?.legalCase.documentFolders ?? []);
-  const [tasks, setTasks] = useState<TaskDraft[]>(() => initialData?.tasks.map((task) => ({ clientId: task.id, title: task.title, description: task.description ?? "", assigneeUserId: task.assignee?.id ?? null, priority: task.priority, dueAt: toLocalDateTime(task.dueAt), taskType: task.taskType ?? "", reminderOffsetMinutes: task.reminderOffsetMinutes, status: task.status })) ?? []);
+  const [tasks, setTasks] = useState<TaskDraft[]>(() => initialData?.tasks.map((task) => ({ clientId: task.id, title: task.title, description: task.description ?? "", assigneeUserId: task.assignee?.id ?? null, priority: task.priority, dueAt: toLocalDateTime(task.dueAt), taskType: task.taskType ?? "", reminderOffsetMinutes: task.reminderOffsetMinutes, status: task.status, creatorName: task.createdBy.name })) ?? []);
   const [notes, setNotes] = useState<NoteDraft[]>(() => initialData?.notes.map((note) => ({ clientId: note.id, content: note.content, noteType: note.noteType, visibility: note.visibility, important: note.important })) ?? []);
   const [createdCase, setCreatedCase] = useState<{ id: string; referenceNumber: string } | null>(null);
   const [saving, setSaving] = useState(false);

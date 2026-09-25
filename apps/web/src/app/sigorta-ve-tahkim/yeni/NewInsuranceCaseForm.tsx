@@ -7,7 +7,7 @@ import AppShell from "@/components/app-shell/AppShell";
 import { formatMoneyInput, limitDateYear } from "@/lib/form-input";
 import { INSURANCE_CASE_TYPE_LABELS, INSURANCE_STATUS_LABELS, type InsuranceCaseType } from "@/lib/insurance-arbitration/presentation";
 import PaymentSection, { type InsurancePaymentEntry } from "./PaymentSection";
-import { DocumentsTab, NotesTab, type DocumentFolderConfig, type DraftDocument, type DraftNote } from "@/app/dosyalarim/yeni/CaseActivityTabs";
+import { DocumentsTab, NotesTab, NotificationsTab, type DocumentFolderConfig, type DraftDocument, type DraftNote, type DraftReminder } from "@/app/dosyalarim/yeni/CaseActivityTabs";
 import styles from "./page.module.css";
 
 type Errors = Record<string, string[] | undefined>;
@@ -15,11 +15,11 @@ type MoneyField = "insuranceSettlementOffer" | "postageExpense" | "enforcementEx
 export type InsuranceCaseTab = "general" | "payments" | "note" | "notifications" | "documents";
 const initialForm = { arbitrationApplicationNo: "", opposingInsuranceCompany: "", opposingPolicyNumber: "", policyExpiryDate: "", opposingVehicleOwner: "", opposingIdentityNumber: "", vehicleOwner: "", identityNumber: "", vehiclePlate: "", accidentDate: "", postalDeliveryDate: "", caseTypes: ["DEPRECIATION"] as InsuranceCaseType[], insuranceApplicationDate: "", insuranceSettlementOffer: "0", arbitrationApplicationDate: "", hasArbitration: false, arbitrationCaseNumber: "", status: "INSURANCE_APPLICATION", postageExpense: "0", enforcementExpense: "0", arbitrationApplicationFee: "0", expertFee: "0", postalAmount: "0", actualDepreciationAmount: "0", description: "" };
 
-type ExistingCase = Partial<typeof initialForm> & { referenceNumber?: string; version?: number; payments?: Array<Omit<InsurancePaymentEntry, "clientId"> & { id: string }>; documents?: DraftDocument[]; documentFolders?: DocumentFolderConfig[]; notes?: DraftNote[] };
+type ExistingCase = Partial<typeof initialForm> & { referenceNumber?: string; version?: number; payments?: Array<Omit<InsurancePaymentEntry, "clientId"> & { id: string }>; documents?: DraftDocument[]; documentFolders?: DocumentFolderConfig[]; notes?: DraftNote[]; notifications?: DraftReminder[] };
 
 export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = false, initialTab = "general", currentUserName = "Kullanıcı" }: { caseId?: string; initialData?: ExistingCase; readOnly?: boolean; initialTab?: InsuranceCaseTab; currentUserName?: string } = {}) {
   const router = useRouter();
-  const [form, setForm] = useState(() => makeInitialForm(initialData)); const [tab, setTab] = useState<InsuranceCaseTab>(initialTab); const [payments, setPayments] = useState<InsurancePaymentEntry[]>(() => initialData?.payments?.map((payment) => ({ ...payment, clientId: payment.id })) ?? []); const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]); const [draftDocuments, setDraftDocuments] = useState<DraftDocument[]>([]); const [documentFolders, setDocumentFolders] = useState<DocumentFolderConfig[]>(initialData?.documentFolders ?? []);
+  const [form, setForm] = useState(() => makeInitialForm(initialData)); const [tab, setTab] = useState<InsuranceCaseTab>(initialTab); const [payments, setPayments] = useState<InsurancePaymentEntry[]>(() => initialData?.payments?.map((payment) => ({ ...payment, clientId: payment.id })) ?? []); const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]); const [draftNotifications, setDraftNotifications] = useState<DraftReminder[]>([]); const [draftDocuments, setDraftDocuments] = useState<DraftDocument[]>([]); const [documentFolders, setDocumentFolders] = useState<DocumentFolderConfig[]>(initialData?.documentFolders ?? []);
   const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [errors, setErrors] = useState<Errors>({}); const [version, setVersion] = useState(initialData?.version);
   function update(name: keyof typeof initialForm, value: string | boolean | InsuranceCaseType[]) { setForm((current) => ({ ...current, [name]: value })); }
   function updateIdentity(name: "identityNumber" | "opposingIdentityNumber", value: string) { update(name, value.replace(/\D/g, "").slice(0, 11)); }
@@ -49,6 +49,7 @@ export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = f
       if (!caseId && documentFolders.length) { const folders = await fetch(`/api/insurance-arbitration/${body.data.id}/documents`, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folders: documentFolders }) }); if (!folders.ok) throw new Error("Dosya oluşturuldu ancak klasörler kaydedilemedi."); }
       if (!caseId) for (const document of draftDocuments) { if (!document.file) continue; const data = new FormData(); data.append("file", document.file); data.append("category", document.category); data.append("folderKey", document.folderKey ?? document.category); const upload = await fetch(`/api/insurance-arbitration/${body.data.id}/documents`, { method: "POST", credentials: "same-origin", body: data }); if (!upload.ok) throw new Error(`${document.originalName} yüklenemedi; dosya kaydı oluşturuldu.`); }
       if (!caseId) for (const note of [...draftNotes].reverse()) { const saved = await fetch(`/api/insurance-arbitration/${body.data.id}/notes`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: note.content }) }); if (!saved.ok) throw new Error("Dosya oluşturuldu ancak notlardan biri kaydedilemedi."); }
+      if (!caseId) for (const notification of draftNotifications) { const saved = await fetch(`/api/insurance-arbitration/${body.data.id}/notifications`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: notification.title, description: notification.description, reminderType: notification.reminderType, priority: notification.priority, eventAt: notification.eventAt }) }); if (!saved.ok) throw new Error("Dosya oluşturuldu ancak bildirimlerden biri kaydedilemedi."); }
       router.push(`/sigorta-ve-tahkim?${caseId ? "updated" : "created"}=${encodeURIComponent(body.data.referenceNumber)}`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Dosya kaydedilemedi."); setSaving(false); }
   }
@@ -67,7 +68,7 @@ export default function NewInsuranceCaseForm({ caseId, initialData, readOnly = f
       </div>}
       {tab === "payments" && <PaymentSection payments={payments} onChange={(next) => void changePayments(next)} readOnly={readOnly} />}
       {tab === "note" && <div className={styles.activityTab} style={readOnly ? { pointerEvents: "none" } : undefined}><NotesTab caseId={caseId} initialItems={initialData?.notes ?? draftNotes} onDraftItemsChange={setDraftNotes} apiBase="/api/insurance-arbitration" currentUserName={currentUserName} /></div>}
-      {tab === "notifications" && <section className={`${styles.tabPanel} ${styles.emptyTab}`}><h2>Bildirimler</h2><p>Bildirim yapısı sonraki aşamada bu alana eklenecek.</p></section>}
+      {tab === "notifications" && <div className={styles.activityTab}><NotificationsTab caseId={caseId} initialItems={initialData?.notifications ?? draftNotifications} onDraftItemsChange={setDraftNotifications} apiBase="/api/insurance-arbitration" currentUserName={currentUserName} readOnly={readOnly} /></div>}
       {tab === "documents" && <div className={styles.activityTab}><DocumentsTab caseId={caseId} initialItems={initialData?.documents ?? draftDocuments} initialFolders={documentFolders} onDraftItemsChange={setDraftDocuments} onDraftFoldersChange={setDocumentFolders} apiBase="/api/insurance-arbitration" noun="Belge" readOnly={readOnly} /></div>}
     </fieldset></form></main></AppShell>;
 }

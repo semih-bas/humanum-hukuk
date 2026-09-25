@@ -1,7 +1,7 @@
 import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
 import { addCaseReminder } from "@/lib/cases/add-case-activity";
-import { addCaseReminderSchema } from "@/lib/cases/create-case-input";
 import { CaseNotFoundError } from "@/lib/cases/update-case";
+import { notificationInputSchema } from "@/lib/notification-input";
 import { ReminderCreationError } from "@/lib/cases/reminder-creation-limit";
 import { resourceIdSchema } from "@/lib/resource-id";
 import { NextResponse } from "next/server";
@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const session = await requireApiSession(request);
     const idResult = resourceIdSchema.safeParse((await params).id);
     if (!idResult.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı.");
-    const validation = addCaseReminderSchema.safeParse(await readJsonBody(request));
+    const validation = notificationInputSchema.safeParse(await readJsonBody(request));
     if (!validation.success) return jsonResponse({ error: { code: "VALIDATION_ERROR", message: "Hatırlatma bilgileri geçerli değil.", fields: validation.error.flatten().fieldErrors } }, 400);
     return jsonResponse({ data: await addCaseReminder(idResult.data, validation.data, session.user.id) }, 201);
   } catch (error) {

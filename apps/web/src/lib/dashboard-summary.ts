@@ -71,15 +71,16 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
       includeReminders ? transaction.caseReminder.findMany({
         where: {
           status: "PENDING",
-          dueAt: { gte: new Date() },
+          eventAt: { gte: new Date() },
           caseFile: { archivedAt: null },
         },
-        orderBy: [{ dueAt: "asc" }, { id: "asc" }],
+        orderBy: [{ eventAt: "asc" }, { id: "asc" }],
         take: 5,
         select: {
           id: true,
           title: true,
           dueAt: true,
+          eventAt: true,
           caseFile: {
             select: {
               id: true,
@@ -113,7 +114,7 @@ export async function getDashboardSummary(includeReminders: boolean): Promise<Da
         id: reminder.id,
         caseFileId: reminder.caseFile.id,
         title: reminder.title,
-        dueAt: reminder.dueAt.toISOString(),
+        dueAt: reminder.eventAt.toISOString(),
         referenceNumber: reminder.caseFile.referenceNumber,
         vehiclePlate: reminder.caseFile.vehiclePlate,
       })),

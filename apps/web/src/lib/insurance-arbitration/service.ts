@@ -4,9 +4,11 @@ import type { InsuranceCaseInput, UpdateInsuranceCaseInput } from "./input";
 import { parseDate } from "./input";
 import type { InsuranceStatus } from "./presentation";
 import { parseDocumentFolders } from "@/lib/document-folder-input";
+import type { NotificationInput } from "@/lib/notification-input";
+import { notificationTime } from "@/lib/notification-schedule";
 
 export type InsuranceListInput = { query: string; status: "ALL" | "ARBITRATION_GROUP" | "INSURANCE_GROUP" | "FOLLOW_UP_GROUP" | "COMPLETED_GROUP" | InsuranceStatus; arbitration: "ALL" | "YES" | "NO"; dateFrom: string | null; dateTo: string | null; page: number; pageSize: number };
-type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true; mimeType: true; sizeBytes: true; category: true; folderKey: true; createdAt: true } }; notes: { select: { id: true; content: true; createdAt: true; author: { select: { name: true } } } } } }>;
+type InsuranceCaseRecord = Prisma.InsuranceArbitrationCaseGetPayload<{ include: { payments: true; documents: { select: { id: true; originalName: true; mimeType: true; sizeBytes: true; category: true; folderKey: true; createdAt: true } }; notes: { select: { id: true; content: true; createdAt: true; author: { select: { name: true } } } }; notifications: { select: { id: true; title: true; description: true; reminderType: true; priority: true; eventAt: true; notifyAt: true; status: true; sentAt: true; createdBy: { select: { name: true } } } } } }>;
 
 export async function listInsuranceCases(input: InsuranceListInput) {
   const query = input.query.trim();
@@ -49,7 +51,7 @@ export class InsuranceCaseNotFoundError extends Error {}
 export class InsuranceCaseVersionConflictError extends Error {}
 
 export async function getInsuranceCase(id: string) {
-  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, folderKey: true, createdAt: true } }, notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } } } });
+  const record = await prisma.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, include: { payments: { orderBy: { paymentDate: "desc" } }, documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true, category: true, folderKey: true, createdAt: true } }, notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, content: true, createdAt: true, author: { select: { name: true } } } }, notifications: { where: { deletedAt: null }, orderBy: { eventAt: "asc" }, select: notificationSelect } } });
   if (!record) throw new InsuranceCaseNotFoundError();
   return presentCase(record);
 }
@@ -74,6 +76,40 @@ export async function deleteInsuranceCaseNote(id: string, noteId: string, actorU
   });
 }
 
+export async function addInsuranceNotification(id: string, input: NotificationInput, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const notification = await transaction.insuranceArbitrationNotification.create({ data: { caseId: id, createdById: actorUserId, title: input.title, description: input.description, reminderType: input.reminderType, priority: input.priority, eventAt: input.eventAt, notifyAt: notificationTime(input.eventAt, input.priority) }, select: notificationSelect });
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.notification_added", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, notificationId: notification.id } } });
+    return presentNotification(notification);
+  });
+}
+
+export async function updateInsuranceNotification(id: string, notificationId: string, input: NotificationInput, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const result = await transaction.insuranceArbitrationNotification.updateMany({ where: { id: notificationId, caseId: id, deletedAt: null, status: "PENDING" }, data: { title: input.title, description: input.description, reminderType: input.reminderType, priority: input.priority, eventAt: input.eventAt, notifyAt: notificationTime(input.eventAt, input.priority) } });
+    if (result.count !== 1) throw new InsuranceNotificationLockedError();
+    const notification = await transaction.insuranceArbitrationNotification.findUniqueOrThrow({ where: { id: notificationId }, select: notificationSelect });
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.notification_updated", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, notificationId } } });
+    return presentNotification(notification);
+  });
+}
+
+export async function deleteInsuranceNotification(id: string, notificationId: string, actorUserId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { referenceNumber: true } });
+    if (!existing) throw new InsuranceCaseNotFoundError();
+    const result = await transaction.insuranceArbitrationNotification.updateMany({ where: { id: notificationId, caseId: id, deletedAt: null }, data: { deletedAt: new Date(), deletedById: actorUserId } });
+    if (result.count !== 1) throw new InsuranceCaseNotFoundError();
+    await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.notification_deleted", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, notificationId } } });
+  });
+}
+
+export class InsuranceNotificationLockedError extends Error {}
+
 export async function updateInsuranceCase(id: string, input: UpdateInsuranceCaseInput, actorUserId: string) {
   await prisma.$transaction(async (transaction) => {
     const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { id: true, referenceNumber: true, version: true } });
@@ -95,6 +131,10 @@ export async function updateInsuranceCase(id: string, input: UpdateInsuranceCase
 }
 
 function presentCase(record: InsuranceCaseRecord) {
-  return { ...record, documentFolders: parseDocumentFolders(record.documentFolders), accidentDate: dateString(record.accidentDate), policyExpiryDate: dateString(record.policyExpiryDate), postalDeliveryDate: dateString(record.postalDeliveryDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), insuranceSettlementOffer: record.insuranceSettlementOffer.toFixed(2), postageExpense: record.postageExpense.toFixed(2), enforcementExpense: record.enforcementExpense.toFixed(2), arbitrationApplicationFee: record.arbitrationApplicationFee.toFixed(2), expertFee: record.expertFee.toFixed(2), postalAmount: record.postalAmount.toFixed(2), actualDepreciationAmount: record.actualDepreciationAmount.toFixed(2), payments: record.payments.map((payment) => ({ ...payment, paymentDate: dateString(payment.paymentDate), amount: payment.amount.toFixed(2), commission: payment.commission.toFixed(2), clientAmount: payment.clientAmount.toFixed(2) })), documents: record.documents.map((document) => ({ ...document, folderKey: document.folderKey ?? document.category, createdAt: document.createdAt.toISOString() })), notes: record.notes.map((note) => ({ ...note, createdAt: note.createdAt.toISOString() })), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() };
+  return { ...record, documentFolders: parseDocumentFolders(record.documentFolders), accidentDate: dateString(record.accidentDate), policyExpiryDate: dateString(record.policyExpiryDate), postalDeliveryDate: dateString(record.postalDeliveryDate), insuranceApplicationDate: dateString(record.insuranceApplicationDate), arbitrationApplicationDate: dateString(record.arbitrationApplicationDate), insuranceSettlementOffer: record.insuranceSettlementOffer.toFixed(2), postageExpense: record.postageExpense.toFixed(2), enforcementExpense: record.enforcementExpense.toFixed(2), arbitrationApplicationFee: record.arbitrationApplicationFee.toFixed(2), expertFee: record.expertFee.toFixed(2), postalAmount: record.postalAmount.toFixed(2), actualDepreciationAmount: record.actualDepreciationAmount.toFixed(2), payments: record.payments.map((payment) => ({ ...payment, paymentDate: dateString(payment.paymentDate), amount: payment.amount.toFixed(2), commission: payment.commission.toFixed(2), clientAmount: payment.clientAmount.toFixed(2) })), documents: record.documents.map((document) => ({ ...document, folderKey: document.folderKey ?? document.category, createdAt: document.createdAt.toISOString() })), notes: record.notes.map((note) => ({ ...note, createdAt: note.createdAt.toISOString() })), notifications: record.notifications.map(presentNotification), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() };
 }
 function dateString(value: Date | null) { return value?.toISOString().slice(0, 10) ?? null; }
+
+const notificationSelect = { id: true, title: true, description: true, reminderType: true, priority: true, eventAt: true, notifyAt: true, status: true, sentAt: true, createdBy: { select: { name: true } } } as const;
+function presentNotification(notification: { id: string; title: string; description: string | null; reminderType: string | null; priority: string; eventAt: Date; notifyAt: Date; status: string; sentAt: Date | null; createdBy: { name: string } }) { return { ...notification, priority: normalizeNotificationPriority(notification.priority), eventAt: notification.eventAt.toISOString(), notifyAt: notification.notifyAt.toISOString(), sentAt: notification.sentAt?.toISOString() ?? null, creator: notification.createdBy }; }
+function normalizeNotificationPriority(value: string): "HIGH" | "MEDIUM" | "LOW" { return value === "HIGH" || value === "LOW" ? value : "MEDIUM"; }

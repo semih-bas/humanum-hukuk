@@ -44,6 +44,8 @@ model User {
   deletedInsuranceDocuments            InsuranceArbitrationDocument[] @relation("InsuranceDocumentDeletedBy")
   insuranceNotes                       InsuranceArbitrationNote[]      @relation("InsuranceNoteAuthor")
   deletedInsuranceNotes                InsuranceArbitrationNote[]      @relation("InsuranceNoteDeletedBy")
+  insuranceNotifications               InsuranceArbitrationNotification[] @relation("InsuranceNotificationCreatedBy")
+  deletedInsuranceNotifications        InsuranceArbitrationNotification[] @relation("InsuranceNotificationDeletedBy")
   createdGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseCreatedBy")
   updatedGeneralCases                  GeneralLegalCase[]             @relation("GeneralLegalCaseUpdatedBy")
   archivedGeneralCases                 GeneralLegalCase[]             @relation("GeneralLegalCaseArchivedBy")
@@ -421,6 +423,7 @@ model InsuranceArbitrationCase {
   documents                  InsuranceArbitrationDocument[]
   notes                      InsuranceArbitrationNote[]
   payments                   InsuranceArbitrationPayment[]
+  notifications              InsuranceArbitrationNotification[]
 
   @@index([vehiclePlate])
   @@index([opposingInsuranceCompany])
@@ -492,6 +495,32 @@ model InsuranceArbitrationNote {
   @@index([authorId, createdAt])
   @@index([deletedById])
   @@map("insurance_arbitration_note")
+}
+
+model InsuranceArbitrationNotification {
+  id          String                   @id @default(cuid())
+  caseId      String
+  createdById String
+  deletedById String?
+  title       String                   @db.VarChar(150)
+  description String?                  @db.Text
+  reminderType String?                 @db.VarChar(100)
+  priority    String                   @default("MEDIUM") @db.VarChar(10)
+  eventAt     DateTime
+  notifyAt    DateTime
+  status      ReminderStatus           @default(PENDING)
+  sentAt      DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  case        InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdBy   User                     @relation("InsuranceNotificationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  deletedBy   User?                    @relation("InsuranceNotificationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([caseId, deletedAt, eventAt])
+  @@index([status, notifyAt])
+  @@index([createdById, createdAt])
+  @@map("insurance_arbitration_notification")
 }
 
 enum GeneralCaseKind {
@@ -883,6 +912,10 @@ model CaseReminder {
   caseFileId         String
   createdById        String
   title              String
+  description        String?            @db.Text
+  reminderType       String?            @db.VarChar(100)
+  priority           String             @default("MEDIUM") @db.VarChar(10)
+  eventAt            DateTime           @default(now())
   dueAt              DateTime
   sendEmail          Boolean            @default(true)
   sendSms            Boolean            @default(false)

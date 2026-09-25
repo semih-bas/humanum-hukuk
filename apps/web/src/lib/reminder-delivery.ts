@@ -87,7 +87,7 @@ export async function processReminderBatch(options: BatchOptions = {}) {
         const result = await (options.send ?? sendReminderEmail)({
           to: delivery.recipientEmail, recipientName: delivery.recipient.name,
           reminderId: delivery.reminderId, title: delivery.reminder.title,
-          referenceNumber: delivery.reminder.caseFile.referenceNumber, dueAt: delivery.reminder.dueAt,
+          referenceNumber: delivery.reminder.caseFile.referenceNumber, dueAt: delivery.reminder.eventAt,
         });
         if (result.status === "sent") {
           sent++;
