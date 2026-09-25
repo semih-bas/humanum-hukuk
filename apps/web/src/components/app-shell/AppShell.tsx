@@ -255,12 +255,17 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
       return;
     }
 
-    const verification = await authClient.sendVerificationEmail(enrollment.verification);
+    const verification = await fetch("/api/admin/users/verification", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ email }),
+    });
 
     form.reset();
     setCreateUserOpen(false);
     setTeamOpen(true);
-    setManagementNotice(verification.error
+    setManagementNotice(!verification.ok
       ? "Kullanıcı oluşturuldu ancak doğrulama e-postası gönderilemedi. Kullanıcı giriş ekranından yeniden isteyebilir."
       : "Kullanıcı oluşturuldu ve e-posta doğrulama bağlantısı gönderildi.");
     setIsCreatingUser(false);
@@ -314,8 +319,13 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
     setChangingUserId(member.id);
     setManagementNotice("");
     try {
-      const { error } = await authClient.sendVerificationEmail({ email: member.email, callbackURL: "/sifremi-unuttum" });
-      setManagementNotice(error
+      const response = await fetch("/api/admin/users/verification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ email: member.email }),
+      });
+      setManagementNotice(!response.ok
         ? "Doğrulama e-postası gönderilemedi. Lütfen biraz sonra tekrar deneyin."
         : `${member.name} için doğrulama e-postası yeniden gönderildi.`);
     } catch {
