@@ -321,4 +321,5 @@
   .sectionCard > .field,
   .sectionCard > fieldset { margin-block: 0; }
   .partyLayout { align-items: start; }
+  .newCasePage.workspacePage { height: calc(100vh - 92px); min-height: 0; overflow: hidden; }
 }

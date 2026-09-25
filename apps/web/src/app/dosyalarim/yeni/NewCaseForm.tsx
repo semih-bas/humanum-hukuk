@@ -288,7 +288,7 @@ export default function NewCaseForm({ caseId, initialData, initialTab = "general
   }
 
   return <AppShell pageTitle={readOnly ? "Dosya Genel Bakışı" : caseId ? "Dosyayı Düzenle" : "Yeni Dosya Kaydı"} pageSubtitle="İcra">
-    <main className={styles.newCasePage}>
+    <main className={`${styles.newCasePage} ${tab === "general" ? "" : styles.workspacePage}`}>
       <header className={styles.pageHeader}>
         <div className={styles.pageTitle}>
           <p>{initialData?.referenceNumber ? `${initialData.referenceNumber} · ` : ""}Dosya bilgilerini eksiksiz şekilde giriniz.</p>

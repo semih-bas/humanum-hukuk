@@ -38,7 +38,7 @@ export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmi
   return <div className={styles.form}>
     {error && <p className={styles.error}>{error}</p>}
     <CaseNotifications initialItems={notifications} onItemsChange={change} currentUserName={currentUser.name} />
-    <form onSubmit={onSubmit}><footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Bildirimler</span><button type="submit">Notlara İlerle →</button></footer></form>
+    <form className={styles.navigationForm} onSubmit={onSubmit}><footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Bildirimler</span><button type="submit">Notlara İlerle →</button></footer></form>
   </div>;
 }
 function taskStatus(value: string): TaskDraft["status"] { return value === "SENT" || value === "COMPLETED" ? "COMPLETED" : value === "WAITING" || value === "IN_PROGRESS" || value === "CANCELLED" ? value : "PLANNED"; }
