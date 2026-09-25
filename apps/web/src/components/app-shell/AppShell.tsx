@@ -310,6 +310,21 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
     await applyUserStatusChange(member, "ban");
   }
 
+  async function resendVerificationEmail(member: TeamMember) {
+    setChangingUserId(member.id);
+    setManagementNotice("");
+    try {
+      const { error } = await authClient.sendVerificationEmail({ email: member.email, callbackURL: "/sifremi-unuttum" });
+      setManagementNotice(error
+        ? "Doğrulama e-postası gönderilemedi. Lütfen biraz sonra tekrar deneyin."
+        : `${member.name} için doğrulama e-postası yeniden gönderildi.`);
+    } catch {
+      setManagementNotice("Doğrulama e-postası gönderilemedi. Lütfen biraz sonra tekrar deneyin.");
+    } finally {
+      setChangingUserId(null);
+    }
+  }
+
   async function confirmUserDeletion() {
     if (!pendingUserDeletion) return;
     const member = pendingUserDeletion; setPendingUserDeletion(null); setChangingUserId(member.id); setManagementNotice("");
@@ -417,7 +432,9 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
                     {member.id !== session?.user.id && <details className={styles.memberActions}>
                       <summary className={styles.memberActionsTrigger} aria-label={`${member.name} için işlemleri aç`}>•••</summary>
                       <div className={styles.memberActionsMenu}>
-                        {member.banned ? <><button className={styles.statusButton} type="button" onClick={() => setPendingUserDeletion(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "İşleniyor…" : "Kullanıcıyı sil"}</button><button className={styles.reactivateButton} type="button" onClick={() => void applyUserStatusChange(member, "unban")} disabled={changingUserId !== null}>Tekrar aktifleştir</button></> : <button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "İşleniyor…" : "Kullanıcıyı pasifleştir"}</button>}
+                        {member.banned
+                          ? <><button className={styles.statusButton} type="button" onClick={() => setPendingUserDeletion(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "İşleniyor…" : "Kullanıcıyı sil"}</button><button className={styles.reactivateButton} type="button" onClick={() => void applyUserStatusChange(member, "unban")} disabled={changingUserId !== null}>Tekrar aktifleştir</button></>
+                          : <>{!member.emailVerified && <button className={styles.reactivateButton} type="button" onClick={() => void resendVerificationEmail(member)} disabled={changingUserId !== null}>{changingUserId === member.id ? "Gönderiliyor…" : "Doğrulama e-postasını gönder"}</button>}<button className={styles.statusButton} type="button" onClick={() => void handleUserStatusChange(member)} disabled={changingUserId !== null}>Kullanıcıyı pasifleştir</button></>}
                       </div>
                     </details>}
                   </div>

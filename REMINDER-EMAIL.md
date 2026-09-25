@@ -22,11 +22,12 @@ Current conservative limits (rolling inactivity windows, not calendar-day resets
 | --- | --- |
 | Reminder creation per user | 10/hour, 30/day |
 | Reminder creation across the application | 200/day |
-| Reminder email per administrator | 1/minute, 20/hour, 100/day |
-| Reminder sending across the application | 40 attempts/hour, 80% of the shared daily allowance |
-| All email categories combined | 50 attempts/hour, `EMAIL_DAILY_LIMIT` (default 300)/day |
+| Reminder email per administrator | 1/minute, 20/hour |
+| Reminder sending across the application | 20 attempts/hour, `REMINDER_EMAIL_DAILY_LIMIT` (default 40)/day |
+| Password reset and verification combined | 15 attempts/hour, `AUTH_EMAIL_DAILY_LIMIT` (default 30)/day |
+| All email categories combined | 50 attempts/hour, `EMAIL_DAILY_LIMIT` (default 100)/day |
 
-Authentication email keeps its own recipient limits. Reminder limits reserve part of the shared budget for account recovery. These are application limits, not a guarantee of provider availability or quota. The dedicated sender should not be used by unrelated tools that consume the same provider quota.
+Authentication email keeps its own recipient limits. Separate channel budgets prevent reminders and authentication requests from exhausting each other's allowance; the unused part of the provider allowance remains a safety margin. These are application limits, not a guarantee of provider availability or quota. The dedicated sender should not be used by unrelated tools that consume the same provider quota.
 
 Creation is serialized in the database across both form entry points. Repeated submissions with the same case, title and due time return the existing non-cancelled reminder.
 

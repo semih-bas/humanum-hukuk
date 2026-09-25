@@ -45,14 +45,28 @@ const deliveryRecipientRules: RateLimitRule[] = [
 
 const recipientSuccessfulDeliveryRule: RateLimitRule = { name: "successful-daily", max: 5, windowMs: 24 * 60 * 60_000 };
 const globalAttemptRule: RateLimitRule = { name: "attempt-hourly", max: 50, windowMs: 60 * 60_000 };
+const authAttemptRule: RateLimitRule = { name: "attempt-hourly", max: 15, windowMs: 60 * 60_000 };
+const reminderAttemptRule: RateLimitRule = { name: "attempt-hourly", max: 20, windowMs: 60 * 60_000 };
 
 let nextPruneAt = 0;
 
 function globalDeliveryRule(): RateLimitRule {
   const configured = process.env.EMAIL_DAILY_LIMIT?.trim();
-  const max = configured ? Number(configured) : 300;
+  const max = configured ? Number(configured) : 100;
   if (!Number.isInteger(max) || max < 1 || max > 10_000) {
     throw new Error("EMAIL_DAILY_LIMIT must be an integer between 1 and 10000.");
+  }
+  return { name: "daily", max, windowMs: 24 * 60 * 60_000 };
+}
+
+function channelDailyRule(category: TransactionalEmailCategory, globalMax: number): RateLimitRule {
+  const reminder = category === "reminder";
+  const variable = reminder ? "REMINDER_EMAIL_DAILY_LIMIT" : "AUTH_EMAIL_DAILY_LIMIT";
+  const configured = process.env[variable]?.trim();
+  const fallback = Math.max(1, Math.min(reminder ? 40 : 30, Math.floor(globalMax * (reminder ? 0.4 : 0.3))));
+  const max = configured ? Number(configured) : fallback;
+  if (!Number.isInteger(max) || max < 1 || max > globalMax) {
+    throw new Error(`${variable} must be an integer between 1 and EMAIL_DAILY_LIMIT.`);
   }
   return { name: "daily", max, windowMs: 24 * 60 * 60_000 };
 }
@@ -154,10 +168,16 @@ export async function reserveTransactionalEmail(category: TransactionalEmailCate
     rule,
   }));
   const globalRuleDefinition = globalDeliveryRule();
-  if (reminder && globalRuleDefinition.max < 2) return { allowed: false, retryAfterSeconds: 86_400 };
+  const channelRule = channelDailyRule(category, globalRuleDefinition.max);
+  const channelName = reminder ? "reminder" : "authentication";
+  const channelAttemptRule = reminder ? reminderAttemptRule : authAttemptRule;
   const successRules: RateLimitItem[] = [{
     key: emailRateLimitKey("delivery", category, recipient, successfulRule.name),
     rule: successfulRule,
+    releaseOnFailure: true,
+  }, {
+    key: `email:delivery:${channelName}:${channelRule.name}`,
+    rule: channelRule,
     releaseOnFailure: true,
   }, {
     key: `email:delivery:global:${globalRuleDefinition.name}`,
@@ -166,9 +186,7 @@ export async function reserveTransactionalEmail(category: TransactionalEmailCate
   }];
   return consumeRules([
     ...recipientAttemptRules,
-    // Leave capacity for verification and password recovery, even under a reminder flood.
-    ...(reminder ? [{ key: "email:delivery:reminder:attempt-hourly", rule: { ...globalAttemptRule, max: 40 } },
-      { key: "email:delivery:reminder:daily", rule: { ...globalRuleDefinition, max: Math.max(1, Math.floor(globalRuleDefinition.max * 0.8)) }, releaseOnFailure: true }] : []),
+    { key: `email:delivery:${channelName}:${channelAttemptRule.name}`, rule: channelAttemptRule },
     { key: `email:delivery:global:${globalAttemptRule.name}`, rule: globalAttemptRule },
     ...successRules,
   ]);

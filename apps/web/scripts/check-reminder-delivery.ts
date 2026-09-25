@@ -25,7 +25,14 @@ const userIds = ["user", "admin", "second", "inactive", "unverified"].map((name)
 const caseId = `${prefix}-case`;
 const reminderIds: string[] = [];
 const checks: string[] = [];
-const globals = ["email:delivery:global:daily", "email:delivery:global:attempt-hourly", "email:delivery:reminder:daily", "email:delivery:reminder:attempt-hourly"];
+const globals = [
+  "email:delivery:global:daily",
+  "email:delivery:global:attempt-hourly",
+  "email:delivery:reminder:daily",
+  "email:delivery:reminder:attempt-hourly",
+  "email:delivery:authentication:daily",
+  "email:delivery:authentication:attempt-hourly",
+];
 const globalSnapshot = await prisma.emailRateLimit.findMany({ where: { key: { in: globals } } });
 const now = new Date(Date.now() + 60_000);
 let serial = 0;
@@ -122,7 +129,7 @@ try {
   assert.ok(message.HTML.includes(`/hatirlatmalar?reminder=${smtp.id}`));
   checks.push("actual SMTP delivery reaches Mailpit with the exact reminder link");
 
-  const cap = Math.max(1, Math.floor(Number(process.env.EMAIL_DAILY_LIMIT ?? 300) * 0.8));
+  const cap = Number(process.env.REMINDER_EMAIL_DAILY_LIMIT ?? Math.max(1, Math.min(40, Math.floor(Number(process.env.EMAIL_DAILY_LIMIT ?? 100) * 0.4))));
   await prisma.emailRateLimit.upsert({ where: { key: globals[2] }, create: { key: globals[2], count: cap, lastRequest: BigInt(Date.now()) }, update: { count: cap, lastRequest: BigInt(Date.now()) } });
   assert.equal((await reserveTransactionalEmail("reminder", `${userIds[2]}@example.invalid`)).allowed, false);
   assert.equal(await prisma.emailRateLimit.findUnique({ where: { key: emailRateLimitKey("delivery", "reminder", `${userIds[2]}@example.invalid`, "cooldown") } }), null);
@@ -134,7 +141,7 @@ try {
   // Both creation entry points enforce the same limit, not just the modal endpoint.
   while (await prisma.caseReminder.count({ where: { createdById: userIds[0] } }) < 10) await reminder();
   await assert.rejects(addCaseReminder(caseId, { ...input, title: "Limit check" }, userIds[0]), (error: unknown) => error instanceof ReminderCreationError && error.status === 429);
-  const caseInput = createCaseSchema.parse({ licenseHolder: "Synthetic limit", vehiclePlate: "34 TST 100", accidentDate: "2025-01-01", debtorType: "INDIVIDUAL", debtorName: "Synthetic", damageAmount: "0", depreciationAmount: "0", profitLossAmount: "0", preEnforcementInterestAmount: "0", postEnforcementInterestAmount: "0", discountAmount: "0", enforcementOffice: null, enforcementFileNumber: null, vehicleLien: false, bankLien: false, titleDeedLien: false, installmentCount: null, status: "OPEN", reminder: { ...input, dueAt: now.toISOString() } });
+  const caseInput = createCaseSchema.parse({ licenseHolder: "Synthetic limit", vehiclePlate: "34 TST 100", accidentDate: "2025-01-01", debtorType: "INDIVIDUAL", debtorName: "Synthetic", hasDamageClaim: true, hasDepreciationClaim: false, hasProfitLossClaim: false, damageAmount: "0", depreciationAmount: "0", profitLossAmount: "0", profitLossDays: null, dailyRentalAmount: null, preEnforcementInterestAmount: "0", postEnforcementInterestAmount: "0", judgmentStatus: "WITHOUT_JUDGMENT", discountAmount: "0", enforcementOffice: null, enforcementFileNumber: null, vehicleLien: false, bankLien: false, titleDeedLien: false, salaryLien: false, installmentCount: null, status: "OPEN", reminder: { ...input, dueAt: now.toISOString() } });
   await assert.rejects(createCaseFile(caseInput, userIds[0]), (error: unknown) => error instanceof ReminderCreationError && error.status === 429);
   await assert.rejects(addCaseReminder(caseId, input, userIds[3]), (error: unknown) => error instanceof ReminderCreationError && error.status === 403);
   checks.push("both nested and standalone reminder creation reject rate abuse; inactive creators are rejected");

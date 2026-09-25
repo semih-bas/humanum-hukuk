@@ -5,6 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
 
 import { adminRole, authAccessControl, userRole } from "./auth-permissions";
+import { authEmailAccountMayReceiveEmail } from "./auth-email-policy";
 import { tryWriteAuditLog } from "./audit";
 import { prisma } from "./database";
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from "./email";
@@ -16,13 +17,14 @@ const authBaseUrl = requireHttpUrl("BETTER_AUTH_URL");
 export const PASSWORD_MIN_LENGTH = 10;
 export const PASSWORD_MAX_LENGTH = 128;
 
-function dispatchAuthenticationEmail(options: {
+async function dispatchAuthenticationEmail(options: {
   category: TransactionalEmailCategory;
   eventPrefix: string;
   send: () => ReturnType<typeof sendEmailVerificationEmail>;
   userId: string;
-}): void {
-  void options.send().then(async (result) => {
+}): Promise<void> {
+  try {
+    const result = await options.send();
     await tryWriteAuditLog({
       actorUserId: null,
       event: result.status === "sent" ? `${options.eventPrefix}_sent` : `${options.eventPrefix}_suppressed`,
@@ -30,7 +32,7 @@ function dispatchAuthenticationEmail(options: {
       targetId: options.userId,
       context: result.status === "suppressed" ? { category: options.category, retryAfterSeconds: result.retryAfterSeconds } : { category: options.category },
     });
-  }).catch(async (error: unknown) => {
+  } catch (error: unknown) {
     console.error("Failed to deliver authentication email", {
       category: options.category,
       error: error instanceof Error ? error.name : "UnknownError",
@@ -42,7 +44,16 @@ function dispatchAuthenticationEmail(options: {
       targetId: options.userId,
       context: { category: options.category, error: error instanceof Error ? error.name : "UnknownError" },
     });
+  }
+}
+
+async function mayDispatchAuthenticationEmail(userId: string, email: string, category: TransactionalEmailCategory): Promise<boolean> {
+  const account = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { banned: true, deletionRequestedAt: true },
   });
+  if (!authEmailAccountMayReceiveEmail(account)) return false;
+  return (await consumeAuthEmailRequest(category, email.trim().toLowerCase())).allowed;
 }
 
 const authEmailRequestGuard = createAuthMiddleware(async (context) => {
@@ -53,22 +64,6 @@ const authEmailRequestGuard = createAuthMiddleware(async (context) => {
     });
   }
 
-  const category = context.path === "/request-password-reset"
-    ? "password-reset"
-    : context.path === "/send-verification-email"
-      ? "verification"
-      : null;
-  if (!category) return;
-
-  const email = typeof context.body?.email === "string" ? context.body.email.trim().toLowerCase() : "";
-  if (!email) return;
-
-  const decision = await consumeAuthEmailRequest(category, email);
-  if (!decision.allowed) {
-    return category === "password-reset"
-      ? context.json({ status: true, message: "If this email exists in our system, check your email for the reset link" })
-      : context.json({ status: true });
-  }
 });
 
 export const auth = betterAuth({
@@ -144,7 +139,8 @@ export const auth = betterAuth({
     expiresIn: 30 * 60,
     sendOnSignIn: true,
     sendVerificationEmail: async ({ user, url }) => {
-      dispatchAuthenticationEmail({
+      if (!await mayDispatchAuthenticationEmail(user.id, user.email, "verification")) return;
+      await dispatchAuthenticationEmail({
         category: "verification",
         eventPrefix: "auth.email_verification_delivery",
         userId: user.id,
@@ -179,7 +175,8 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 30 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      dispatchAuthenticationEmail({
+      if (!await mayDispatchAuthenticationEmail(user.id, user.email, "password-reset")) return;
+      await dispatchAuthenticationEmail({
         category: "password-reset",
         eventPrefix: "auth.password_reset_delivery",
         userId: user.id,

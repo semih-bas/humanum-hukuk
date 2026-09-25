@@ -14,7 +14,12 @@ if (process.env.EMAIL_SECURITY_CHECK_ALLOWED !== "true" ||
 const { prisma } = await import("../src/lib/database");
 const { consumeAuthEmailRequest, reserveTransactionalEmail, releaseFailedTransactionalEmail } = await import("../src/lib/email-rate-limit");
 const { sendPasswordResetEmail } = await import("../src/lib/email");
-const globalKeys = ["email:delivery:global:daily", "email:delivery:global:attempt-hourly"];
+const globalKeys = [
+  "email:delivery:global:daily",
+  "email:delivery:global:attempt-hourly",
+  "email:delivery:authentication:daily",
+  "email:delivery:authentication:attempt-hourly",
+];
 const testKeys = new Set<string>();
 const globalSnapshot: Array<{ key: string; count: number; lastRequest: bigint }> = [];
 let globalsModified = false;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildEmailVerificationEmail, buildPasswordResetEmail, isDefiniteEmailRejection } from "../src/lib/email";
+import { authEmailAccountMayReceiveEmail } from "../src/lib/auth-email-policy";
 import { emailRateLimitKey } from "../src/lib/email-rate-limit-key";
 import { clearSensitiveActionAttempts, consumeSensitiveActionAttempt } from "../src/lib/sensitive-action-rate-limit";
 
@@ -69,4 +70,11 @@ test("belirsiz SMTP sonuçları günlük kotadan düşülmez", () => {
   assert.equal(isDefiniteEmailRejection({ responseCode: 550, command: "DATA" }), true);
   assert.equal(isDefiniteEmailRejection({ code: "ETIMEDOUT", command: "DATA" }), false);
   assert.equal(isDefiniteEmailRejection(new Error("Unknown provider failure")), false);
+});
+
+test("yalnızca aktif ve silinme beklemeyen hesaplar kimlik e-postası alır", () => {
+  assert.equal(authEmailAccountMayReceiveEmail(null), false);
+  assert.equal(authEmailAccountMayReceiveEmail({ banned: true, deletionRequestedAt: null }), false);
+  assert.equal(authEmailAccountMayReceiveEmail({ banned: false, deletionRequestedAt: new Date() }), false);
+  assert.equal(authEmailAccountMayReceiveEmail({ banned: false, deletionRequestedAt: null }), true);
 });
