@@ -13,7 +13,7 @@ import TaskStep, { type TaskDraft } from "./TaskStep";
 import NoteStep, { type NoteDraft } from "./NoteStep";
 import styles from "./page.module.css";
 
-const steps = ["Genel Bilgiler", "Taraflar", "Mali Bilgiler", "Dava Süreci", "Evraklar", "Görevler", "Notlar"];
+const steps = ["Genel Bilgiler", "Taraflar", "Mali Bilgiler", "Dava Süreci", "Evraklar", "Bildirimler", "Notlar"];
 const stages = [
   ["CASE_OPENING", "Dava Açılışı"], ["NOTIFICATION", "Tebligat"], ["RESPONSE_PETITION", "Cevap Dilekçesi"],
   ["PRELIMINARY_REVIEW", "Ön İnceleme"], ["EXAMINATION", "Tahkikat"], ["EXPERT_REPORT", "Bilirkişi Raporu"],

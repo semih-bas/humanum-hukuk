@@ -92,7 +92,7 @@ export default function DocumentsStep({ documents, setDocuments, onBack, onSubmi
         <button type="button" onClick={() => void removeDocument(document)}>{document.persistedId ? "Sil" : "Kaldır"}</button>
       </article>)}
     </section>}</section></div>
-    <footer><button type="button" className={styles.back} onClick={onBack}>← Dava Süreci</button><span>5 / 7 · Evraklar</span><button type="submit">Görevlere İlerle →</button></footer>
+    <footer><button type="button" className={styles.back} onClick={onBack}>← Dava Süreci</button><span>5 / 7 · Evraklar</span><button type="submit">Bildirimlere İlerle →</button></footer>
   </form>;
 }
 
