@@ -30,18 +30,34 @@ export async function POST(request: Request) {
     if (newPassword.length < PASSWORD_MIN_LENGTH || newPassword.length > PASSWORD_MAX_LENGTH) {
       throw new ApiRequestError(422, "INVALID_PASSWORD", `Yeni şifre ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} karakter arasında olmalıdır.`);
     }
-    if (!currentPassword || newPassword !== newPasswordConfirmation) {
+    if (newPassword !== newPasswordConfirmation) {
       throw new ApiRequestError(422, "PASSWORD_MISMATCH", "Yeni şifre alanları eşleşmiyor.");
     }
 
-    await auth.api.changePassword({
-      headers: request.headers,
-      body: { currentPassword, newPassword, revokeOtherSessions: true },
+    const accountState = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        emailVerified: true,
+        mustChangePassword: true,
+        accounts: { where: { providerId: "credential" }, select: { id: true }, take: 1 },
+      },
     });
+    const initialPasswordSetup = accountState?.emailVerified === true && accountState.mustChangePassword && accountState.accounts.length === 0;
+
+    if (initialPasswordSetup) {
+      await auth.api.setPassword({ headers: request.headers, body: { newPassword } });
+    } else {
+      if (!currentPassword) throw new ApiRequestError(422, "CURRENT_PASSWORD_REQUIRED", "Mevcut şifrenizi yazmalısınız.");
+      await auth.api.changePassword({
+        headers: request.headers,
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+      });
+    }
     await prisma.user.update({
       where: { id: session.user.id },
       data: { mustChangePassword: false },
     });
+    if (initialPasswordSetup) await prisma.session.deleteMany({ where: { userId: session.user.id } });
     await clearSensitiveActionAttempts(attemptKey);
     await tryWriteAuditLog({
       actorUserId: session.user.id,
@@ -51,7 +67,7 @@ export async function POST(request: Request) {
       ipAddress: session.session.ipAddress,
     });
 
-    return NextResponse.json({ data: { changed: true } });
+    return NextResponse.json({ data: { changed: true, initialPasswordSetup } });
   } catch (error) {
     if (error instanceof ApiRequestError) {
       return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });

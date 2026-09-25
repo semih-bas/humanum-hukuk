@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     // Yönetici oturumunu Better Auth çağrısına taşımıyoruz. Standart uç nokta,
     // oturumdaki yönetici e-postasıyla hedef e-posta farklıysa EMAIL_MISMATCH verir.
     await auth.api.sendVerificationEmail({
-      body: { email: target.email, callbackURL: "/sifremi-unuttum" },
+      body: { email: target.email, callbackURL: "/sifre-degistir" },
     });
 
     return NextResponse.json({ data: { email: target.email } });

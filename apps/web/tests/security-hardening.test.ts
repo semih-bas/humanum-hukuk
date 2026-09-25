@@ -26,7 +26,7 @@ test("administrator enrollment never contains a password", () => {
   const enrollment = buildNewUserEnrollment({ name: "  Yeni Kullanıcı ", email: " USER@EXAMPLE.COM " });
   assert.deepEqual(enrollment.account, { name: "Yeni Kullanıcı", email: "user@example.com" });
   assert.equal(Object.hasOwn(enrollment.account, "password"), false);
-  assert.deepEqual(enrollment.verification, { email: "user@example.com", callbackURL: "/sifremi-unuttum" });
+  assert.deepEqual(enrollment.verification, { email: "user@example.com", callbackURL: "/sifre-degistir" });
   assert.equal(adminUserCreationContainsPassword({ email: "user@example.com", password: "secret" }), true);
   assert.equal(adminUserCreationContainsPassword({ email: "user@example.com" }), false);
 });

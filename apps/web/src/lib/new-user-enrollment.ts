@@ -7,7 +7,7 @@ export function buildNewUserEnrollment(input: { name: string; email: string }) {
     },
     verification: {
       email,
-      callbackURL: "/sifremi-unuttum",
+      callbackURL: "/sifre-degistir",
     },
   };
 }
