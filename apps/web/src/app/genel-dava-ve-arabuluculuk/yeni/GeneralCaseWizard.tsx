@@ -57,7 +57,7 @@ export type WizardInitialData = {
   documents: Array<{ id: string; originalName: string; category: string; folderKey: string | null; mimeType: string; sizeBytes: number }>;
 };
 
-export default function GeneralCaseWizard({ currentUser, initialData = null, readOnly = false }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null; readOnly?: boolean }) {
+export default function GeneralCaseWizard({ currentUser, initialData = null, readOnly = false, initialStep = 0 }: { currentUser: { id: string; name: string }; initialData?: WizardInitialData | null; readOnly?: boolean; initialStep?: number }) {
   const router = useRouter();
   const editingCase = initialData?.legalCase ?? null;
   const [form, setForm] = useState<GeneralCaseDraft>(() => editingCase ? {
@@ -66,7 +66,7 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
     courtType: editingCase.courtType ?? "", court: editingCase.court ?? "", procedure: editingCase.procedure ?? "", trackingGroup: editingCase.trackingGroup ?? "",
     office: editingCase.office ?? "", description: editingCase.description ?? "",
   } : initialForm);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => editingCase ? Math.min(6, Math.max(0, initialStep)) : 0);
   const [parties, setParties] = useState<PartyDraft[]>(() => editingCase ? editingCase.parties.map((party) => ({ ...party, clientId: party.id, identityOrTaxNumber: party.identityOrTaxNumber ?? "", phone: (party.phone ?? "").replace(/\D/g, "").slice(0, 11), email: party.email ?? "", address: party.address ?? "", representativeName: party.representativeName ?? "", clientType: party.clientType ?? "", description: party.description ?? "" })) : primaryParties("GENERAL_LITIGATION"));
   const [finance, setFinance] = useState<FinanceDraft>(() => initialData ? { ...initialFinance, ...initialData.finance, installmentCount: String(initialData.finance.installmentCount ?? 3), financeDescription: initialData.finance.financeDescription ?? "", interestStartDate: initialData.finance.interestStartDate ?? "" } : initialFinance);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>(() => initialData?.finance.entries?.map((entry: { id: string; type: FinancialEntryDraft["type"]; category: string; entryDate: string; amount: string; description: string }) => ({ clientId: entry.id, type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description })) ?? []);
