@@ -59,8 +59,9 @@ const sortOptions = {
 
 type SortOption = keyof typeof sortOptions;
 
-function Icon({ name }: { name: "payment" | "bell" | "edit" | "plus" | "search" | "x" }) {
+function Icon({ name }: { name: "eye" | "payment" | "bell" | "edit" | "plus" | "search" | "x" }) {
   const paths = {
+    eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
     payment: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
     edit: <><path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5" /></>,
@@ -243,6 +244,7 @@ export default function FilesClient() {
                   <td><div className={styles.rowActions}>
                     <Link className={styles.paymentAction} href={`/dosyalarim/${record.id}/duzenle?tab=payments`} title="Ödeme" aria-label={record.vehiclePlate + " ödeme"}><Icon name="payment" /></Link>
                     <Link className={styles.reminderAction} href={`/dosyalarim/${record.id}/duzenle?tab=notifications`} title="Bildirim Ekle" aria-label={record.vehiclePlate + " bildirim ekle"}><Icon name="bell" /></Link>
+                    <button className={styles.viewAction} type="button" title="Görüntüle" aria-label={record.vehiclePlate + " dosyasını görüntüle"} onClick={() => setDetailRequest({ id: record.id, mode: "view" })}><Icon name="eye" /></button>
                     <Link className={styles.editAction} href={`/dosyalarim/${record.id}/duzenle`} title="Düzenle" aria-label={record.vehiclePlate + " dosyasını düzenle"}><Icon name="edit" /></Link>
                     <DeleteCaseButton endpoint={`/api/cases/${record.id}`} reference={record.referenceNumber} onDeleted={() => { setRefreshKey((value) => value + 1); setNotice(`${record.referenceNumber} silindi. 30 gün içinde geri getirilebilir.`); }} />
                   </div></td>
@@ -271,7 +273,10 @@ export default function FilesClient() {
     {detailRequest && <CaseDetailModal
       caseId={detailRequest.id}
       initialMode={detailRequest.mode}
-      onClose={() => setDetailRequest(null)}
+      onClose={() => {
+        setDetailRequest(null);
+        if (linkedCaseId) router.replace("/dosyalarim", { scroll: false });
+      }}
       onSaved={() => { setRefreshKey((value) => value + 1); setNotice("Dosya başarıyla güncellendi ve değişiklik geçmişine kaydedildi."); }}
     />}
     {debtorPreview && <DebtorListModal referenceNumber={debtorPreview.referenceNumber} debtors={debtorPreview.debtors} onClose={() => setDebtorPreview(null)} />}

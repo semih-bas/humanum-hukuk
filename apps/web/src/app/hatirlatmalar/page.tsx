@@ -41,7 +41,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
                 {reminder.deliveries.length > 0 && <small>{reminder.deliveries.filter((delivery) => delivery.status === "SENT").length} / {reminder.deliveries.length} yöneticiye iletildi.</small>}
               </td>
               <td>{reminder.createdBy.name}</td>
-              <td><Link className={styles.openCase} href={`/dosyalarim?case=${encodeURIComponent(reminder.caseFile.id)}`}>Dosyaya Git <span>→</span></Link></td>
+              <td><Link className={styles.openCase} href={`/dosyalarim?case=${encodeURIComponent(reminder.caseFile.id)}`}>Dosyayı Görüntüle <span>→</span></Link></td>
             </tr>)}
             {reminders.items.length === 0 && <tr><td className={styles.empty} colSpan={6}>Hatırlatma bulunmuyor.</td></tr>}
           </tbody>

@@ -131,13 +131,16 @@
 @media (max-width: 560px) { .historySection article { grid-template-columns: 1fr; }.activityDateTime { grid-template-columns: 1fr; }.activityActions { align-items: stretch; flex-direction: column; }.activityActions p, .activityForm .activityActions > button { width: 100%; }.activityActions label { flex: 1; }.editLienSection, .editOperationSection { margin-inline: 16px; }.editLienSection .editChecks { padding-inline: 0; }.editOperationGrid { grid-template-columns: 1fr 1fr; }.editActivityBackdrop { padding: 12px; } }
 @media (max-width: 720px){.overviewHero{grid-template-columns:1fr;margin:14px 16px 0}}
 
-.rowActions { min-width: 171px; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 9px; }
+.rowActions { min-width: 216px; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 9px; }
 .rowActions > button { flex: 0 0 34px; }
 .rowActions > .paymentAction { background: #e8f5ec; border-color: #cce6d4; color: #397b50; }
 .rowActions > .paymentAction:hover { background: #dff0e4; border-color: #a8d2b5; color: #28643d; }
 .rowActions > .reminderAction { background: #fff6d9; border-color: #efdfa8; color: #9b781b; }
 .rowActions > .reminderAction:hover { background: #ffefbc; border-color: #d9bb60; color: #7d5f10; }
 .rowActions > button:focus-visible { outline: 2px solid #315e87; outline-offset: 3px; }
+
+.rowActions > .viewAction { background: #eaf3fc; border-color: #cfe1f2; color: #4277a5; }
+.rowActions > .viewAction:hover { background: #dfedfa; border-color: #a9c9e6; color: #305f89; }
 
 .rowActions > .editAction { background: #f2ecfa; border-color: #e1d5ef; color: #80609c; }
 .rowActions > .editAction:hover { background: #eae0f5; border-color: #cbb6e1; color: #684787; }
