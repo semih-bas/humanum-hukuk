@@ -42,6 +42,7 @@ type TeamMember = {
 
 type AdminNotification = {
   id: string;
+  source: "enforcement" | "insurance";
   caseFileId: string;
   title: string;
   dueAt: string;
@@ -531,7 +532,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
                   {notificationState === "ready" && notifications.length === 0 && <p><small>Yaklaşan veya gecikmiş hatırlatma bulunmuyor.</small></p>}
                   {notifications.map((notification) => {
                     const reminderTarget = encodeURIComponent(notification.id);
-                    return <Link className={styles.notificationLink} href={`/hatirlatmalar?reminder=${reminderTarget}#reminder-${reminderTarget}`} onClick={() => setOpenMenu(null)} key={notification.id}>
+                    return <Link className={styles.notificationLink} href={`/hatirlatmalar?source=${notification.source}&reminder=${reminderTarget}#reminder-${notification.source}-${reminderTarget}`} onClick={() => setOpenMenu(null)} key={`${notification.source}-${notification.id}`}>
                     <b>{notification.title}{notification.status === "FAILED" ? " · Gönderim başarısız" : ""}</b>
                     <small>{notification.referenceNumber} · {formatNotificationDate(notification.dueAt)}</small>
                     </Link>;

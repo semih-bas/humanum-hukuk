@@ -90,7 +90,7 @@ export async function updateInsuranceNotification(id: string, notificationId: st
   return prisma.$transaction(async (transaction) => {
     const existing = await transaction.insuranceArbitrationCase.findFirst({ where: { id, archivedAt: null }, select: { referenceNumber: true } });
     if (!existing) throw new InsuranceCaseNotFoundError();
-    const result = await transaction.insuranceArbitrationNotification.updateMany({ where: { id: notificationId, caseId: id, deletedAt: null, status: "PENDING" }, data: { title: input.title, description: input.description, reminderType: input.reminderType, priority: input.priority, eventAt: input.eventAt, notifyAt: notificationTime(input.eventAt, input.priority) } });
+    const result = await transaction.insuranceArbitrationNotification.updateMany({ where: { id: notificationId, caseId: id, deletedAt: null, status: "PENDING", deliveryPreparedAt: null }, data: { title: input.title, description: input.description, reminderType: input.reminderType, priority: input.priority, eventAt: input.eventAt, notifyAt: notificationTime(input.eventAt, input.priority), nextPreparationAt: new Date() } });
     if (result.count !== 1) throw new InsuranceNotificationLockedError();
     const notification = await transaction.insuranceArbitrationNotification.findUniqueOrThrow({ where: { id: notificationId }, select: notificationSelect });
     await transaction.auditLog.create({ data: { actorUserId, event: "insurance_arbitration_case.notification_updated", targetType: "insurance_arbitration_case", targetId: id, context: { referenceNumber: existing.referenceNumber, notificationId } } });

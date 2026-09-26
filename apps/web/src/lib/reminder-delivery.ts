@@ -2,6 +2,7 @@ import type { Prisma } from "../generated/prisma/client";
 import { prisma } from "./database";
 import { sendReminderEmail } from "./email";
 import { aggregateReminderStatus, eligibleReminderRecipient, isAllowedReminderAddress, reminderFailureDecision } from "./reminder-delivery-policy";
+import { processInsuranceNotificationBatch } from "./insurance-notification-delivery";
 
 type BatchOptions = {
   now?: Date;
@@ -41,7 +42,7 @@ async function prepareReminder(id: string, now: Date) {
   });
 }
 
-export async function processReminderBatch(options: BatchOptions = {}) {
+async function processCaseReminderBatch(options: BatchOptions = {}) {
   const now = options.now ?? new Date();
   const scope = options.reminderIds ? { reminderId: { in: options.reminderIds } } : {};
   // A crashed worker may have sent the email before persisting success. Never reclaim for automatic resend.
@@ -112,4 +113,16 @@ export async function processReminderBatch(options: BatchOptions = {}) {
     });
   }
   return { prepared: due.length, processed: queue.length, sent, interrupted: stale.length };
+}
+
+export async function processReminderBatch(options: BatchOptions = {}) {
+  const enforcement = await processCaseReminderBatch(options);
+  if (options.reminderIds) return enforcement;
+  const insurance = await processInsuranceNotificationBatch({ now: options.now, send: options.send });
+  return {
+    prepared: enforcement.prepared + insurance.prepared,
+    processed: enforcement.processed + insurance.processed,
+    sent: enforcement.sent + insurance.sent,
+    interrupted: enforcement.interrupted + insurance.interrupted,
+  };
 }

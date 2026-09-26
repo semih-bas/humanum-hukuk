@@ -59,7 +59,9 @@ test("reminder email escapes user content and links to the exact reminder", () =
     const content = buildReminderEmail({ to: "admin@example.invalid", recipientName: "<script>", title: "<img src=x onerror=alert(1)>", referenceNumber: "HH-TEST", dueAt: new Date("2026-09-02T09:00:00Z"), reminderId: "safe-id" });
     assert.ok(content.html.includes("&lt;script&gt;"));
     assert.ok(!content.html.includes("<img"));
-    assert.ok(content.html.includes("/hatirlatmalar?reminder=safe-id#reminder-safe-id"));
+    assert.ok(content.html.includes("/hatirlatmalar?source=enforcement&amp;reminder=safe-id#reminder-enforcement-safe-id"));
+    const insurance = buildReminderEmail({ to: "admin@example.invalid", recipientName: "Yönetici", title: "Tahkim kontrolü", referenceNumber: "ST-TEST", dueAt: new Date("2026-09-02T09:00:00Z"), reminderId: "insurance-id", source: "insurance" });
+    assert.ok(insurance.html.includes("/hatirlatmalar?source=insurance&amp;reminder=insurance-id#reminder-insurance-insurance-id"));
     assert.ok(content.text.includes("12:00"));
     assert.ok(content.text.includes("yöneticilere"));
     assert.ok(!/<(?:main|header)\b/i.test(content.html));

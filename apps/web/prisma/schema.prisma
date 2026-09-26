@@ -72,6 +72,7 @@ model User {
   authoredGeneralCaseNotes             GeneralCaseNote[]              @relation("GeneralCaseNoteAuthor")
   deletedGeneralCaseNotes              GeneralCaseNote[]              @relation("GeneralCaseNoteDeletedBy")
   reminderDeliveries                   ReminderDelivery[]
+  insuranceNotificationDeliveries      InsuranceNotificationDelivery[]
 
   @@unique([email])
   @@index([role])
@@ -510,17 +511,43 @@ model InsuranceArbitrationNotification {
   notifyAt    DateTime
   status      ReminderStatus           @default(PENDING)
   sentAt      DateTime?
+  deliveryPreparedAt DateTime?
+  nextPreparationAt  DateTime                 @default(now())
   deletedAt   DateTime?
   createdAt   DateTime                 @default(now())
   updatedAt   DateTime                 @updatedAt
   case        InsuranceArbitrationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   createdBy   User                     @relation("InsuranceNotificationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   deletedBy   User?                    @relation("InsuranceNotificationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deliveries InsuranceNotificationDelivery[]
 
   @@index([caseId, deletedAt, eventAt])
   @@index([status, notifyAt])
   @@index([createdById, createdAt])
+  @@index([deliveryPreparedAt, nextPreparationAt])
   @@map("insurance_arbitration_notification")
+}
+
+model InsuranceNotificationDelivery {
+  id             String                 @id @default(cuid())
+  notificationId String
+  recipientId    String
+  recipientEmail String
+  status         ReminderDeliveryStatus @default(PENDING)
+  attempts       Int                    @default(0)
+  nextAttemptAt  DateTime               @default(now())
+  startedAt      DateTime?
+  sentAt         DateTime?
+  failureCode    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  notification   InsuranceArbitrationNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  recipient      User                   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, recipientId])
+  @@index([status, nextAttemptAt])
+  @@index([status, startedAt])
+  @@map("insurance_notification_delivery")
 }
 
 enum GeneralCaseKind {

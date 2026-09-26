@@ -208,12 +208,14 @@ export type ReminderEmail = {
   title: string;
   referenceNumber: string;
   dueAt: Date;
+  source?: "enforcement" | "insurance";
 };
 
 export function buildReminderEmail(input: ReminderEmail) {
   const origin = new URL(requiredEmailEnvironment("BETTER_AUTH_URL"));
   if (!["http:", "https:"].includes(origin.protocol)) throw new Error("Invalid application URL");
-  const link = new URL(`/hatirlatmalar?reminder=${encodeURIComponent(input.reminderId)}#reminder-${encodeURIComponent(input.reminderId)}`, origin).href;
+  const source = input.source === "insurance" ? "insurance" : "enforcement";
+  const link = new URL(`/hatirlatmalar?source=${source}&reminder=${encodeURIComponent(input.reminderId)}#reminder-${source}-${encodeURIComponent(input.reminderId)}`, origin).href;
   const date = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "medium", timeStyle: "short" }).format(input.dueAt);
   return {
     subject: "Humanum Hukuk — Dosya hatırlatması",
