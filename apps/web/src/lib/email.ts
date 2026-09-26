@@ -208,13 +208,13 @@ export type ReminderEmail = {
   title: string;
   referenceNumber: string;
   dueAt: Date;
-  source?: "enforcement" | "insurance";
+  source?: "enforcement" | "insurance" | "general";
 };
 
 export function buildReminderEmail(input: ReminderEmail) {
   const origin = new URL(requiredEmailEnvironment("BETTER_AUTH_URL"));
   if (!["http:", "https:"].includes(origin.protocol)) throw new Error("Invalid application URL");
-  const source = input.source === "insurance" ? "insurance" : "enforcement";
+  const source = input.source === "insurance" || input.source === "general" ? input.source : "enforcement";
   const link = new URL(`/hatirlatmalar?source=${source}&reminder=${encodeURIComponent(input.reminderId)}#reminder-${source}-${encodeURIComponent(input.reminderId)}`, origin).href;
   const date = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "medium", timeStyle: "short" }).format(input.dueAt);
   return {

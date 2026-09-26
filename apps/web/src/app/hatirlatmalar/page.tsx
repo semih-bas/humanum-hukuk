@@ -22,7 +22,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
   const query = await searchParams;
   const selectedReminder = resourceIdSchema.safeParse(query.reminder);
   const selectedReminderId = selectedReminder.success ? selectedReminder.data : "";
-  const selectedSource = query.source === "insurance" ? "insurance" : "enforcement";
+  const selectedSource = query.source === "insurance" || query.source === "general" ? query.source : "enforcement";
   const reminders = await listAdminReminderTasks();
 
   return <AppShell>
@@ -35,7 +35,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
           <tbody>
             {reminders.items.map((reminder) => <tr id={`reminder-${reminder.source}-${reminder.id}`} className={reminder.id === selectedReminderId && reminder.source === selectedSource ? styles.highlightedReminder : undefined} key={`${reminder.source}-${reminder.id}`}>
               <td><strong>{reminder.title}</strong></td>
-              <td><span className={styles.caseReference}>{reminder.caseFile.referenceNumber}<small>{reminder.source === "insurance" ? "Sigorta ve Tahkim" : "İcra"} · {reminder.caseFile.vehiclePlate}</small></span></td>
+              <td><span className={styles.caseReference}>{reminder.caseFile.referenceNumber}<small>{reminder.source === "insurance" ? "Sigorta ve Tahkim" : reminder.source === "general" ? "Genel Dava ve Arabuluculuk" : "İcra"} · {reminder.caseFile.vehiclePlate}</small></span></td>
               <td>{formatDateTime(reminder.dueAt)}{reminder.overdue && <small className={styles.overdue}>Gecikmiş</small>}</td>
               <td><span className={`${styles.status} ${reminder.status === "FAILED" ? styles.failed : reminder.overdue && reminder.status !== "SENT" ? styles.late : ""}`}>{reminder.deliveries.some((delivery) => delivery.status === "UNCERTAIN") ? "Gönderim sonucu belirsiz" : reminder.overdue && reminder.status === "PENDING" ? "Gönderim bekliyor" : statusLabels[reminder.status] ?? reminder.status}</span>
                 {reminder.deliveries.some((delivery) => delivery.status === "UNCERTAIN") && <small>Tekrar gönderilmedi; posta sunucusu kaydı kontrol edilmeli.</small>}
@@ -43,7 +43,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
                 {reminder.deliveries.length > 0 && <small>{reminder.deliveries.filter((delivery) => delivery.status === "SENT").length} / {reminder.deliveries.length} yöneticiye iletildi.</small>}
               </td>
               <td>{reminder.createdBy.name}</td>
-              <td><Link className={styles.openCase} href={reminder.source === "insurance" ? `/sigorta-ve-tahkim?case=${encodeURIComponent(reminder.caseFile.id)}` : `/dosyalarim?case=${encodeURIComponent(reminder.caseFile.id)}`}>Dosyayı Görüntüle <span>→</span></Link></td>
+              <td><Link className={styles.openCase} href={reminder.source === "insurance" ? `/sigorta-ve-tahkim?case=${encodeURIComponent(reminder.caseFile.id)}` : reminder.source === "general" ? `/genel-dava-ve-arabuluculuk?case=${encodeURIComponent(reminder.caseFile.id)}` : `/dosyalarim?case=${encodeURIComponent(reminder.caseFile.id)}`}>Dosyayı Görüntüle <span>→</span></Link></td>
             </tr>)}
             {reminders.items.length === 0 && <tr><td className={styles.empty} colSpan={6}>Hatırlatma bulunmuyor.</td></tr>}
           </tbody>

@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { ApiRequestError, assertSameOrigin, readJsonBody, requireApiSession } from "@/lib/api-security";
+import { addGeneralCaseNote } from "@/lib/general-legal-cases/activity-service";
+import { createGeneralCaseNoteSchema } from "@/lib/general-legal-cases/note-input";
+import { GeneralLegalCaseNotFoundError } from "@/lib/general-legal-cases/read";
+import { resourceIdSchema } from "@/lib/resource-id";
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) { try { assertSameOrigin(request); const session = await requireApiSession(request); const id = resourceIdSchema.safeParse((await params).id); if (!id.success) throw new ApiRequestError(404, "NOT_FOUND", "Dosya bulunamadı."); const input = createGeneralCaseNoteSchema.safeParse(await readJsonBody(request)); if (!input.success) return json({ error: { message: "Not bilgisi geçerli değil.", fields: input.error.flatten().fieldErrors } }, 400); return json({ data: await addGeneralCaseNote(id.data, input.data, { id: session.user.id, role: session.user.role }) }, 201); } catch (error) { if (error instanceof ApiRequestError) return json({ error: { message: error.message } }, error.status); if (error instanceof GeneralLegalCaseNotFoundError) return json({ error: { message: "Dosya bulunamadı." } }, 404); console.error("Failed to add general case note", error); return json({ error: { message: "Not eklenemedi." } }, 500); } }
+function json(body: unknown, status: number) { return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } }); }

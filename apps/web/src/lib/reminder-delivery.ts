@@ -3,6 +3,7 @@ import { prisma } from "./database";
 import { sendReminderEmail } from "./email";
 import { aggregateReminderStatus, eligibleReminderRecipient, isAllowedReminderAddress, reminderFailureDecision } from "./reminder-delivery-policy";
 import { processInsuranceNotificationBatch } from "./insurance-notification-delivery";
+import { processGeneralTaskBatch } from "./general-task-delivery";
 
 type BatchOptions = {
   now?: Date;
@@ -119,10 +120,11 @@ export async function processReminderBatch(options: BatchOptions = {}) {
   const enforcement = await processCaseReminderBatch(options);
   if (options.reminderIds) return enforcement;
   const insurance = await processInsuranceNotificationBatch({ now: options.now, send: options.send });
+  const general = await processGeneralTaskBatch({ now: options.now, send: options.send });
   return {
-    prepared: enforcement.prepared + insurance.prepared,
-    processed: enforcement.processed + insurance.processed,
-    sent: enforcement.sent + insurance.sent,
-    interrupted: enforcement.interrupted + insurance.interrupted,
+    prepared: enforcement.prepared + insurance.prepared + general.prepared,
+    processed: enforcement.processed + insurance.processed + general.processed,
+    sent: enforcement.sent + insurance.sent + general.sent,
+    interrupted: enforcement.interrupted + insurance.interrupted + general.interrupted,
   };
 }

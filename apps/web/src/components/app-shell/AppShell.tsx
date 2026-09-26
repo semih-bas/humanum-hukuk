@@ -42,7 +42,7 @@ type TeamMember = {
 
 type AdminNotification = {
   id: string;
-  source: "enforcement" | "insurance";
+  source: "enforcement" | "insurance" | "general";
   caseFileId: string;
   title: string;
   dueAt: string;

@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+import { ApiRequestError, assertSameOrigin, requireApiSession } from "@/lib/api-security";
+import { deleteGeneralCaseNote } from "@/lib/general-legal-cases/activity-service";
+import { GeneralLegalCaseNotFoundError } from "@/lib/general-legal-cases/read";
+import { resourceIdSchema } from "@/lib/resource-id";
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string; noteId: string }> }) { try { assertSameOrigin(request); const session = await requireApiSession(request); const values = await params; const id = resourceIdSchema.safeParse(values.id); const noteId = resourceIdSchema.safeParse(values.noteId); if (!id.success || !noteId.success) throw new ApiRequestError(404, "NOT_FOUND", "Not bulunamadı."); await deleteGeneralCaseNote(id.data, noteId.data, { id: session.user.id, role: session.user.role }); return json({ data: { deleted: true } }, 200); } catch (error) { if (error instanceof ApiRequestError) return json({ error: { message: error.message } }, error.status); if (error instanceof GeneralLegalCaseNotFoundError) return json({ error: { message: "Not bulunamadı." } }, 404); console.error("Failed to delete general case note", error); return json({ error: { message: "Not silinemedi." } }, 500); } }
+function json(body: unknown, status: number) { return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } }); }

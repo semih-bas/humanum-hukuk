@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/database";
+import { notificationTime } from "@/lib/notification-schedule";
 
 import { calculateGeneralCaseFinanceTotals } from "./finance-calculations";
 import type { CreateGeneralLegalCaseInput, GeneralCasePartyInput } from "./input";
@@ -59,7 +60,7 @@ export async function createGeneralLegalCase(input: CreateGeneralLegalCaseInput,
           ...hearing, createdById: actorUserId, updatedById: actorUserId,
         })) } } : {}),
         ...(tasks.length ? { tasks: { create: tasks.map((task) => ({
-          ...task, createdById: actorUserId, updatedById: actorUserId,
+          ...task, notifyAt: notificationTime(task.dueAt, task.priority), status: "PENDING", createdById: actorUserId, updatedById: actorUserId,
         })) } } : {}),
         ...(notes.length ? { notes: { create: notes.map((note) => ({ ...note, authorId: actorUserId })) } } : {}),
         createdById: actorUserId,

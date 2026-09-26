@@ -73,6 +73,7 @@ model User {
   deletedGeneralCaseNotes              GeneralCaseNote[]              @relation("GeneralCaseNoteDeletedBy")
   reminderDeliveries                   ReminderDelivery[]
   insuranceNotificationDeliveries      InsuranceNotificationDelivery[]
+  generalTaskDeliveries                GeneralTaskDelivery[]
 
   @@unique([email])
   @@index([role])
@@ -641,9 +642,13 @@ enum GeneralTaskPriority {
 
 enum GeneralTaskStatus {
   PLANNED
+  PENDING
   WAITING
   IN_PROGRESS
   COMPLETED
+  SENT
+  PARTIALLY_SENT
+  FAILED
   CANCELLED
 }
 
@@ -868,6 +873,10 @@ model GeneralCaseTask {
   taskType              String?             @db.VarChar(100)
   reminderOffsetMinutes Int?
   status                GeneralTaskStatus   @default(PLANNED)
+  notifyAt              DateTime?
+  sentAt                DateTime?
+  deliveryPreparedAt    DateTime?
+  nextPreparationAt     DateTime            @default(now())
   createdById           String
   updatedById           String
   deletedById           String?
@@ -880,12 +889,37 @@ model GeneralCaseTask {
   createdBy             User                @relation("GeneralCaseTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy             User                @relation("GeneralCaseTaskUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   deletedBy             User?               @relation("GeneralCaseTaskDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deliveries            GeneralTaskDelivery[]
 
   @@index([caseId, dueAt])
   @@index([caseId, status, priority])
   @@index([assigneeUserId, status, dueAt])
   @@index([caseId, deletedAt])
+  @@index([status, notifyAt])
+  @@index([deliveryPreparedAt, nextPreparationAt])
   @@map("general_case_task")
+}
+
+model GeneralTaskDelivery {
+  id             String                 @id @default(cuid())
+  taskId         String
+  recipientId    String
+  recipientEmail String
+  status         ReminderDeliveryStatus @default(PENDING)
+  attempts       Int                    @default(0)
+  nextAttemptAt  DateTime               @default(now())
+  startedAt      DateTime?
+  sentAt         DateTime?
+  failureCode    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  task           GeneralCaseTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  recipient      User                   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, recipientId])
+  @@index([status, nextAttemptAt])
+  @@index([status, startedAt])
+  @@map("general_task_delivery")
 }
 
 model GeneralCaseNote {

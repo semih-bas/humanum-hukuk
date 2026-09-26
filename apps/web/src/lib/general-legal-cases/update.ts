@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/database";
+import { notificationTime } from "@/lib/notification-schedule";
 
 import { canRetainRestrictedAccess, generalCaseAccessWhere, type GeneralCaseActor } from "./access";
 import { calculateGeneralCaseFinanceTotals } from "./finance-calculations";
@@ -65,7 +66,7 @@ export async function updateGeneralLegalCase(id: string, input: UpdateGeneralLeg
     await transaction.generalCaseHearing.updateMany({ where: { caseId: id, deletedAt: null }, data: { deletedAt, deletedById: actor.id, updatedById: actor.id, version: { increment: 1 } } });
     if (hearings.length) await transaction.generalCaseHearing.createMany({ data: hearings.map((hearing) => ({ ...hearing, caseId: id, createdById: actor.id, updatedById: actor.id })) });
     await transaction.generalCaseTask.updateMany({ where: { caseId: id, deletedAt: null }, data: { deletedAt, deletedById: actor.id, updatedById: actor.id, version: { increment: 1 } } });
-    if (tasks.length) await transaction.generalCaseTask.createMany({ data: tasks.map((task) => ({ ...task, caseId: id, createdById: actor.id, updatedById: actor.id })) });
+    if (tasks.length) await transaction.generalCaseTask.createMany({ data: tasks.map((task) => ({ ...task, notifyAt: notificationTime(task.dueAt, task.priority), status: "PENDING", caseId: id, createdById: actor.id, updatedById: actor.id })) });
     await transaction.generalCaseNote.updateMany({ where: { caseId: id, deletedAt: null, OR: [{ visibility: "TEAM" }, { authorId: actor.id }] }, data: { deletedAt, deletedById: actor.id } });
     if (notes.length) await transaction.generalCaseNote.createMany({ data: notes.map((note) => ({ ...note, caseId: id, authorId: actor.id })) });
     await transaction.auditLog.create({

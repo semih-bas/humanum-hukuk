@@ -68,7 +68,13 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
   } : initialForm);
   const [step, setStep] = useState(() => editingCase ? Math.min(6, Math.max(0, initialStep)) : 0);
   const [parties, setParties] = useState<PartyDraft[]>(() => editingCase ? editingCase.parties.map((party) => ({ ...party, clientId: party.id, identityOrTaxNumber: party.identityOrTaxNumber ?? "", phone: (party.phone ?? "").replace(/\D/g, "").slice(0, 11), email: party.email ?? "", address: party.address ?? "", representativeName: party.representativeName ?? "", clientType: party.clientType ?? "", description: party.description ?? "" })) : primaryParties("GENERAL_LITIGATION"));
-  const [finance, setFinance] = useState<FinanceDraft>(() => initialData ? { ...initialFinance, ...initialData.finance, installmentCount: String(initialData.finance.installmentCount ?? 3), financeDescription: initialData.finance.financeDescription ?? "", interestStartDate: initialData.finance.interestStartDate ?? "" } : initialFinance);
+  const [finance, setFinance] = useState<FinanceDraft>(() => initialData ? {
+    claimAmount: initialData.finance.claimAmount, amendmentAmount: initialData.finance.amendmentAmount,
+    interestRequested: initialData.finance.interestRequested, interestStartDate: initialData.finance.interestStartDate ?? "",
+    expectedCollectionAmount: initialData.finance.expectedCollectionAmount, opposingAttorneyFee: initialData.finance.opposingAttorneyFee,
+    paymentPlan: initialData.finance.paymentPlan, installmentCount: String(initialData.finance.installmentCount ?? 3),
+    financeDescription: initialData.finance.financeDescription ?? "",
+  } : initialFinance);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntryDraft[]>(() => initialData?.finance.entries?.map((entry: { id: string; type: FinancialEntryDraft["type"]; category: string; entryDate: string; amount: string; description: string }) => ({ clientId: entry.id, type: entry.type, category: entry.category, entryDate: entry.entryDate, amount: entry.amount, description: entry.description })) ?? []);
   const [processEntries, setProcessEntries] = useState<ProcessEntryDraft[]>(() => initialData?.process.processEntries.map((entry) => ({ clientId: entry.id, type: entry.type, stage: entry.stage, eventDate: entry.eventDate, action: entry.action, description: entry.description ?? "", responsibleUserId: entry.responsibleUser?.id ?? null })) ?? []);
   const [hearings, setHearings] = useState<HearingDraft[]>(() => initialData?.process.hearings.map((hearing) => ({ clientId: hearing.id, startsAt: toLocalDateTime(hearing.startsAt), court: hearing.court, hearingType: hearing.hearingType, courtroom: hearing.courtroom ?? "", attendeeUserId: hearing.attendeeUser?.id ?? null, reminderOffsetMinutes: hearing.reminderOffsetMinutes, note: hearing.note ?? "", status: hearing.status })) ?? []);
@@ -173,8 +179,11 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
           fileStaffUserId: null,
           parties: parties.map(partyPayload),
           finance: {
-            ...finance,
+            claimAmount: finance.claimAmount, amendmentAmount: finance.amendmentAmount,
+            interestRequested: finance.interestRequested,
             interestStartDate: finance.interestRequested ? finance.interestStartDate : null,
+            expectedCollectionAmount: finance.expectedCollectionAmount, opposingAttorneyFee: finance.opposingAttorneyFee,
+            paymentPlan: finance.paymentPlan,
             installmentCount: finance.paymentPlan === "INSTALLMENT" ? Number(finance.installmentCount) : null,
             financeDescription: finance.financeDescription || null,
           },
@@ -281,8 +290,8 @@ export default function GeneralCaseWizard({ currentUser, initialData = null, rea
     </form> : step === 2 ? <FinanceStep caseValue={form.caseValue} finance={finance} setFinance={setFinance} entries={financialEntries} setEntries={setFinancialEntries} onBack={() => setStep(1)} onSubmit={continueToProcess} saving={false} error={error} />
       : step === 3 ? <ProcessStep currentUser={currentUser} currentStage={form.stage} onStageChange={updateStage} entries={processEntries} setEntries={setProcessEntries} hearings={hearings} setHearings={setHearings} onBack={() => setStep(2)} onSubmit={continueToDocuments} error={error} />
         : step === 4 ? <DocumentsStep documents={documents} setDocuments={setDocuments} caseId={editingCase?.id} folderConfig={documentFolders} setFolderConfig={setDocumentFolders} onBack={() => setStep(3)} onSubmit={continueToTasks} error={error} />
-          : step === 5 ? <TaskStep currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={continueToNotes} error={error} />
-            : <NoteStep currentUser={currentUser} notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
+          : step === 5 ? <TaskStep caseId={editingCase?.id} currentUser={currentUser} tasks={tasks} setTasks={setTasks} onBack={() => setStep(4)} onSubmit={continueToNotes} error={error} />
+            : <NoteStep caseId={editingCase?.id} currentUser={currentUser} notes={notes} setNotes={setNotes} onBack={() => setStep(5)} onSubmit={submit} saving={saving} error={error} />}
     </fieldset>
   </main></AppShell>;
 }

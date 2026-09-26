@@ -18,6 +18,7 @@ export type TaskDraft = {
 };
 
 type Props = {
+  caseId?: string;
   currentUser: { id: string; name: string };
   tasks: TaskDraft[];
   setTasks: Dispatch<SetStateAction<TaskDraft[]>>;
@@ -26,7 +27,7 @@ type Props = {
   error: string;
 };
 
-export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmit, error }: Props) {
+export default function TaskStep({ caseId, currentUser, tasks, setTasks, onBack, onSubmit, error }: Props) {
   const notifications: CaseNotificationItem[] = tasks.map((task) => {
     const eventAt = new Date(task.dueAt).toISOString();
     const notifyAt = new Date(new Date(eventAt).getTime() - (task.reminderOffsetMinutes ?? notificationLeadMinutes(task.priority)) * 60_000).toISOString();
@@ -37,7 +38,7 @@ export default function TaskStep({ currentUser, tasks, setTasks, onBack, onSubmi
   }
   return <div className={styles.form}>
     {error && <p className={styles.error}>{error}</p>}
-    <CaseNotifications initialItems={notifications} onItemsChange={change} currentUserName={currentUser.name} />
+    <CaseNotifications caseId={caseId} apiBase={caseId ? "/api/general-legal-cases" : undefined} initialItems={notifications} onItemsChange={change} currentUserName={currentUser.name} />
     <form className={styles.navigationForm} onSubmit={onSubmit}><footer><button type="button" className={styles.back} onClick={onBack}>← Evraklar</button><span>6 / 7 · Bildirimler</span><button type="submit">Notlara İlerle →</button></footer></form>
   </div>;
 }

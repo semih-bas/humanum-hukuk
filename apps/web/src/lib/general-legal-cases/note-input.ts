@@ -8,3 +8,4 @@ export const createGeneralCaseNoteSchema = z.object({
   visibility: z.enum(["TEAM", "PRIVATE"]),
   important: z.boolean(),
 }).strict();
+export type CreateGeneralCaseNoteInput = z.infer<typeof createGeneralCaseNoteSchema>;

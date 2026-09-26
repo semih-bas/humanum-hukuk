@@ -14,7 +14,7 @@ export async function getGeneralCaseOverview(caseId: string, actor: GeneralCaseA
     listGeneralCaseDocuments(caseId, actor),
     prisma.generalCaseTask.findMany({
       where: { caseId, deletedAt: null }, orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-      select: { id: true, title: true, description: true, priority: true, dueAt: true, taskType: true, reminderOffsetMinutes: true, status: true, assignee: { select: { id: true, name: true } }, createdBy: { select: { name: true } } },
+      select: { id: true, title: true, description: true, priority: true, dueAt: true, notifyAt: true, sentAt: true, taskType: true, reminderOffsetMinutes: true, status: true, assignee: { select: { id: true, name: true } }, createdBy: { select: { name: true } } },
     }),
     prisma.generalCaseNote.findMany({
       where: { caseId, deletedAt: null, OR: [{ visibility: "TEAM" }, { authorId: actor.id }] }, orderBy: [{ createdAt: "desc" }],
@@ -23,7 +23,7 @@ export async function getGeneralCaseOverview(caseId: string, actor: GeneralCaseA
   ]);
   return {
     legalCase, finance, process, documents,
-    tasks: tasks.map((task) => ({ ...task, dueAt: task.dueAt.toISOString() })),
+    tasks: tasks.map((task) => ({ ...task, dueAt: task.dueAt.toISOString(), notifyAt: task.notifyAt?.toISOString() ?? null, sentAt: task.sentAt?.toISOString() ?? null })),
     notes: notes.map((note) => ({ ...note, createdAt: note.createdAt.toISOString() })),
   };
 }
