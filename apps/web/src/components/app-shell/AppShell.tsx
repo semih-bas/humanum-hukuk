@@ -96,7 +96,7 @@ function getPageIdentity(pathname: string) {
   if (pathname.startsWith("/genel-dava-ve-arabuluculuk/yeni")) return { title: "Yeni Dosya Ekle", subtitle: "Genel Dava ve Arabuluculuk" };
   if (pathname.startsWith("/genel-dava-ve-arabuluculuk")) return { title: "Genel Dava ve Arabuluculuk", subtitle: "Dosya Yönetimi" };
   if (pathname.startsWith("/hatirlatmalar")) return { title: "Hatırlatmalar", subtitle: "Görev ve Bildirimler" };
-  return { title: "Dashboard", subtitle: "Genel Bakış" };
+  return { title: "Kontrol Merkezi", subtitle: "Genel Bakış" };
 }
 
 export default function AppShell({ children, headerContent, hideTopbar = false, pageTitle, pageSubtitle }: AppShellProps) {
@@ -414,7 +414,7 @@ export default function AppShell({ children, headerContent, hideTopbar = false, 
 
         <nav className={styles.navigation} aria-label="Ana menü">
           <Link className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navItemActive : ""}`} href="/dashboard" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
-            <Icon name="home" /><span>Dashboard</span>
+            <Icon name="home" /><span>Kontrol Merkezi</span>
           </Link>
           <Link className={styles.navItem + " " + (pathname.startsWith("/sigorta-ve-tahkim") ? styles.navItemActive : "")} href="/sigorta-ve-tahkim" onClick={() => { setSidebarOpen(false); setTeamOpen(false); }}>
             <Icon name="briefcase" /><span>Sigorta ve Tahkim</span>

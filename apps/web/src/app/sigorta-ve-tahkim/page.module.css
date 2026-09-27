@@ -64,3 +64,15 @@
 .detailGroup,.detailSection{margin:14px 26px 0;padding:18px;border:1px solid #dfe6eb;border-radius:12px;background:#fff;box-shadow:0 7px 20px rgb(17 40 66/5%)}.detailGroup h3,.detailSection h3{margin:0 0 13px;color:#17334d;font-size:15px}.detailGroup dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}.detailGroup dl>div{min-height:75px;padding:13px 14px;border:1px solid #e2e8ed;border-radius:9px;background:#fbfcfd}.detailGroup dt{color:#7a8998;font-size:9px;font-weight:700}.detailGroup dd{margin:7px 0 0;overflow-wrap:anywhere;color:#20384f;font-size:12px;font-weight:700;line-height:1.45}
 .detailSection>p,.detailLoading,.detailError{margin:0;color:#748394;font-size:11px;line-height:1.6}.detailLoading,.detailError{padding:24px 30px}.detailError{background:#fff0f0;color:#b43138}.detailSection article{display:grid;grid-template-columns:minmax(130px,1fr) minmax(190px,1.4fr);gap:5px 14px;padding:11px 0;border-bottom:1px solid #edf0f3;font-size:10px}.detailSection article:last-child{border-bottom:0}.detailSection article b,.detailSection article a{color:#1c507c}.detailSection article span,.detailSection article small{color:#748394}.detailSection article small{grid-column:1/-1;line-height:1.5;white-space:pre-wrap}
 @media(max-width:760px){.detailBackdrop{padding:0}.detailModal{width:100%;height:100vh;max-height:100vh;border-radius:0}.detailModal>header{min-height:82px;padding:17px 20px}.detailHero{grid-template-columns:1fr;margin:14px 15px 0}.detailHero>div{min-height:76px;border-right:0;border-bottom:1px solid #e3e9ee}.detailGroup,.detailSection{margin:12px 15px 0;padding:15px}.detailGroup dl{grid-template-columns:1fr}.detailSection article{grid-template-columns:1fr}.detailSection article small{grid-column:1}}
+
+/* Kontrol merkezi ile ortak sicak krem palet. */
+.cards button{border-color:#ded2c0!important;background:linear-gradient(135deg,#fffdf8,#f8f1e5)}
+.workspace{border-color:#dacdb8;background:#fffdf8;box-shadow:0 20px 48px rgb(55 40 19 / 11%)}
+.workspaceToolbar{border-bottom-color:#e4d9c8;background:linear-gradient(105deg,#fffdf8 0%,#faf4e9 72%,#f4e6cc 100%)}
+.filters{border-bottom-color:#e4d9c8;background:#faf5eb}
+.filters input,.filters select,.search>div,.clear{border-color:#d8cab6;background:#fffdf8}
+.tableWrap,.tableWrap table,.tableWrap tbody,.empty{background:#fffdf8}
+.tableWrap th{border-bottom-color:#dacdb8;background:#eee5d7;color:#18364f}
+.tableWrap tbody tr:nth-child(even){background:#fcf8f0}
+.tableWrap tbody tr:hover{background:#f8efdf;box-shadow:inset 3px 0 #ba8432}
+.list footer{border-top-color:#e2d6c5;background:#faf5eb}

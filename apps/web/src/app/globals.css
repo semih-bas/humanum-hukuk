@@ -8,10 +8,11 @@
   --gold-400: #ddb96f;
   --text-light: #f7f8fa;
   --text-muted: #aeb9c7;
-  --surface-page: #f4f6f9;
-  --surface-card: #ffffff;
-  --border-soft: #e3e8ed;
-  --shadow-card: 0 12px 34px rgb(16 38 62 / 7%);
+  --surface-page: #f4eddf;
+  --surface-card: #fffdf8;
+  --surface-cream: #f8f2e7;
+  --border-soft: #e2d7c5;
+  --shadow-card: 0 12px 34px rgb(54 39 19 / 8%);
   --focus-ring: 0 0 0 4px rgb(198 157 85 / 14%);
 }
 

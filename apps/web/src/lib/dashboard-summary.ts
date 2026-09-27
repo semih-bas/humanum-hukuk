@@ -1,136 +1,96 @@
-import { Prisma } from "@/generated/prisma/client";
-
 import { prisma } from "./database";
 
-type AmountAggregate = {
-  _sum: {
-    damageAmount: Prisma.Decimal | null;
-    depreciationAmount: Prisma.Decimal | null;
-    profitLossAmount: Prisma.Decimal | null;
-    preEnforcementInterestAmount: Prisma.Decimal | null;
-    postEnforcementInterestAmount: Prisma.Decimal | null;
-    discountAmount: Prisma.Decimal | null;
-  };
-};
+type ModuleKey = "enforcement" | "insurance" | "general";
 
 export type DashboardSummary = {
-  counts: {
-    open: number;
-    closed: number;
-    total: number;
-  };
-  percentages: {
-    open: number;
-    closed: number;
-  };
-  financials: {
-    totalReceivable: string;
-    collected: string;
-    outstanding: string;
-  };
-  reminders: Array<{
-    id: string;
-    caseFileId: string;
-    title: string;
-    dueAt: string;
-    referenceNumber: string;
-    vehiclePlate: string;
-  }>;
+  modules: Record<ModuleKey, { total: number; active: number }>;
+  totals: { total: number; active: number; thisWeek: number };
+  criticalDates: Array<{ id: string; module: ModuleKey; title: string; referenceNumber: string; date: string; href: string; priority: "urgent" | "soon" | "normal" }>;
+  recentFiles: Array<{ id: string; module: ModuleKey; referenceNumber: string; subject: string; status: string; updatedAt: string; href: string }>;
+  financialMovements: Array<{ id: string; module: ModuleKey; description: string; amount: string; date: string; income: boolean; href: string }>;
 };
 
-export async function getDashboardSummary(includeReminders: boolean): Promise<DashboardSummary> {
+const closedInsuranceStatuses = ["COMPLETED", "CLOSED"] as const;
+const closedGeneralStatuses = ["COMPLETED", "CLOSED"] as const;
+
+export async function getDashboardSummary(includeNotifications: boolean): Promise<DashboardSummary> {
+  const now = new Date();
+  const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
   return prisma.$transaction(async (transaction) => {
-    const [statusGroups, totalAmounts, closedAmounts, reminders] = await Promise.all([
-      transaction.caseFile.groupBy({
-        by: ["status"],
-        where: { archivedAt: null },
-        _count: { _all: true },
-      }),
-      transaction.caseFile.aggregate({
-        where: { archivedAt: null },
-        _sum: {
-          damageAmount: true,
-          depreciationAmount: true,
-          profitLossAmount: true,
-          preEnforcementInterestAmount: true,
-          postEnforcementInterestAmount: true,
-          discountAmount: true,
-        },
-      }),
-      transaction.caseFile.aggregate({
-        where: { archivedAt: null, status: "CLOSED" },
-        _sum: {
-          damageAmount: true,
-          depreciationAmount: true,
-          profitLossAmount: true,
-          preEnforcementInterestAmount: true,
-          postEnforcementInterestAmount: true,
-          discountAmount: true,
-        },
-      }),
-      includeReminders ? transaction.caseReminder.findMany({
-        where: {
-          status: "PENDING",
-          eventAt: { gte: new Date() },
-          caseFile: { archivedAt: null },
-        },
-        orderBy: [{ eventAt: "asc" }, { id: "asc" }],
-        take: 5,
-        select: {
-          id: true,
-          title: true,
-          dueAt: true,
-          eventAt: true,
-          caseFile: {
-            select: {
-              id: true,
-              referenceNumber: true,
-              vehiclePlate: true,
-            },
-          },
-        },
-      }) : Promise.resolve([]),
+    const [
+      enforcementTotal, enforcementActive, insuranceTotal, insuranceActive, generalTotal, generalActive,
+      enforcementReminders, insuranceNotifications, generalTasks, hearings,
+      enforcementWeek, insuranceWeek, generalTaskWeek, hearingWeek,
+      enforcementRecent, insuranceRecent, generalRecent,
+      enforcementMovements, insuranceMovements, generalMovements,
+    ] = await Promise.all([
+      transaction.caseFile.count({ where: { archivedAt: null } }),
+      transaction.caseFile.count({ where: { archivedAt: null, status: { not: "CLOSED" } } }),
+      transaction.insuranceArbitrationCase.count({ where: { archivedAt: null } }),
+      transaction.insuranceArbitrationCase.count({ where: { archivedAt: null, status: { notIn: [...closedInsuranceStatuses] } } }),
+      transaction.generalLegalCase.count({ where: { archivedAt: null } }),
+      transaction.generalLegalCase.count({ where: { archivedAt: null, status: { notIn: [...closedGeneralStatuses] } } }),
+      includeNotifications ? transaction.caseReminder.findMany({ where: { status: "PENDING", caseFile: { archivedAt: null } }, orderBy: [{ eventAt: "asc" }], take: 8, select: { id: true, title: true, eventAt: true, priority: true, caseFile: { select: { id: true, referenceNumber: true } } } }) : Promise.resolve([]),
+      includeNotifications ? transaction.insuranceArbitrationNotification.findMany({ where: { deletedAt: null, status: { in: ["PENDING", "PARTIALLY_SENT", "FAILED"] }, case: { archivedAt: null } }, orderBy: [{ eventAt: "asc" }], take: 8, select: { id: true, title: true, eventAt: true, priority: true, case: { select: { id: true, referenceNumber: true } } } }) : Promise.resolve([]),
+      includeNotifications ? transaction.generalCaseTask.findMany({ where: { deletedAt: null, status: { notIn: ["COMPLETED", "SENT", "CANCELLED"] }, case: { archivedAt: null } }, orderBy: [{ dueAt: "asc" }], take: 8, select: { id: true, title: true, dueAt: true, priority: true, case: { select: { id: true, referenceNumber: true } } } }) : Promise.resolve([]),
+      transaction.generalCaseHearing.findMany({ where: { deletedAt: null, status: "PLANNED", startsAt: { gte: now }, case: { archivedAt: null } }, orderBy: [{ startsAt: "asc" }], take: 8, select: { id: true, hearingType: true, startsAt: true, case: { select: { id: true, referenceNumber: true } } } }),
+      includeNotifications ? transaction.caseReminder.count({ where: { status: "PENDING", eventAt: { gte: now, lte: weekEnd }, caseFile: { archivedAt: null } } }) : Promise.resolve(0),
+      includeNotifications ? transaction.insuranceArbitrationNotification.count({ where: { deletedAt: null, status: { in: ["PENDING", "PARTIALLY_SENT", "FAILED"] }, eventAt: { gte: now, lte: weekEnd }, case: { archivedAt: null } } }) : Promise.resolve(0),
+      includeNotifications ? transaction.generalCaseTask.count({ where: { deletedAt: null, status: { notIn: ["COMPLETED", "SENT", "CANCELLED"] }, dueAt: { gte: now, lte: weekEnd }, case: { archivedAt: null } } }) : Promise.resolve(0),
+      transaction.generalCaseHearing.count({ where: { deletedAt: null, status: "PLANNED", startsAt: { gte: now, lte: weekEnd }, case: { archivedAt: null } } }),
+      transaction.caseFile.findMany({ where: { archivedAt: null }, orderBy: [{ updatedAt: "desc" }], take: 5, select: { id: true, referenceNumber: true, licenseHolder: true, vehiclePlate: true, status: true, updatedAt: true } }),
+      transaction.insuranceArbitrationCase.findMany({ where: { archivedAt: null }, orderBy: [{ updatedAt: "desc" }], take: 5, select: { id: true, referenceNumber: true, opposingInsuranceCompany: true, vehiclePlate: true, status: true, updatedAt: true } }),
+      transaction.generalLegalCase.findMany({ where: { archivedAt: null }, orderBy: [{ updatedAt: "desc" }], take: 5, select: { id: true, referenceNumber: true, subject: true, status: true, updatedAt: true } }),
+      transaction.caseTransaction.findMany({ where: { deletedAt: null, caseFile: { archivedAt: null } }, orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }], take: 5, select: { id: true, type: true, description: true, amount: true, transactionDate: true, caseFile: { select: { id: true } } } }),
+      transaction.insuranceArbitrationPayment.findMany({ where: { case: { archivedAt: null } }, orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }], take: 5, select: { id: true, type: true, description: true, amount: true, paymentDate: true, case: { select: { id: true } } } }),
+      transaction.generalCaseFinancialEntry.findMany({ where: { deletedAt: null, case: { archivedAt: null } }, orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }], take: 5, select: { id: true, type: true, category: true, description: true, amount: true, entryDate: true, case: { select: { id: true } } } }),
     ]);
 
-    const closed = statusGroups.find((group) => group.status === "CLOSED")?._count._all ?? 0;
-    const total = statusGroups.reduce((sum, group) => sum + group._count._all, 0);
-    const open = total - closed;
-    const totalReceivable = calculateNetAmount(totalAmounts);
-    const collected = calculateNetAmount(closedAmounts);
-    const outstanding = Prisma.Decimal.max(totalReceivable.sub(collected), 0);
+    const criticalDates: DashboardSummary["criticalDates"] = [
+      ...enforcementReminders.map((item) => ({ id: `enforcement-${item.id}`, module: "enforcement" as const, title: item.title, referenceNumber: item.caseFile.referenceNumber, date: item.eventAt.toISOString(), href: `/dosyalarim?case=${encodeURIComponent(item.caseFile.id)}`, priority: datePriority(item.eventAt, now, item.priority) })),
+      ...insuranceNotifications.map((item) => ({ id: `insurance-${item.id}`, module: "insurance" as const, title: item.title, referenceNumber: item.case.referenceNumber, date: item.eventAt.toISOString(), href: `/sigorta-ve-tahkim/${encodeURIComponent(item.case.id)}`, priority: datePriority(item.eventAt, now, item.priority) })),
+      ...generalTasks.map((item) => ({ id: `general-task-${item.id}`, module: "general" as const, title: item.title, referenceNumber: item.case.referenceNumber, date: item.dueAt.toISOString(), href: `/genel-dava-ve-arabuluculuk?case=${encodeURIComponent(item.case.id)}`, priority: datePriority(item.dueAt, now, item.priority) })),
+      ...hearings.map((item) => ({ id: `hearing-${item.id}`, module: "general" as const, title: item.hearingType, referenceNumber: item.case.referenceNumber, date: item.startsAt.toISOString(), href: `/genel-dava-ve-arabuluculuk?case=${encodeURIComponent(item.case.id)}`, priority: datePriority(item.startsAt, now, "HIGH") })),
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 6);
+
+    const recentFiles: DashboardSummary["recentFiles"] = [
+      ...enforcementRecent.map((item) => ({ id: `enforcement-${item.id}`, module: "enforcement" as const, referenceNumber: item.referenceNumber, subject: `${item.licenseHolder} · ${item.vehiclePlate}`, status: item.status, updatedAt: item.updatedAt.toISOString(), href: `/dosyalarim?case=${encodeURIComponent(item.id)}` })),
+      ...insuranceRecent.map((item) => ({ id: `insurance-${item.id}`, module: "insurance" as const, referenceNumber: item.referenceNumber, subject: `${item.opposingInsuranceCompany} · ${item.vehiclePlate}`, status: item.status, updatedAt: item.updatedAt.toISOString(), href: `/sigorta-ve-tahkim/${encodeURIComponent(item.id)}` })),
+      ...generalRecent.map((item) => ({ id: `general-${item.id}`, module: "general" as const, referenceNumber: item.referenceNumber, subject: item.subject, status: item.status, updatedAt: item.updatedAt.toISOString(), href: `/genel-dava-ve-arabuluculuk?case=${encodeURIComponent(item.id)}` })),
+    ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5);
+
+    const financialMovements: DashboardSummary["financialMovements"] = [
+      ...enforcementMovements.map((item) => ({ id: `enforcement-${item.id}`, module: "enforcement" as const, description: item.description, amount: item.amount.toFixed(2), date: item.transactionDate.toISOString(), income: item.type === "INCOME", href: `/dosyalarim?case=${encodeURIComponent(item.caseFile.id)}` })),
+      ...insuranceMovements.map((item) => ({ id: `insurance-${item.id}`, module: "insurance" as const, description: item.description || insurancePaymentLabel(item.type), amount: item.amount.toFixed(2), date: item.paymentDate.toISOString(), income: item.type !== "OUTGOING_PAYMENT", href: `/sigorta-ve-tahkim/${encodeURIComponent(item.case.id)}` })),
+      ...generalMovements.map((item) => ({ id: `general-${item.id}`, module: "general" as const, description: item.description || item.category, amount: item.amount.toFixed(2), date: item.entryDate.toISOString(), income: item.type === "COLLECTION", href: `/genel-dava-ve-arabuluculuk?case=${encodeURIComponent(item.case.id)}` })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
     return {
-      counts: { open, closed, total },
-      percentages: {
-        open: percentage(open, total),
-        closed: percentage(closed, total),
+      modules: {
+        enforcement: { total: enforcementTotal, active: enforcementActive },
+        insurance: { total: insuranceTotal, active: insuranceActive },
+        general: { total: generalTotal, active: generalActive },
       },
-      financials: {
-        totalReceivable: totalReceivable.toFixed(2),
-        collected: collected.toFixed(2),
-        outstanding: outstanding.toFixed(2),
+      totals: {
+        total: enforcementTotal + insuranceTotal + generalTotal,
+        active: enforcementActive + insuranceActive + generalActive,
+        thisWeek: enforcementWeek + insuranceWeek + generalTaskWeek + hearingWeek,
       },
-      reminders: reminders.map((reminder) => ({
-        id: reminder.id,
-        caseFileId: reminder.caseFile.id,
-        title: reminder.title,
-        dueAt: reminder.eventAt.toISOString(),
-        referenceNumber: reminder.caseFile.referenceNumber,
-        vehiclePlate: reminder.caseFile.vehiclePlate,
-      })),
+      criticalDates,
+      recentFiles,
+      financialMovements,
     };
   }, { isolationLevel: "RepeatableRead" });
 }
 
-function calculateNetAmount(aggregate: AmountAggregate): Prisma.Decimal {
-  return new Prisma.Decimal(aggregate._sum.damageAmount ?? 0)
-    .add(aggregate._sum.depreciationAmount ?? 0)
-    .add(aggregate._sum.profitLossAmount ?? 0)
-    .add(aggregate._sum.preEnforcementInterestAmount ?? 0)
-    .add(aggregate._sum.postEnforcementInterestAmount ?? 0)
-    .sub(aggregate._sum.discountAmount ?? 0);
+function datePriority(date: Date, now: Date, priority: string): "urgent" | "soon" | "normal" {
+  const hours = (date.getTime() - now.getTime()) / 3_600_000;
+  if (hours < 0 || priority === "HIGH" && hours <= 48) return "urgent";
+  if (hours <= 72 || priority === "MEDIUM" && hours <= 48) return "soon";
+  return "normal";
 }
 
-function percentage(value: number, total: number): number {
-  return total === 0 ? 0 : Number(((value / total) * 100).toFixed(1));
+function insurancePaymentLabel(type: string): string {
+  return type === "OUTGOING_PAYMENT" ? "Ödeme" : type === "INSURANCE_INCOME" ? "Sigorta tahsilatı" : type === "ARBITRATION_INCOME" ? "Tahkim tahsilatı" : "İcra tahsilatı";
 }
