@@ -521,3 +521,57 @@
     linear-gradient(126deg, transparent 0 72%, rgb(196 145 61 / 10%) 72.1% 72.25%, transparent 72.42% 100%);
 }
 .content::after { background-image: radial-gradient(circle, rgb(92 67 30 / 12%) .65px, transparent .8px); opacity: .32; }
+
+/* Lacivert zeminle harmanlanan krem-altin navigasyon paleti. */
+.sidebar{
+  border-right-color:rgb(220 177 96 / 42%);
+  background:
+    radial-gradient(ellipse at 18% 7%,rgb(245 226 190 / 13%),transparent 26%),
+    radial-gradient(ellipse at 88% 82%,rgb(193 139 49 / 13%),transparent 29%),
+    linear-gradient(180deg,#0c2d48 0%,#071f35 51%,#061827 100%);
+  box-shadow:14px 0 42px rgb(2 12 24 / 20%),inset -1px 0 rgb(246 225 185 / 8%);
+}
+.sidebarBrand{
+  background:linear-gradient(105deg,rgb(246 227 192 / 7%),rgb(181 126 42 / 4%) 58%,transparent);
+  border-bottom-color:rgb(230 193 121 / 32%);
+}
+.navigation{
+  background:linear-gradient(180deg,rgb(246 229 196 / 2.5%),transparent 72%);
+}
+.navItem,.logoutLink{color:#d9d7cf}
+.navItem:hover,.logoutLink:hover{
+  border-color:rgb(235 204 143 / 18%);
+  background:linear-gradient(100deg,rgb(246 226 188 / 9%),rgb(203 156 75 / 6%));
+  color:#fffaf0;
+}
+.navItemActive{
+  border-color:rgb(236 202 137 / 38%);
+  background:linear-gradient(100deg,rgb(246 226 188 / 19%),rgb(194 141 52 / 15%) 48%,rgb(25 66 94 / 68%));
+  color:#fffaf0;
+  box-shadow:inset 0 1px rgb(255 247 229 / 13%),0 11px 28px rgb(0 0 0 / 16%),0 0 22px rgb(203 151 62 / 8%);
+}
+.navItemActive .icon{color:#edc778}
+.sidebarFooter{
+  border-top-color:rgb(231 194 123 / 24%);
+  background:linear-gradient(180deg,rgb(246 226 188 / 5%),rgb(3 15 27 / 17%));
+}
+.avatar{
+  border-color:rgb(232 194 119 / 48%);
+  background:linear-gradient(145deg,#fff8e9,#e5d8c1);
+  box-shadow:0 5px 15px rgb(0 0 0 / 18%),0 0 0 3px rgb(225 181 97 / 8%);
+}
+.topbar{
+  border-bottom-color:rgb(226 187 112 / 46%);
+  background:
+    radial-gradient(ellipse at 80% 42%,rgb(246 226 190 / 15%),transparent 25%),
+    linear-gradient(105deg,#092941 0%,#103b58 62%,#263e48 100%);
+  box-shadow:0 9px 26px rgb(3 20 35 / 21%),inset 0 -1px rgb(247 226 186 / 6%);
+}
+.topbar::after{
+  height:2px;
+  background:linear-gradient(90deg,transparent 4%,rgb(220 177 96 / 34%) 20%,#d2a653 48%,rgb(241 214 164 / 32%) 78%,transparent 96%);
+  box-shadow:0 -2px 10px rgb(215 168 82 / 15%);
+}
+.pageIdentity span{color:#e1bb70}
+.profileText small{color:#d0c7b5}
+.notificationButton:hover{background:rgb(247 229 195 / 10%)}
