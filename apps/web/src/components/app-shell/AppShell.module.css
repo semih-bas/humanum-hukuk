@@ -575,3 +575,44 @@
 .pageIdentity span{color:#e1bb70}
 .profileText small{color:#d0c7b5}
 .notificationButton:hover{background:rgb(247 229 195 / 10%)}
+
+/* Daha sicak kabuk ve kart tabanli ekip paneli. */
+.sidebar{
+  background:
+    radial-gradient(ellipse at 16% 8%,rgb(246 226 190 / 24%),transparent 29%),
+    radial-gradient(ellipse at 93% 78%,rgb(205 151 59 / 22%),transparent 32%),
+    linear-gradient(180deg,#173d52 0%,#173748 48%,#263d40 100%);
+}
+.topbar{
+  background:
+    radial-gradient(ellipse at 78% 42%,rgb(249 231 197 / 27%),transparent 29%),
+    linear-gradient(105deg,#15394e 0%,#244753 54%,#5c5b4f 100%);
+}
+.navItemActive{
+  background:linear-gradient(100deg,rgb(250 232 197 / 27%),rgb(205 151 61 / 22%) 48%,rgb(34 74 87 / 54%));
+}
+.teamPanel{
+  border-color:#d1ad6a;
+  background:
+    radial-gradient(ellipse at 100% 0,rgb(214 166 77 / 14%),transparent 30%),
+    linear-gradient(145deg,#fffdf7,#f4ead9);
+  box-shadow:0 28px 72px rgb(18 31 38 / 28%),0 0 0 1px rgb(255 255 255 / 78%);
+}
+.teamPanelHeader{
+  border-bottom-color:rgb(229 193 124 / 38%);
+  background:
+    radial-gradient(ellipse at 82% 30%,rgb(244 220 176 / 19%),transparent 30%),
+    linear-gradient(110deg,#173d52,#3d5150 72%,#6a604c);
+}
+.teamSearch{border-bottom-color:#dfd1ba;background:#f8f0e3}
+.teamSearch input{border-color:#d8c5a6;background:#fffdf8}
+.teamList{display:grid;gap:8px;padding:10px 14px 4px;background:transparent}
+.teamMember,.teamMemberActive,.teamMemberBanned,.teamMemberUnverified{
+  min-height:68px;padding:10px;border:1px solid #e0d4c2;border-radius:10px;
+  background:linear-gradient(135deg,#fffdf9,#f8f1e6);
+  box-shadow:0 5px 15px rgb(79 57 24 / 5%);
+}
+.teamMember:hover{border-color:#c9a467;background:linear-gradient(135deg,#fffdf8,#f3e5cd);box-shadow:0 8px 20px rgb(79 57 24 / 9%)}
+.memberActionsTrigger:hover,.memberActions[open] .memberActionsTrigger{border-color:#d5bd94;background:#fffaf0}
+.addMemberButton{margin-top:12px;border-color:#bd8129;background:linear-gradient(135deg,#fff6e5,#eed4a7);color:#75490c;box-shadow:0 7px 18px rgb(132 87 22 / 10%)}
+.addMemberButton:hover{border-color:#9f661a;background:linear-gradient(135deg,#ffefd3,#e8c68d);color:#5f3807}

@@ -43,13 +43,13 @@ export default async function DashboardPage() {
       </section>
 
       <section className={styles.timelinePanel}>
-        <header><div><span className={styles.sectionIcon}>◫</span><h3>Kritik Tarihler</h3></div><Link href="/hatirlatmalar">Tümünü gör <span>→</span></Link></header>
+        <header><div><span className={styles.sectionIcon}>◫</span><span className={styles.sectionHeading}><h3>Kritik Tarihler</h3><small>Bekleyen bildirimler, görevler ve planlı duruşmalar</small></span></div><Link href="/hatirlatmalar">Tümünü gör <span>→</span></Link></header>
         {summary.criticalDates.length ? <div className={styles.timeline}>
           {summary.criticalDates.map((item) => <Link href={item.href} className={`${styles.timelineItem} ${styles[item.priority]}`} key={item.id}>
             <span className={styles.dot} /><time><b>{formatDay(item.date)}</b><small>{formatMonth(item.date)}</small></time>
             <span><strong>{item.title}</strong><small>{item.referenceNumber} · {moduleMeta[item.module].label}</small></span>
           </Link>)}
-        </div> : <p className={styles.empty}>Yaklaşan kritik tarih bulunmuyor.</p>}
+        </div> : <p className={styles.empty}>Bekleyen bildirim, görev veya planlı duruşma bulunmuyor.</p>}
       </section>
 
       <section className={styles.bottomGrid}>
