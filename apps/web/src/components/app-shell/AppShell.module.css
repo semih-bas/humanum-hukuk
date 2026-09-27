@@ -576,21 +576,8 @@
 .profileText small{color:#d0c7b5}
 .notificationButton:hover{background:rgb(247 229 195 / 10%)}
 
-/* Daha sicak kabuk ve kart tabanli ekip paneli. */
-.sidebar{
-  background:
-    radial-gradient(ellipse at 16% 8%,rgb(246 226 190 / 24%),transparent 29%),
-    radial-gradient(ellipse at 93% 78%,rgb(205 151 59 / 22%),transparent 32%),
-    linear-gradient(180deg,#173d52 0%,#173748 48%,#263d40 100%);
-}
-.topbar{
-  background:
-    radial-gradient(ellipse at 78% 42%,rgb(249 231 197 / 27%),transparent 29%),
-    linear-gradient(105deg,#15394e 0%,#244753 54%,#5c5b4f 100%);
-}
-.navItemActive{
-  background:linear-gradient(100deg,rgb(250 232 197 / 27%),rgb(205 151 61 / 22%) 48%,rgb(34 74 87 / 54%));
-}
+/* Kart tabanli ekip paneli. */
+
 .teamPanel{
   border-color:#d1ad6a;
   background:
